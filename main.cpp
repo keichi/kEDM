@@ -17,31 +17,46 @@ void compute_knn_table(Kokkos::View<float *> ts,
 
     // Compute all-to-all distances
     // Flat parallel version
-    // Kokkos::parallel_for(L - (E - 1) * tau, KOKKOS_LAMBDA (const int i) {
-    //     for (int j = 0; j < L - (E - 1) * tau; j++) {
-    //         for (int e = 0; e < E; e++) {
-    //             auto diff = ts(i + e * tau) - ts(j + e * tau);
-    //             distances(i, j) = diff * diff;
-    //             indices(i, j) = j;
+    // Kokkos::parallel_for(
+    //     "calc_distances", L - (E - 1) * tau, KOKKOS_LAMBDA(const int i) {
+    //         for (int j = 0; j < L - (E - 1) * tau; j++) {
+    //             for (int e = 0; e < E; e++) {
+    //                 auto diff = ts(i + e * tau) - ts(j + e * tau);
+    //                 distances(i, j) = diff * diff;
+    //                 indices(i, j) = j;
+    //             }
     //         }
-    //     }
-    // });
+    //     });
 
     // Compute all-to-all distances
     // Nested parallel version
-    Kokkos::parallel_for(
-        "calc_distances", Kokkos::TeamPolicy<>(L - (E - 1) * tau, Kokkos::AUTO),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int i = member.league_rank();
+    // Kokkos::parallel_for(
+    //     "calc_distances", Kokkos::TeamPolicy<>(L - (E - 1) * tau, Kokkos::AUTO),
+    //     KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+    //         int i = member.league_rank();
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, L - (E - 1) * tau), [=](int j) {
-                    for (int e = 0; e < E; e++) {
-                        float diff = ts(i + e * tau) - ts(j + e * tau);
-                        distances(i, j) += diff * diff;
-                    }
-                    indices(i, j) = j;
-                });
+    //         Kokkos::parallel_for(
+    //             Kokkos::TeamThreadRange(member, L - (E - 1) * tau), [=](int j) {
+    //                 for (int e = 0; e < E; e++) {
+    //                     float diff = ts(i + e * tau) - ts(j + e * tau);
+    //                     distances(i, j) += diff * diff;
+    //                 }
+    //                 indices(i, j) = j;
+    //             });
+    //     });
+
+    // Compute all-to-all distances
+    // MDRange parallel version
+    Kokkos::parallel_for(
+        "calc_distances",
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>(
+            {0, 0}, {L - (E - 1) * tau, L - (E - 1) * tau}),
+        KOKKOS_LAMBDA(int i, int j) {
+            for (int e = 0; e < E; e++) {
+                auto diff = ts(i + e * tau) - ts(j + e * tau);
+                distances(i, j) = diff * diff;
+                indices(i, j) = j;
+            }
         });
 
     // Partial sort each row
