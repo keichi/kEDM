@@ -103,15 +103,14 @@ void compute_knn_table(Kokkos::View<float *> ts,
 }
 
 void compute_knn_tables(Kokkos::View<float *> ts, const int E_max,
-                        const int tau)
+                        const int tau,
+                        std::vector<Kokkos::View<float **>> &distances_all,
+                        std::vector<Kokkos::View<unsigned int **>> &indices_all)
 {
     const int L = ts.extent(0);
 
     Kokkos::View<float **> distances_tmp("distances_tmp", L, L);
     Kokkos::View<unsigned int **> indices_tmp("indices_tmp", L, L);
-
-    std::vector<Kokkos::View<float **>> distances_all;
-    std::vector<Kokkos::View<unsigned int **>> indices_all;
 
     for (int E = 1; E <= E_max; E++) {
         Kokkos::Timer timer;
@@ -141,26 +140,73 @@ void compute_knn_tables(Kokkos::View<float *> ts, const int E_max,
     }
 }
 
+void lookup(Kokkos::View<float **> ds, Kokkos::View<unsigned int *> targets,
+            Kokkos::View<float **> distances,
+            Kokkos::View<unsigned int **> indices, const int E)
+{
+    Kokkos::Timer timer;
+
+    Kokkos::parallel_for(
+        "lookup", Kokkos::TeamPolicy<>(targets.extent(0), Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int i = member.league_rank();
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, distances.extent(0)), [=](size_t j) {
+                    float pred = 0.0f;
+
+                    for (int e = 0; e < E; e++) {
+                        pred += ds(indices(j, e), targets(i)) * indices(j, e);
+                    }
+                });
+        });
+
+    std::cout << "elapsed: " << timer.seconds() << " s" << std::endl;
+}
+
 void run()
 {
     const int L = 10000;
+    const int N = 10000;
 
     Kokkos::View<float *> ts("ts", L);
+    Kokkos::View<float **> ds("dataset", L, N);
+    Kokkos::View<unsigned int *> targets("ts", N);
+
     Kokkos::View<float *>::HostMirror h_ts = Kokkos::create_mirror_view(ts);
+    Kokkos::View<float **>::HostMirror h_ds = Kokkos::create_mirror_view(ds);
+    Kokkos::View<unsigned int *>::HostMirror h_targets =
+        Kokkos::create_mirror_view(targets);
 
     std::random_device rd;
     std::default_random_engine engine(rd());
     std::uniform_real_distribution<float> unif(-1.0f, 1.0f);
 
-    for (size_t i = 0; i < ts.extent(0); i++) {
+    for (size_t i = 0; i < h_ts.extent(0); i++) {
         h_ts(i) = unif(engine);
     }
 
+    for (size_t i = 0; i < h_ds.extent(0); i++) {
+        for (size_t j = 0; j < h_ds.extent(1); j++) {
+            h_ds(i, j) = unif(engine);
+        }
+    }
+
+    for (size_t i = 0; i < h_targets.extent(0); i++) {
+        h_targets(i) = i;
+    }
+
     Kokkos::deep_copy(ts, h_ts);
+    Kokkos::deep_copy(ds, h_ds);
+    Kokkos::deep_copy(targets, h_targets);
+
+    std::vector<Kokkos::View<float **>> distances_all;
+    std::vector<Kokkos::View<unsigned int **>> indices_all;
 
     Kokkos::Timer timer;
 
-    compute_knn_tables(ts, 20, 1);
+    compute_knn_tables(ts, 20, 1, distances_all, indices_all);
+    lookup(ds, targets, distances_all[20 - 1], indices_all[20 - 1], 20);
 
     Kokkos::fence();
 
