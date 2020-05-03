@@ -3,6 +3,10 @@
 
 #include <Kokkos_Core.hpp>
 
+using std::max;
+using std::min;
+using std::sqrt;
+
 void compute_knn_table(Kokkos::View<float *> ts,
                        Kokkos::View<float **> distances,
                        Kokkos::View<unsigned int **> indices, const int E,
@@ -26,7 +30,7 @@ void compute_knn_table(Kokkos::View<float *> ts,
     // Compute all-to-all distances
     // Nested parallel version
     Kokkos::parallel_for(
-        "distances", Kokkos::TeamPolicy<>(L - (E - 1) * tau, Kokkos::AUTO),
+        "calc_distances", Kokkos::TeamPolicy<>(L - (E - 1) * tau, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
 
@@ -42,7 +46,7 @@ void compute_knn_table(Kokkos::View<float *> ts,
 
     // Partial sort each row
     Kokkos::parallel_for(
-        "sorting", L - (E - 1) * tau, KOKKOS_LAMBDA(const int i) {
+        "sort", L - (E - 1) * tau, KOKKOS_LAMBDA(const int i) {
             for (int j = 1; j < L - (E - 1) * tau; j++) {
                 float cur_dist = distances(i, j);
                 unsigned int cur_idx = indices(i, j);
@@ -54,7 +58,7 @@ void compute_knn_table(Kokkos::View<float *> ts,
 
                 int k;
                 // Shift elements until the insertion point is found
-                for (k = std::min(j - 1, top_k - 1); k > 0; k--) {
+                for (k = min(j - 1, top_k - 1); k > 0; k--) {
                     if (distances(i, k - 1) <= cur_dist) {
                         break;
                     }
@@ -83,8 +87,8 @@ void compute_knn_table(Kokkos::View<float *> ts,
             for (int j = 0; j < top_k; j++) {
                 float dist = sqrt(distances(i, j));
 
-                min_dist = std::min(min_dist, dist);
-                max_dist = std::max(max_dist, dist);
+                min_dist = min(min_dist, dist);
+                max_dist = max(max_dist, dist);
 
                 distances(i, j) = dist;
             }
@@ -100,7 +104,7 @@ void compute_knn_table(Kokkos::View<float *> ts,
                     weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
                 }
 
-                float weight = std::max(weighted_dist, MIN_WEIGHT);
+                float weight = max(weighted_dist, MIN_WEIGHT);
 
                 distances(i, j) = weight;
 
