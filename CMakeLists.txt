@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(kokkos-edm)
 
-add_executable(edm main.cpp)
+add_executable(edm src/main.cpp)
 
 find_package(Kokkos REQUIRED)
 
