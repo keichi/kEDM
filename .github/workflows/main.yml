@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install kokkos
+    - name: Build and install Kokkos
       run: |
         git clone https://github.com/kokkos/kokkos.git
         cd kokkos
@@ -26,3 +26,12 @@ jobs:
           -DKokkos_ENABLE_OPENMP=ON ..
         make -j $(nproc)
         make install
+    - name: Build kEDM
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make -j $(nproc)
+    - name: Run kEDM unit tests
+      run: ctest
+      working-directory: build
