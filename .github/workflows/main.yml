@@ -1,0 +1,28 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install kokkos
+      run: |
+        git clone https://github.com/kokkos/kokkos.git
+        cd kokkos
+        git checkout 3.1.00
+        mkdir build
+        cd build
+        cmake \
+          -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
+          -DKokkos_ENABLE_SERIAL=ON \
+          -DKokkos_ENABLE_OPENMP=ON ..
+        make -j $(nproc)
+        make install
