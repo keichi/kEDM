@@ -6,8 +6,12 @@
 #include "../src/knn.hpp"
 #include "../src/types.hpp"
 
-void test_knn_common(const int E, const int tau, const int Tp, const int top_k)
+void test_knn_common(int E)
 {
+    const auto tau = 1;
+    const auto Tp = 0;
+    const auto top_k = 4;
+
     edm::Dataset ds = edm::load_csv("knn_test_data.csv");
     edm::TimeSeries ts = edm::TimeSeries(ds, Kokkos::ALL, 0);
 
@@ -32,13 +36,24 @@ void test_knn_common(const int E, const int tau, const int Tp, const int top_k)
                   doctest::Approx(validation(row, col)));
         }
     }
+
+    edm::normalize_lut(out);
+    for (auto row = 0u; row < out.distances.extent(0); row++) {
+        auto sum = 0.0f;
+        for (auto col = 0u; col < out.distances.extent(1); col++) {
+            sum += out.distances(row, col);
+        }
+
+        CHECK(sum == doctest::Approx(1.0f));
+    }
+
 }
 
 TEST_CASE("Compute kNN table for E=2")
 {
     Kokkos::initialize();
 
-    test_knn_common(2, 1, 0, 4);
+    test_knn_common(2);
 
     Kokkos::finalize();
 }
@@ -47,7 +62,7 @@ TEST_CASE("Compute kNN table for E=3")
 {
     Kokkos::initialize();
 
-    test_knn_common(3, 1, 0, 4);
+    test_knn_common(3);
 
     Kokkos::finalize();
 }
@@ -56,7 +71,7 @@ TEST_CASE("Compute kNN table for E=4")
 {
     Kokkos::initialize();
 
-    test_knn_common(4, 1, 0, 4);
+    test_knn_common(4);
 
     Kokkos::finalize();
 }
@@ -65,7 +80,7 @@ TEST_CASE("Compute kNN table for E=5")
 {
     Kokkos::initialize();
 
-    test_knn_common(5, 1, 0, 4);
+    test_knn_common(5);
 
     Kokkos::finalize();
 }

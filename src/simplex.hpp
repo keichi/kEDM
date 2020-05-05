@@ -3,32 +3,26 @@
 
 #include <Kokkos_Core.hpp>
 
-namespace edm {
-
-void lookup(Kokkos::View<float **> ds, Kokkos::View<unsigned int *> targets,
-            Kokkos::View<float **> distances,
-            Kokkos::View<unsigned int **> indices, const int E)
+namespace edm
 {
-    Kokkos::Timer timer;
+
+void simplex(TimeSeries prediction, const TimeSeries target, const LUT &lut)
+{
+    const auto distances = lut.distances;
+    const auto indices = lut.indices;
 
     Kokkos::parallel_for(
-        "lookup", Kokkos::TeamPolicy<>(targets.extent(0), Kokkos::AUTO),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int i = member.league_rank();
+        "lookup", distances.extent(0), KOKKOS_LAMBDA(int i) {
+            auto pred = 0.0f;
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, distances.extent(0)), [=](size_t j) {
-                    float pred = 0.0f;
+            for (auto j = 0u; j < distances.extent(1); j++) {
+                pred += target(indices(i, j)) * distances(i, j);
+            }
 
-                    for (int e = 0; e < E; e++) {
-                        pred += ds(indices(j, e), targets(i)) * indices(j, e);
-                    }
-                });
+            prediction(i) = pred;
         });
-
-    std::cout << "elapsed: " << timer.seconds() << " s" << std::endl;
 }
 
-}
+} // namespace edm
 
 #endif

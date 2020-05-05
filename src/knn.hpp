@@ -36,26 +36,26 @@ public:
         Kokkos::parallel_for(
             "calc_distances",
             Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0},
-                                                   {n_library, n_target}),
+                                                   {n_target, n_library}),
             KOKKOS_LAMBDA(int i, int j) {
                 distances(i, j) = 0.0f;
 
                 for (auto e = 0u; e < E; e++) {
                     const auto diff =
-                        library(i + e * tau) - target(j + e * tau);
+                        target(i + e * tau) - library(j + e * tau);
                     distances(i, j) += diff * diff;
                 }
 
                 indices(i, j) = j;
             });
 
-        // Ingore degenerate neighbors
+        // Ignore degenerate neighbors
         Kokkos::parallel_for(
             "ignore_degenerates",
             Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0},
-                                                   {n_library, n_target}),
+                                                   {n_target, n_library}),
             KOKKOS_LAMBDA(int i, int j) {
-                if (library.data() + i == target.data() + j) {
+                if (target.data() + i == library.data() + j) {
                     distances(i, j) = FLT_MAX;
                 }
             });
@@ -130,7 +130,7 @@ void normalize_lut(LUT &lut)
             auto max_dist = 0.0f;
 
             for (auto j = 0u; j < top_k; j++) {
-                const auto dist = sqrt(distances(i, j));
+                const auto dist = distances(i, j);
 
                 min_dist = min(min_dist, dist);
                 max_dist = max(max_dist, dist);
