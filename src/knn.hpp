@@ -8,6 +8,8 @@
 namespace edm
 {
 
+const auto MIN_WEIGHT = 1e-6f;
+
 class NearestNeighbors
 {
     LUT _cache;
@@ -16,16 +18,15 @@ public:
     NearestNeighbors(LUT cache) : _cache(cache) {}
 
     void run(const TimeSeries library, const TimeSeries target, LUT &lut,
-             const uint32_t E, const uint32_t tau, const uint32_t Tp,
-             const uint32_t top_k)
+             uint32_t E, uint32_t tau, uint32_t Tp, uint32_t top_k)
     {
         using std::max;
         using std::min;
 
         const auto shift = (E - 1) * tau + Tp;
 
-        const auto n_library = library.size() - shift;
-        const auto n_target = target.size() - shift + Tp;
+        const uint32_t n_library = library.size() - shift;
+        const uint32_t n_target = target.size() - shift + Tp;
 
         auto distances = _cache.distances;
         auto indices = _cache.indices;
@@ -40,7 +41,8 @@ public:
                 distances(i, j) = 0.0f;
 
                 for (auto e = 0u; e < E; e++) {
-                    auto diff = library(i + e * tau) - target(j + e * tau);
+                    const auto diff =
+                        library(i + e * tau) - target(j + e * tau);
                     distances(i, j) += diff * diff;
                 }
 
@@ -89,24 +91,23 @@ public:
                 }
             });
 
-        // Take square root of distances
+        // Compute L2 norms from SSDs and shift indices
         Kokkos::parallel_for(
-            "square_root",
-            Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0},
-                                                   {static_cast<uint32_t>(n_target), top_k}),
+            "calc_norms",
+            Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target, top_k}),
             KOKKOS_LAMBDA(int i, int j) {
                 distances(i, j) = sqrt(distances(i, j));
+                indices(i, j) += shift;
             });
 
         // Copy LUT from cache to output
-        Kokkos::deep_copy(
-            lut.distances,
-            Kokkos::subview(distances, std::make_pair(0ul, n_target),
-                            std::make_pair(0ul, static_cast<size_t>(top_k))));
-        Kokkos::deep_copy(
-            lut.indices,
-            Kokkos::subview(indices, std::make_pair(0ul, n_target),
-                            std::make_pair(0ul, static_cast<size_t>(top_k))));
+        Kokkos::deep_copy(lut.distances,
+                          Kokkos::subview(distances,
+                                          std::make_pair(0u, n_target),
+                                          std::make_pair(0u, top_k)));
+        Kokkos::deep_copy(lut.indices,
+                          Kokkos::subview(indices, std::make_pair(0u, n_target),
+                                          std::make_pair(0u, top_k)));
     }
 };
 
@@ -123,8 +124,7 @@ void normalize_lut(LUT &lut)
 
     // Normalize lookup table
     Kokkos::parallel_for(
-        "normalize", L, KOKKOS_LAMBDA(const int i) {
-            const auto MIN_WEIGHT = 1e-6f;
+        "normalize_distances", L, KOKKOS_LAMBDA(int i) {
             auto sum_weights = 0.0f;
             auto min_dist = FLT_MAX;
             auto max_dist = 0.0f;
