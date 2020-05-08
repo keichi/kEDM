@@ -8,31 +8,34 @@
 #include "../src/simplex.hpp"
 #include "../src/types.hpp"
 
+namespace edm
+{
+
 void simplex_test_common(uint32_t E)
 {
     const uint32_t tau = 1;
     const auto Tp = 1;
 
-    edm::Dataset ds1 = edm::load_csv("simplex_test_data.csv");
-    edm::Dataset ds2 =
-        edm::load_csv("simplex_test_validation_E" + std::to_string(E) + ".csv");
+    Dataset ds1 = load_csv("simplex_test_data.csv");
+    Dataset ds2 =
+        load_csv("simplex_test_validation_E" + std::to_string(E) + ".csv");
 
-    edm::TimeSeries ts(ds1, Kokkos::ALL, 0);
-    edm::TimeSeries library(ts, std::make_pair(0ul, ts.size() / 2));
-    edm::TimeSeries target(ts, std::make_pair(ts.size() / 2 - (E - 1) * tau,
-                                              ts.size() - (E - 1) * tau));
+    TimeSeries ts(ds1, Kokkos::ALL, 0);
+    TimeSeries library(ts, std::make_pair(0ul, ts.size() / 2));
+    TimeSeries target(ts, std::make_pair(ts.size() / 2 - (E - 1) * tau,
+                                         ts.size() - (E - 1) * tau));
 
-    edm::TimeSeries valid_prediction(ds2, Kokkos::ALL, 0);
+    TimeSeries valid_prediction(ds2, Kokkos::ALL, 0);
 
-    edm::LUT cache(target.size(), library.size());
-    edm::NearestNeighbors knn(cache);
+    LUT cache(target.size(), library.size());
+    NearestNeighbors knn(cache);
 
-    edm::LUT lut(target.size() - (E - 1) * tau, E + 1);
+    LUT lut(target.size() - (E - 1) * tau, E + 1);
     knn.run(library, target, lut, E, tau, Tp, E + 1);
-    edm::normalize_lut(lut);
+    normalize_lut(lut);
 
-    edm::TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
-    edm::simplex(prediction, library, lut);
+    TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
+    simplex(prediction, library, lut);
 
     for (size_t i = 0; i < prediction.size(); i++) {
         CHECK(prediction(i) ==
@@ -76,7 +79,7 @@ TEST_CASE("Compute simplex projection for E=5")
     Kokkos::finalize();
 }
 
-float corrcoef(const edm::TimeSeries x, const edm::TimeSeries y)
+float corrcoef(const TimeSeries x, const TimeSeries y)
 {
     const auto n = std::min(x.size(), y.size());
     auto mean_x = 0.0f, mean_y = 0.0f;
@@ -111,25 +114,24 @@ void embed_dim_test_common()
     const auto Tp = 1;
     const auto E_max = 20;
 
-    edm::Dataset ds1 = edm::load_csv("TentMap_rEDM.csv");
-    edm::Dataset ds2 = edm::load_csv("TentMap_rEDM_validation.csv");
+    Dataset ds1 = load_csv("TentMap_rEDM.csv");
+    Dataset ds2 = load_csv("TentMap_rEDM_validation.csv");
 
     std::vector<float> rho(E_max);
     std::vector<float> rho_valid(E_max);
 
-    edm::LUT cache(400, 100);
+    LUT cache(400, 100);
 
     for (auto E = 1; E <= E_max; E++) {
-        edm::TimeSeries ts(ds1, Kokkos::ALL(), 1);
-        edm::TimeSeries library(ts, std::make_pair(0ul, 100ul));
-        edm::TimeSeries target(ts,
-                               std::make_pair(200ul - (E - 1) * tau, 500ul));
+        TimeSeries ts(ds1, Kokkos::ALL(), 1);
+        TimeSeries library(ts, std::make_pair(0ul, 100ul));
+        TimeSeries target(ts, std::make_pair(200ul - (E - 1) * tau, 500ul));
 
-        edm::LUT lut(target.size() - (E - 1) * tau, E + 1);
+        LUT lut(target.size() - (E - 1) * tau, E + 1);
 
-        edm::NearestNeighbors knn(cache);
+        NearestNeighbors knn(cache);
         knn.run(library, target, lut, E, tau, Tp, E + 1);
-        edm::normalize_lut(lut);
+        normalize_lut(lut);
 
         for (auto i = 0u; i < lut.distances.extent(0); i++) {
             for (auto j = 0u; j < lut.distances.extent(1); j++) {
@@ -139,12 +141,11 @@ void embed_dim_test_common()
             std::cout << std::endl;
         }
 
-        edm::TimeSeries prediction("prediction",
-                                   target.size() - (E - 1) * tau - Tp);
-        edm::TimeSeries shifted_target(
+        TimeSeries prediction("prediction", target.size() - (E - 1) * tau - Tp);
+        TimeSeries shifted_target(
             target, std::make_pair((E - 1) * tau + Tp, target.size()));
 
-        edm::simplex(prediction, library, lut);
+        simplex(prediction, library, lut);
 
         rho[E - 1] = corrcoef(prediction, shifted_target);
         rho_valid[E - 1] = ds2(E - 1, 1);
@@ -168,3 +169,5 @@ TEST_CASE("Compute optimal embedding dimension")
 
     Kokkos::finalize();
 }
+
+} // namespace edm

@@ -6,23 +6,26 @@
 #include "../src/knn.hpp"
 #include "../src/types.hpp"
 
+namespace edm
+{
+
 void test_knn_common(int E)
 {
     const auto tau = 1;
     const auto Tp = 0;
     const auto top_k = 4;
 
-    edm::Dataset ds = edm::load_csv("knn_test_data.csv");
-    edm::TimeSeries ts(ds, Kokkos::ALL, 0);
+    Dataset ds = load_csv("knn_test_data.csv");
+    TimeSeries ts(ds, Kokkos::ALL, 0);
 
-    edm::LUT cache(ts.size(), ts.size());
-    edm::NearestNeighbors knn(cache);
+    LUT cache(ts.size(), ts.size());
+    NearestNeighbors knn(cache);
 
-    edm::LUT out(ts.size() - (E - 1) * tau, top_k);
+    LUT out(ts.size() - (E - 1) * tau, top_k);
     knn.run(ts, ts, out, E, tau, Tp, top_k);
 
-    edm::Dataset validation =
-        edm::load_csv("knn_test_validation_E" + std::to_string(E) + ".csv");
+    Dataset validation =
+        load_csv("knn_test_validation_E" + std::to_string(E) + ".csv");
 
     CHECK(out.distances.extent(0) == validation.extent(0));
     CHECK(out.distances.extent(1) == validation.extent(1));
@@ -37,7 +40,7 @@ void test_knn_common(int E)
         }
     }
 
-    edm::normalize_lut(out);
+    normalize_lut(out);
     for (auto row = 0u; row < out.distances.extent(0); row++) {
         auto sum = 0.0f;
         for (auto col = 0u; col < out.distances.extent(1); col++) {
@@ -46,7 +49,6 @@ void test_knn_common(int E)
 
         CHECK(sum == doctest::Approx(1.0f));
     }
-
 }
 
 TEST_CASE("Compute kNN table for E=2")
@@ -84,3 +86,5 @@ TEST_CASE("Compute kNN table for E=5")
 
     Kokkos::finalize();
 }
+
+} // namespace edm
