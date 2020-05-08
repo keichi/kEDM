@@ -5,6 +5,7 @@
 #include "../src/io.hpp"
 #include "../src/knn.hpp"
 #include "../src/simplex.hpp"
+#include "../src/stats.hpp"
 #include "../src/types.hpp"
 
 namespace edm
@@ -78,31 +79,6 @@ TEST_CASE("Compute simplex projection for E=5")
     Kokkos::finalize();
 }
 
-float corrcoef(const TimeSeries x, const TimeSeries y)
-{
-    const auto n = std::min(x.size(), y.size());
-    auto mean_x = 0.0f, mean_y = 0.0f;
-    auto sum_xy = 0.0f, sum_x2 = 0.0f, sum_y2 = 0.0f;
-
-    for (auto i = 0u; i < n; i++) {
-        mean_x += x[i];
-        mean_y += y[i];
-    }
-    mean_x /= n;
-    mean_y /= n;
-
-    for (auto i = 0u; i < n; i++) {
-        auto diff_x = x[i] - mean_x;
-        auto diff_y = y[i] - mean_y;
-
-        sum_xy += diff_x * diff_y;
-        sum_x2 += diff_x * diff_x;
-        sum_y2 += diff_y * diff_y;
-    }
-
-    return sum_xy / std::sqrt(sum_x2 * sum_y2);
-}
-
 // Test data is generated using pyEDM with the following parameters:
 // pyEDM.EmbedDimension(dataFrame=pyEDM.sampleData["TentMap"], lib="1 100",
 //                      pred="201 500", columns="TentMap", target="TentMap",
@@ -131,14 +107,6 @@ void embed_dim_test_common()
         NearestNeighbors knn(cache);
         knn.run(library, target, lut, E, tau, Tp, E + 1);
         normalize_lut(lut);
-
-        for (auto i = 0u; i < lut.distances.extent(0); i++) {
-            for (auto j = 0u; j < lut.distances.extent(1); j++) {
-                std::cout << lut.distances(i, j) << " ";
-            }
-
-            std::cout << std::endl;
-        }
 
         TimeSeries prediction("prediction", target.size() - (E - 1) * tau - Tp);
         TimeSeries shifted_target(
