@@ -15,17 +15,20 @@ using Dataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
 using TimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
 
 struct LUT {
-    Kokkos::View<float **, DevSpace> distances;
-    Kokkos::View<uint32_t **, DevSpace> indices;
+    using Distances = Kokkos::View<float **, DevSpace>;
+    using Indices = Kokkos::View<uint32_t **, DevSpace>;
+
+    Distances distances;
+    Indices indices;
 
     LUT(uint32_t n_rows, uint32_t n_columns)
     {
-        distances =
-            Kokkos::View<float **, DevSpace>("distances", n_rows, n_columns);
-        indices =
-            Kokkos::View<uint32_t **, DevSpace>("indices", n_rows, n_columns);
+        distances = Distances("distances", n_rows, n_columns);
+        indices = Indices("indices", n_rows, n_columns);
     }
 };
+
+using CrossMap = Kokkos::View<float **, DevSpace>;
 
 } // namespace edm
 

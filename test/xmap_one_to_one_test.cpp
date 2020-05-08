@@ -15,7 +15,6 @@ namespace edm
 // pyEDM.Simplex(dataFrame=pyEDM.sampleData["sardine_anchovy_sst"],
 //               E=3, Tp=1, columns="anchovy", target="np_sst", lib="1 76",
 //               pred="1 76", verbose=True)
-
 void cross_mapping_test_common(uint32_t E)
 {
     const auto tau = 1;

@@ -4,6 +4,9 @@
 #include <fstream>
 #include <vector>
 
+#include <highfive/H5DataSet.hpp>
+#include <highfive/H5File.hpp>
+
 #include "types.hpp"
 
 namespace edm
@@ -56,6 +59,37 @@ Dataset load_csv(const std::string &path)
     }
 
     Kokkos::deep_copy(ds, mirror);
+
+    return ds;
+}
+
+Dataset load_hdf5(const std::string &path, const std::string &ds_name)
+{
+    const HighFive::File file(path, HighFive::File::ReadOnly);
+    const auto dataset = file.getDataSet(ds_name);
+    const auto shape = dataset.getDimensions();
+
+    auto n_rows = shape[0];
+    auto n_columns = shape[1];
+
+    const size_t MAX_CHUNK_SIZE = 100;
+
+    std::vector<float> rows(MAX_CHUNK_SIZE * n_columns);
+
+    auto ds = Dataset("dataset", n_rows, n_columns);
+    auto mirror = Kokkos::create_mirror_view(ds);
+
+    for (auto i = 0u; i < n_rows; i += MAX_CHUNK_SIZE) {
+        const auto chunk_size = std::min(MAX_CHUNK_SIZE, n_rows - i);
+
+        dataset.select({i, 0}, {chunk_size, n_columns}).read(rows.data());
+
+        for (auto j = 0u; j < chunk_size; j++) {
+            for (auto k = 0u; k < n_columns; k++) {
+                ds(i + j, k) = rows[j * n_columns + k];
+            }
+        }
+    }
 
     return ds;
 }
