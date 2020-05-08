@@ -123,7 +123,7 @@ void embed_dim_test_common()
     LUT cache(400, 100);
 
     for (auto E = 1; E <= E_max; E++) {
-        TimeSeries ts(ds1, Kokkos::ALL(), 1);
+        TimeSeries ts(ds1, Kokkos::ALL, 1);
         TimeSeries library(ts, std::make_pair(0ul, 100ul));
         TimeSeries target(ts, std::make_pair(200ul - (E - 1) * tau, 500ul));
 
