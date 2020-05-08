@@ -1,6 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <cmath>
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -49,7 +48,7 @@ void cross_mapping_test_common(uint32_t E)
     }
 }
 
-TEST_CASE("Compute one-to-one cross mapping (E=2)")
+TEST_CASE("Compute one-to-one cross mapping for E=2")
 {
     Kokkos::initialize();
 
@@ -58,7 +57,7 @@ TEST_CASE("Compute one-to-one cross mapping (E=2)")
     Kokkos::finalize();
 }
 
-TEST_CASE("Compute one-to-one cross mapping (E=3)")
+TEST_CASE("Compute one-to-one cross mapping for E=3")
 {
     Kokkos::initialize();
 
@@ -67,7 +66,7 @@ TEST_CASE("Compute one-to-one cross mapping (E=3)")
     Kokkos::finalize();
 }
 
-TEST_CASE("Compute one-to-one cross mapping (E=4)")
+TEST_CASE("Compute one-to-one cross mapping for E=4")
 {
     Kokkos::initialize();
 
@@ -76,7 +75,7 @@ TEST_CASE("Compute one-to-one cross mapping (E=4)")
     Kokkos::finalize();
 }
 
-TEST_CASE("Compute one-to-one cross mapping (E=5)")
+TEST_CASE("Compute one-to-one cross mapping for E=5")
 {
     Kokkos::initialize();
 

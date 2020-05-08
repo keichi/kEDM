@@ -1,6 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include <cmath>
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
