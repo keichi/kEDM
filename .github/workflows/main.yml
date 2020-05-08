@@ -38,5 +38,6 @@ jobs:
         make -j $(nproc)
     - name: Run kEDM unit tests
       run: ctest
-      env: OMP_PROC_BIND=false
+      env:
+        OMP_PROC_BIND: false
       working-directory: build
