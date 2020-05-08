@@ -1,5 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
+#include <cmath>
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -75,54 +76,95 @@ TEST_CASE("Compute simplex projection for E=5")
     Kokkos::finalize();
 }
 
+float corrcoef(const edm::TimeSeries x, const edm::TimeSeries y)
+{
+    const auto n = std::min(x.size(), y.size());
+    auto mean_x = 0.0f, mean_y = 0.0f;
+    auto sum_xy = 0.0f, sum_x2 = 0.0f, sum_y2 = 0.0f;
+
+    for (auto i = 0u; i < n; i++) {
+        mean_x += x[i];
+        mean_y += y[i];
+    }
+    mean_x /= n;
+    mean_y /= n;
+
+    for (auto i = 0u; i < n; i++) {
+        auto diff_x = x[i] - mean_x;
+        auto diff_y = y[i] - mean_y;
+
+        sum_xy += diff_x * diff_y;
+        sum_x2 += diff_x * diff_x;
+        sum_y2 += diff_y * diff_y;
+    }
+
+    return sum_xy / std::sqrt(sum_x2 * sum_y2);
+}
+
 // Test data is generated using pyEDM with the following parameters:
 // pyEDM.EmbedDimension(dataFrame=pyEDM.sampleData["TentMap"], lib="1 100",
 //                      pred="201 500", columns="TentMap", target="TentMap",
 //                      maxE=20)
-// template <class T, class U> void embed_dim_test_common()
-// {
-//     const auto tau = 1;
-//     const auto Tp = 1;
-//     const auto max_E = 20;
-//
-//     DataFrame df1, df2;
-//     df1.load_csv("TentMap_rEDM.csv");
-//     df2.load_csv("TentMap_rEDM_validation.csv");
-//
-//     auto knn = std::unique_ptr<NearestNeighbors>(new T(tau, Tp, true));
-//     auto simplex = std::unique_ptr<Simplex>(new U(tau, Tp, true));
-//
-//     std::vector<float> buffer;
-//     LUT lut;
-//     std::vector<float> rho(max_E);
-//     std::vector<float> rho_valid(max_E);
-//
-//     for (auto E = 1; E <= max_E; E++) {
-//         const auto ts = df1.columns[1];
-//         const auto library = ts.slice(0, 100);
-//         const auto target = ts.slice(200 - (E - 1) * tau, 500);
-//
-//         knn->compute_lut(lut, library, target, E);
-//         lut.normalize();
-//
-//         const auto prediction = simplex->predict(buffer, lut, library, E);
-//         const auto shifted_target = simplex->shift_target(target, E);
-//
-//         rho[E - 1] = corrcoef(prediction, shifted_target);
-//         rho_valid[E - 1] = df2.columns[1][E - 1];
-//
-//         // Check correlation coefficient
-//         REQUIRE(rho[E - 1] == Approx(rho_valid[E - 1]));
-//     }
-//
-//     const auto it = std::max_element(rho.begin(), rho.end());
-//     const auto it2 = std::max_element(rho_valid.begin(), rho_valid.end());
-//
-//     // Check optimal embedding dimension
-//     REQUIRE(it - rho.begin() == it2 - rho_valid.begin());
-// }
-//
-// TEST_CASE("Find optimal embedding dimension (CPU)", "[simplex][cpu]")
-// {
-//     embed_dim_test_common<NearestNeighborsCPU, SimplexCPU>();
-// }
+void embed_dim_test_common()
+{
+    const size_t tau = 1;
+    const auto Tp = 1;
+    const auto E_max = 20;
+
+    edm::Dataset ds1 = edm::load_csv("TentMap_rEDM.csv");
+    edm::Dataset ds2 = edm::load_csv("TentMap_rEDM_validation.csv");
+
+    std::vector<float> rho(E_max);
+    std::vector<float> rho_valid(E_max);
+
+    edm::LUT cache(400, 100);
+
+    for (auto E = 1; E <= E_max; E++) {
+        edm::TimeSeries ts(ds1, Kokkos::ALL(), 1);
+        edm::TimeSeries library(ts, std::make_pair(0ul, 100ul));
+        edm::TimeSeries target(ts,
+                               std::make_pair(200ul - (E - 1) * tau, 500ul));
+
+        edm::LUT lut(target.size() - (E - 1) * tau, E + 1);
+
+        edm::NearestNeighbors knn(cache);
+        knn.run(library, target, lut, E, tau, Tp, E + 1);
+        edm::normalize_lut(lut);
+
+        for (auto i = 0u; i < lut.distances.extent(0); i++) {
+            for (auto j = 0u; j < lut.distances.extent(1); j++) {
+                std::cout << lut.distances(i, j) << " ";
+            }
+
+            std::cout << std::endl;
+        }
+
+        edm::TimeSeries prediction("prediction",
+                                   target.size() - (E - 1) * tau - Tp);
+        edm::TimeSeries shifted_target(
+            target, std::make_pair((E - 1) * tau + Tp, target.size()));
+
+        edm::simplex(prediction, library, lut);
+
+        rho[E - 1] = corrcoef(prediction, shifted_target);
+        rho_valid[E - 1] = ds2(E - 1, 1);
+
+        // Check correlation coefficient
+        CHECK(rho[E - 1] == doctest::Approx(rho_valid[E - 1]));
+    }
+
+    const auto it = std::max_element(rho.begin(), rho.end());
+    const auto it2 = std::max_element(rho_valid.begin(), rho_valid.end());
+
+    // Check optimal embedding dimension
+    CHECK(it - rho.begin() == it2 - rho_valid.begin());
+}
+
+TEST_CASE("Compute optimal embedding dimension")
+{
+    Kokkos::initialize();
+
+    embed_dim_test_common();
+
+    Kokkos::finalize();
+}

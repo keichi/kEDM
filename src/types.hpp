@@ -9,8 +9,10 @@ namespace edm
 using DevSpace = Kokkos::DefaultExecutionSpace;
 using HostSpace = Kokkos::HostSpace;
 
-using TimeSeries = Kokkos::View<float *, DevSpace>;
-using Dataset = Kokkos::View<float **, DevSpace>;
+// Dataset is alyways left layout regardless of the backend
+using Dataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
+// TimeSeries also has left layout even though it's 1D
+using TimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
 
 struct LUT {
     Kokkos::View<float **, DevSpace> distances;

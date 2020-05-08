@@ -13,7 +13,7 @@ void test_knn_common(int E)
     const auto top_k = 4;
 
     edm::Dataset ds = edm::load_csv("knn_test_data.csv");
-    edm::TimeSeries ts = edm::TimeSeries(ds, Kokkos::ALL, 0);
+    edm::TimeSeries ts(ds, Kokkos::ALL, 0);
 
     edm::LUT cache(ts.size(), ts.size());
     edm::NearestNeighbors knn(cache);
