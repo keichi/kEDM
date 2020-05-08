@@ -7,6 +7,13 @@ add_compile_options(-Wall -Wextra -pedantic -Werror)
 # Kokkos
 find_package(Kokkos REQUIRED)
 
+# HDF5
+find_package(HDF5 REQUIRED)
+set(USE_BOOST OFF)
+set(HIGHFIVE_UNIT_TESTS OFF)
+set(HIGHFIVE_EXAMPLES OFF)
+add_subdirectory(src/thirdparty/highfive)
+
 # Tests
 enable_testing()
 

@@ -1,3 +1,6 @@
 [submodule "src/thirdparty/doctest"]
 	path = src/thirdparty/doctest
 	url = https://github.com/onqtam/doctest.git
+[submodule "src/thirdparty/highfive"]
+	path = src/thirdparty/highfive
+	url = https://github.com/BlueBrain/HighFive.git
