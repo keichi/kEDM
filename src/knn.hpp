@@ -1,6 +1,8 @@
 #ifndef __KNN_HPP__
 #define __KNN_HPP__
 
+#include <cassert>
+
 #include <Kokkos_Core.hpp>
 
 #include "types.hpp"
@@ -17,21 +19,27 @@ class NearestNeighbors
 public:
     NearestNeighbors(LUT cache) : _cache(cache) {}
 
-    void run(const TimeSeries library, const TimeSeries target, LUT &lut,
-             uint32_t E, uint32_t tau, uint32_t Tp, uint32_t top_k)
+    void run(const TimeSeries library, const TimeSeries target, LUT &lut, int E,
+             int tau, int Tp, int top_k)
     {
 #ifndef KOKKOS_ENABLE_CUDA
         using std::max;
         using std::min;
 #endif
 
-        const auto shift = (E - 1) * tau + Tp;
+        assert(E > 0 && tau > 0 && Tp >= 0 && top_k > 0);
 
-        const uint32_t n_library = library.size() - shift;
-        const uint32_t n_target = target.size() - shift + Tp;
+        const int shift = (E - 1) * tau + Tp;
+        const int n_library = library.size() - shift;
+        const int n_target = target.size() - shift + Tp;
+
+        assert(n_library > 0 && n_target > 0);
 
         auto distances = _cache.distances;
         auto indices = _cache.indices;
+
+        assert(distances.extent(0) > n_target &&
+               distances.extent(1) > n_library);
 
         // Compute all-to-all distances
         // MDRange parallel version
@@ -42,9 +50,8 @@ public:
             KOKKOS_LAMBDA(int i, int j) {
                 distances(i, j) = 0.0f;
 
-                for (auto e = 0u; e < E; e++) {
-                    const auto diff =
-                        target(i + e * tau) - library(j + e * tau);
+                for (auto e = 0; e < E; e++) {
+                    auto diff = target(i + e * tau) - library(j + e * tau);
                     distances(i, j) += diff * diff;
                 }
 
@@ -65,7 +72,7 @@ public:
         // Partially sort each row
         Kokkos::parallel_for(
             "partial_sort", n_target, KOKKOS_LAMBDA(const int i) {
-                for (auto j = 1u; j < n_library; j++) {
+                for (auto j = 1; j < n_library; j++) {
                     auto cur_dist = distances(i, j);
                     auto cur_idx = indices(i, j);
 
@@ -75,7 +82,7 @@ public:
                         continue;
                     }
 
-                    auto k = 0u;
+                    auto k = 0;
                     // Shift elements until the insertion point is found
                     for (k = min(j, top_k - 1); k > 0; k--) {
                         if (distances(i, k - 1) <= cur_dist) {
@@ -105,17 +112,18 @@ public:
         // Copy LUT from cache to output
         Kokkos::deep_copy(lut.distances,
                           Kokkos::subview(distances,
-                                          std::make_pair(0u, n_target),
-                                          std::make_pair(0u, top_k)));
+                                          std::make_pair(0, n_target),
+                                          std::make_pair(0, top_k)));
         Kokkos::deep_copy(lut.indices,
-                          Kokkos::subview(indices, std::make_pair(0u, n_target),
-                                          std::make_pair(0u, top_k)));
+                          Kokkos::subview(indices, std::make_pair(0, n_target),
+                                          std::make_pair(0, top_k)));
     }
 };
 
 void normalize_lut(LUT &lut)
 {
 #ifndef KOKKOS_ENABLE_CUDA
+    using std::exp;
     using std::max;
     using std::min;
     using std::sqrt;
@@ -123,8 +131,8 @@ void normalize_lut(LUT &lut)
 
     auto distances = lut.distances;
     auto indices = lut.indices;
-    const auto L = distances.extent(0);
-    const auto top_k = distances.extent(1);
+    const int L = distances.extent(0);
+    const int top_k = distances.extent(1);
 
     // Normalize lookup table
     Kokkos::parallel_for(
@@ -133,14 +141,14 @@ void normalize_lut(LUT &lut)
             auto min_dist = FLT_MAX;
             auto max_dist = 0.0f;
 
-            for (auto j = 0u; j < top_k; j++) {
+            for (auto j = 0; j < top_k; j++) {
                 const auto dist = distances(i, j);
 
                 min_dist = min(min_dist, dist);
                 max_dist = max(max_dist, dist);
             }
 
-            for (auto j = 0u; j < top_k; j++) {
+            for (auto j = 0; j < top_k; j++) {
                 const auto dist = distances(i, j);
 
                 auto weighted_dist = 0.0f;
@@ -158,7 +166,7 @@ void normalize_lut(LUT &lut)
                 sum_weights += weight;
             }
 
-            for (auto j = 0u; j < top_k; j++) {
+            for (auto j = 0; j < top_k; j++) {
                 distances(i, j) /= sum_weights;
             }
         });

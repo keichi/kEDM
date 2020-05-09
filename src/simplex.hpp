@@ -11,6 +11,8 @@ void simplex(TimeSeries prediction, const TimeSeries target, const LUT &lut)
     const auto distances = lut.distances;
     const auto indices = lut.indices;
 
+    assert(prediction.size() == distances.extent(0));
+
     Kokkos::parallel_for(
         "lookup", distances.extent(0), KOKKOS_LAMBDA(int i) {
             auto pred = 0.0f;

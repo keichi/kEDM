@@ -65,12 +65,12 @@ Dataset load_csv(const std::string &path)
 
 Dataset load_hdf5(const std::string &path, const std::string &ds_name)
 {
-    const HighFive::File file(path, HighFive::File::ReadOnly);
+    const auto file = HighFive::File(path, HighFive::File::ReadOnly);
     const auto dataset = file.getDataSet(ds_name);
     const auto shape = dataset.getDimensions();
 
-    auto n_rows = shape[0];
-    auto n_columns = shape[1];
+    size_t n_rows = shape[0];
+    size_t n_columns = shape[1];
 
     const size_t MAX_CHUNK_SIZE = 100;
 
@@ -82,7 +82,7 @@ Dataset load_hdf5(const std::string &path, const std::string &ds_name)
     for (auto i = 0u; i < n_rows; i += MAX_CHUNK_SIZE) {
         const auto chunk_size = std::min(MAX_CHUNK_SIZE, n_rows - i);
 
-        dataset.select({i, 0}, {chunk_size, n_columns}).read(rows.data());
+        dataset.select({i, 0u}, {chunk_size, n_columns}).read(rows.data());
 
         for (auto j = 0u; j < chunk_size; j++) {
             for (auto k = 0u; k < n_columns; k++) {

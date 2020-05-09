@@ -8,8 +8,8 @@
 namespace edm
 {
 
-void xmap(const Dataset ds, const std::vector<uint32_t> &edims, CrossMap rho,
-          uint32_t E_max)
+void xmap(const Dataset ds, const std::vector<int> &edims, CrossMap rho,
+          int E_max)
 {
     const auto tau = 1;
     const auto Tp = 0;
@@ -41,16 +41,17 @@ void xmap(const Dataset ds, const std::vector<uint32_t> &edims, CrossMap rho,
                 int i = member.league_rank();
 
                 Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, distances.extent(0)), [=](size_t j) {
-                        float pred = 0.0f;
+                    Kokkos::TeamThreadRange(member, distances.extent(0)),
+                    [=](size_t j) {
+                        auto pred = 0.0f;
 
-                        for (int e = 0; e < E; e++) {
-                            pred += ds(indices(j, e), targets(i)) * indices(j, e);
+                        for (auto e = 0; e < E; e++) {
+                            pred +=
+                                ds(indices(j, e), targets(i)) * indices(j, e);
                         }
                     });
             });
     }
-
 }
 
 } // namespace edm
