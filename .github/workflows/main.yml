@@ -7,10 +7,8 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
-
+  build-linux:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
       with:
@@ -36,6 +34,41 @@ jobs:
         cd build
         cmake ..
         make -j $(nproc)
+    - name: Run kEDM unit tests
+      run: ctest
+      env:
+        OMP_PROC_BIND: false
+      working-directory: build
+
+  build-macos:
+    runs-on: macOS-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Build and install Kokkos
+      run: |
+        git clone https://github.com/kokkos/kokkos.git
+        cd kokkos
+        git checkout 3.1.00
+        mkdir build
+        cd build
+        cmake \
+          -DCMAKE_CXX_COMPILER=$(which g++-9) \
+          -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
+          -DKokkos_ENABLE_SERIAL=ON \
+          -DKokkos_ENABLE_OPENMP=ON ..
+        make -j $(nproc)
+        sudo make install
+    - name: Install HDF5
+      run: brew install hdf5
+    - name: Build kEDM
+      run: |
+        mkdir build
+        cd build
+        cmake \
+          -DCMAKE_CXX_COMPILER=$(which g++-9) ..
+        make -j $(sysctl -n hw.physicalcpu_max)
     - name: Run kEDM unit tests
       run: ctest
       env:
