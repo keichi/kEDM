@@ -74,3 +74,12 @@ jobs:
       env:
         OMP_PROC_BIND: false
       working-directory: build
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Run clang-format
+      run: git ls-files '*.hpp' '*.cpp' | xargs clang-format -i

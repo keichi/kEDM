@@ -16,7 +16,8 @@ uint32_t edim(TimeSeries ts, int E_max, int tau, int Tp)
     std::vector<float> rho(E_max);
 
     const auto library = TimeSeries(ts, std::make_pair(0ul, ts.size() / 2));
-    const auto target = TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
+    const auto target =
+        TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
 
     LUT cache(ts.size(), ts.size());
     NearestNeighbors knn(cache);
