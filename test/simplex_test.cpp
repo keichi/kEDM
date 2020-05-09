@@ -37,6 +37,8 @@ void simplex_test_common(uint32_t E)
     TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
     simplex(prediction, library, lut);
 
+    Kokkos::fence();
+
     for (size_t i = 0; i < prediction.size(); i++) {
         CHECK(prediction(i) ==
               doctest::Approx(valid_prediction(i)).epsilon(0.01));
@@ -113,6 +115,8 @@ void embed_dim_test_common()
             target, std::make_pair((E - 1) * tau + Tp, target.size()));
 
         simplex(prediction, library, lut);
+
+        Kokkos::fence();
 
         rho[E - 1] = corrcoef(prediction, shifted_target);
         rho_valid[E - 1] = ds2(E - 1, 1);

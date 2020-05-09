@@ -20,8 +20,10 @@ public:
     void run(const TimeSeries library, const TimeSeries target, LUT &lut,
              uint32_t E, uint32_t tau, uint32_t Tp, uint32_t top_k)
     {
+#ifndef KOKKOS_ENABLE_CUDA
         using std::max;
         using std::min;
+#endif
 
         const auto shift = (E - 1) * tau + Tp;
 
@@ -113,9 +115,11 @@ public:
 
 void normalize_lut(LUT &lut)
 {
+#ifndef KOKKOS_ENABLE_CUDA
     using std::max;
     using std::min;
     using std::sqrt;
+#endif
 
     auto distances = lut.distances;
     auto indices = lut.indices;
@@ -134,8 +138,6 @@ void normalize_lut(LUT &lut)
 
                 min_dist = min(min_dist, dist);
                 max_dist = max(max_dist, dist);
-
-                distances(i, j) = dist;
             }
 
             for (auto j = 0u; j < top_k; j++) {

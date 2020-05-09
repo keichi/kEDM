@@ -41,6 +41,9 @@ void test_knn_common(int E)
     }
 
     normalize_lut(out);
+
+    Kokkos::fence();
+
     for (auto row = 0u; row < out.distances.extent(0); row++) {
         auto sum = 0.0f;
         for (auto col = 0u; col < out.distances.extent(1); col++) {

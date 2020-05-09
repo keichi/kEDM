@@ -6,7 +6,11 @@
 namespace edm
 {
 
+#ifdef KOKKOS_ENABLE_CUDA
+using DevSpace = Kokkos::CudaUVMSpace;
+#else
 using DevSpace = Kokkos::DefaultExecutionSpace;
+#endif
 using HostSpace = Kokkos::HostSpace;
 
 // Dataset is alyways left layout regardless of the backend

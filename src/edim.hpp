@@ -33,6 +33,8 @@ uint32_t edim(TimeSeries ts, uint32_t E_max, uint32_t tau, uint32_t Tp)
 
         simplex(prediction, library, lut);
 
+        Kokkos::fence();
+
         rho[E - 1] = corrcoef(prediction, shifted_target);
     }
 

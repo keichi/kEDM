@@ -40,6 +40,8 @@ void cross_mapping_test_common(uint32_t E)
     TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
     simplex(prediction, target, lut);
 
+    Kokkos::fence();
+
     CHECK(prediction.size() == valid_prediction.size());
 
     for (auto i = 0u; i < prediction.size(); i++) {
