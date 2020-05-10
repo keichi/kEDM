@@ -82,4 +82,6 @@ jobs:
       with:
         submodules: true
     - name: Run clang-format
-      run: git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
+      run: |
+        git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
+        git diff --exit-code
