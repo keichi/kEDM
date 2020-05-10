@@ -2,7 +2,6 @@
 #define __TYPES_HPP__
 
 #include <Kokkos_Core.hpp>
-
 namespace edm
 {
 
