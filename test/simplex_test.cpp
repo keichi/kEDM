@@ -110,7 +110,7 @@ void embed_dim_test_common()
         knn.run(library, target, lut, E, tau, Tp, E + 1);
         normalize_lut(lut);
 
-        TimeSeries prediction("prediction", target.size() - (E - 1) * tau - Tp);
+        TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
         TimeSeries shifted_target(
             target, std::make_pair((E - 1) * tau + Tp, target.size()));
 
