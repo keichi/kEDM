@@ -22,6 +22,7 @@ jobs:
         cd build
         cmake \
           -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
+          -DBUILD_SHARED_LIBS=ON \
           -DKokkos_ENABLE_SERIAL=ON \
           -DKokkos_ENABLE_OPENMP=ON ..
         make -j $(nproc)
@@ -56,6 +57,7 @@ jobs:
         cmake \
           -DCMAKE_CXX_COMPILER=$(which g++-9) \
           -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
+          -DBUILD_SHARED_LIBS=ON \
           -DKokkos_ENABLE_SERIAL=ON \
           -DKokkos_ENABLE_OPENMP=ON ..
         make -j $(nproc)
