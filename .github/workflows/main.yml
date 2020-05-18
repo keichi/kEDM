@@ -32,7 +32,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake -DCMAKE_BUILD_TYPE=Debug ..
         make -j $(nproc)
     - name: Run kEDM unit tests
       run: ctest
@@ -67,7 +67,9 @@ jobs:
         mkdir build
         cd build
         cmake \
-          -DCMAKE_CXX_COMPILER=$(which g++-9) ..
+          -DCMAKE_CXX_COMPILER=$(which g++-9) \
+          -DCMAKE_BUILD_TYPE=Debug \
+          ..
         make -j $(sysctl -n hw.physicalcpu_max)
     - name: Run kEDM unit tests
       run: ctest
