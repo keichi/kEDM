@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include <Kokkos_Core.hpp>
 
 #include "simplex.hpp"
