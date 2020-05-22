@@ -8,7 +8,7 @@
 namespace edm
 {
 
-void NearestNeighbors::run(const TimeSeries library, const TimeSeries target,
+void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
                            LUT &lut, int E, int tau, int Tp, int top_k)
 {
 #ifndef KOKKOS_ENABLE_CUDA

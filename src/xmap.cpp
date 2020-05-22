@@ -6,7 +6,7 @@
 namespace edm
 {
 
-void xmap(const Dataset ds, const std::vector<int> &edims, CrossMap rho,
+void xmap(const Dataset &ds, const std::vector<int> &edims, CrossMap &rho,
           int E_max)
 {
     // const auto tau = 1;

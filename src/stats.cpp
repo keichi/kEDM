@@ -4,7 +4,7 @@
 namespace edm
 {
 
-float corrcoef(const TimeSeries x, const TimeSeries y)
+float corrcoef(const TimeSeries &x, const TimeSeries &y)
 {
     const auto n = std::min(x.size(), y.size());
     auto mean_x = 0.0f, mean_y = 0.0f;

@@ -5,7 +5,7 @@
 namespace edm
 {
 
-void simplex(TimeSeries prediction, const TimeSeries target, const LUT &lut)
+void simplex(TimeSeries &prediction, const TimeSeries &target, const LUT &lut)
 {
     const auto distances = lut.distances;
     const auto indices = lut.indices;

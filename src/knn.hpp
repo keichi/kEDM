@@ -15,8 +15,8 @@ class NearestNeighbors
 public:
     NearestNeighbors(LUT cache) : _cache(cache) {}
 
-    void run(const TimeSeries library, const TimeSeries target, LUT &lut, int E,
-             int tau, int Tp, int top_k);
+    void run(const TimeSeries &library, const TimeSeries &target, LUT &lut,
+             int E, int tau, int Tp, int top_k);
 };
 
 void normalize_lut(LUT &lut);

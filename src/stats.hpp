@@ -6,7 +6,7 @@
 namespace edm
 {
 
-float corrcoef(const TimeSeries x, const TimeSeries y);
+float corrcoef(const TimeSeries &x, const TimeSeries &y);
 
 } // namespace edm
 
