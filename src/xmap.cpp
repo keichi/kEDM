@@ -38,6 +38,7 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
             continue;
         }
 
+        // TODO This needs to be done only once
         HostTargets h_targets(groups[E - 1].data(), groups[E - 1].size());
         DevTargets targets("targets", h_targets.size());
         Kokkos::deep_copy(targets, h_targets);
@@ -75,7 +76,6 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
 
                 Kokkos::parallel_reduce(
                     Kokkos::TeamThreadRange(member, prediction.size()),
-                    // prediction.size(),
                     [=](int i, CorrcoefState &upd) {
                         upd += CorrcoefState(prediction(i), shifted_target(i));
                     },
