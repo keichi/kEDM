@@ -36,7 +36,6 @@ KOKKOS_INLINE_FUNCTION float corrcoef(const TimeSeries &x, const TimeSeries &y)
     return sum_xy / sqrt(sum_x2 * sum_y2);
 }
 
-
 } // namespace edm
 
 #endif
