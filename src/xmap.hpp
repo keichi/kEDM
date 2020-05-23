@@ -8,8 +8,8 @@
 namespace edm
 {
 
-void xmap(const Dataset &ds, const std::vector<int> &edims, CrossMap &rho,
-          int E_max);
+void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
+          const std::vector<int> &edims, int E_max, int tau, int Tp);
 
 } // namespace edm
 

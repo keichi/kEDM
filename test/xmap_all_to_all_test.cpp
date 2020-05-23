@@ -6,9 +6,8 @@
 
 #include "../src/edim.hpp"
 #include "../src/io.hpp"
-#include "../src/knn.hpp"
-#include "../src/simplex.hpp"
 #include "../src/types.hpp"
+#include "../src/xmap.hpp"
 
 namespace edm
 {
@@ -21,28 +20,32 @@ void xmap_test_common()
     const auto ds_corrcoef = file.getDataSet("corrcoef");
     const auto ds_edim = file.getDataSet("embedding");
 
-    std::vector<uint32_t> optimal_E(ds.extent(1));
-    std::vector<uint32_t> optimal_E_valid(ds.extent(1));
+    std::vector<int> optimal_E(ds.extent(1));
+    std::vector<int> optimal_E_valid(ds.extent(1));
 
     ds_edim.read(optimal_E_valid);
 
     for (auto i = 0u; i < ds.extent(1); i++) {
-        optimal_E[i] = edim(TimeSeries(ds, Kokkos::ALL, i), 20, 1, 1);
+        TimeSeries ts(ds, Kokkos::ALL, i);
+        optimal_E[i] = edim(ts, 20, 1, 1);
 
         CHECK(optimal_E[i] == optimal_E_valid[i]);
     }
 
-    std::vector<float> rhos(ds.extent(1));
-    std::vector<float> rhos_valid(ds.extent(1));
+    CrossMap rho("xmap", ds.extent(1));
+    std::vector<float> rho_valid(ds.extent(1));
 
-    // for (auto i = 0u; i < ds.extent(1); i++) {
-    //     xmap(rhos, ds, i, optimal_E);
-    //     ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rhos_valid);
+    for (auto i = 0u; i < ds.extent(1); i++) {
+        TimeSeries library(ds, Kokkos::ALL, i);
 
-    //     for (auto j = 0u; j < ds.extent(1); j++) {
-    //         CHECK(rhos[j] == Approx(rhos_valid[j]).margin(1e-5));
-    //     }
-    // }
+        xmap(rho, ds, library, optimal_E, 20, 1, 0);
+
+        ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rho_valid);
+
+        for (auto j = 0u; j < ds.extent(1); j++) {
+            CHECK(rho[j] == doctest::Approx(rho_valid[j]));
+        }
+    }
 }
 
 TEST_CASE("Compute all-to-all cross mappings")

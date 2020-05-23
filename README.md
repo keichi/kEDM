@@ -1,6 +1,6 @@
 # kokkos-edm
 
-![build](https://github.com/keichi/kEDM/workflows/build/badge.svg)
+[![build](https://github.com/keichi/kEDM/workflows/build/badge.svg)](https://github.com/keichi/kEDM/actions?query=workflow%3Abuild)
 
 An experimental implementation of Empirical Dynamic Modeling (EDM) using Kokkos
 

@@ -27,7 +27,7 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
     auto distances = _cache.distances;
     auto indices = _cache.indices;
 
-    assert(distances.extent(0) > n_target && distances.extent(1) > n_library);
+    assert(distances.extent(0) >= n_target && distances.extent(1) >= n_library);
 
     // Compute all-to-all distances
     // MDRange parallel version
