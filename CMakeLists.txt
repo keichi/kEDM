@@ -16,8 +16,8 @@ set(HIGHFIVE_UNIT_TESTS OFF)
 set(HIGHFIVE_EXAMPLES OFF)
 add_subdirectory(src/thirdparty/highfive)
 
-add_library(kedm SHARED src/edim.cpp src/io.cpp src/simplex.cpp src/stats.cpp
-            src/xmap.cpp src/knn.cpp)
+add_library(kedm SHARED src/edim.cpp src/io.cpp src/simplex.cpp src/xmap.cpp
+            src/knn.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
 
 # Tests

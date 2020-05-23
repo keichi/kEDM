@@ -68,7 +68,7 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
 
                 TimeSeries prediction(predictions, Kokkos::ALL, i);
                 TimeSeries shifted_target(
-                    ds, std::make_pair((E - 1ul) * tau + Tp, ds.extent(0)),
+                    ds, Kokkos::make_pair((E - 1ul) * tau + Tp, ds.extent(0)),
                     targets(i));
 
                 result(targets(i)) = corrcoef(prediction, shifted_target);
