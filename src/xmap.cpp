@@ -71,7 +71,22 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
                     ds, Kokkos::make_pair((E - 1ul) * tau + Tp, ds.extent(0)),
                     targets(i));
 
-                result(targets(i)) = corrcoef(prediction, shifted_target);
+                CorrcoefState state;
+
+                Kokkos::parallel_reduce(
+                    Kokkos::TeamThreadRange(member, prediction.size()),
+                    // prediction.size(),
+                    [=](int i, CorrcoefState &upd) {
+                        upd += CorrcoefState(prediction(i), shifted_target(i));
+                    },
+                    Kokkos::Sum<CorrcoefState>(state));
+
+                member.team_barrier();
+
+                Kokkos::single(PerTeam(member), [=]() {
+                    result(targets(i)) =
+                        state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
+                });
             });
     }
 }
