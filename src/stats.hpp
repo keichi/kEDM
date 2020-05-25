@@ -30,6 +30,8 @@ typedef struct corrcoef_state {
 
         n = n_ab;
 
+        if (n == 0) return *this;
+
         x_mean += x_delta * n_b / n_ab;
         y_mean += y_delta * n_b / n_ab;
 
@@ -71,11 +73,12 @@ KOKKOS_INLINE_FUNCTION float corrcoef(const TimeSeries &x, const TimeSeries &y)
 
     CorrcoefState state;
 
-    Kokkos::parallel_reduce(min(x.size(), y.size()),
-                            KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
-                                upd += CorrcoefState(x(i), y(i));
-                            },
-                            Kokkos::Sum<CorrcoefState>(state));
+    Kokkos::parallel_reduce(
+        min(x.size(), y.size()),
+        KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
+            upd += CorrcoefState(x(i), y(i));
+        },
+        Kokkos::Sum<CorrcoefState>(state));
 
     return state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
 }

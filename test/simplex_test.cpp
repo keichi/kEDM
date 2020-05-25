@@ -100,12 +100,12 @@ void embed_dim_test_common()
 
         CorrcoefState state;
 
-        Kokkos::parallel_reduce(prediction.size() - 1,
-                                KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
-                                    upd += CorrcoefState(prediction(i),
-                                                         shifted_target(i));
-                                },
-                                Kokkos::Sum<CorrcoefState>(state));
+        Kokkos::parallel_reduce(
+            prediction.size() - 1,
+            KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
+                upd += CorrcoefState(prediction(i), shifted_target(i));
+            },
+            Kokkos::Sum<CorrcoefState>(state));
 
         rho[E - 1] = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);

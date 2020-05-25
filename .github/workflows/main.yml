@@ -49,8 +49,8 @@ jobs:
         cd build
         cmake \
           -DCMAKE_CXX_COMPILER=/opt/kokkos/bin/nvcc_wrapper \
-          -DCMAKE_BUILD_TYPE=Release ..
-        ldconfig /usr/local/cuda-10.2/compat
+          -DCMAKE_BUILD_TYPE=Release \
+          -DREGISTER_TESTS=OFF ..
         make -j $(nproc)
       env:
         NVCC_WRAPPER_DEFAULT_COMPILER: clang++
