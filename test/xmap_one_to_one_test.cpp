@@ -1,5 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -40,49 +39,47 @@ void cross_mapping_test_common(uint32_t E)
     TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
     simplex(prediction, target, lut);
 
-    Kokkos::fence();
+    const auto pred =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
+    const auto valid =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), valid_prediction);
 
-    CHECK(prediction.size() == valid_prediction.size());
+    CHECK(pred.size() == valid.size());
 
-    for (auto i = 0u; i < prediction.size(); i++) {
-        CHECK(prediction(i) == doctest::Approx(valid_prediction(i)));
+    for (auto i = 0u; i < pred.size(); i++) {
+        CHECK(pred(i) == doctest::Approx(valid(i)));
     }
 }
 
 TEST_CASE("Compute one-to-one cross mapping for E=2")
 {
-    Kokkos::initialize();
-
     cross_mapping_test_common(2);
-
-    Kokkos::finalize();
 }
 
 TEST_CASE("Compute one-to-one cross mapping for E=3")
 {
-    Kokkos::initialize();
-
     cross_mapping_test_common(3);
-
-    Kokkos::finalize();
 }
 
 TEST_CASE("Compute one-to-one cross mapping for E=4")
 {
-    Kokkos::initialize();
-
     cross_mapping_test_common(4);
-
-    Kokkos::finalize();
 }
 
 TEST_CASE("Compute one-to-one cross mapping for E=5")
 {
-    Kokkos::initialize();
-
     cross_mapping_test_common(5);
-
-    Kokkos::finalize();
 }
 
 } // namespace edm
+
+int main(int argc, char **argv)
+{
+    Kokkos::initialize();
+
+    int res = doctest::Context(argc, argv).run();
+
+    Kokkos::finalize();
+
+    return res;
+}

@@ -6,7 +6,7 @@ namespace edm
 {
 
 #ifdef KOKKOS_ENABLE_CUDA
-using DevSpace = Kokkos::CudaUVMSpace;
+using DevSpace = Kokkos::CudaSpace;
 #else
 using DevSpace = Kokkos::DefaultExecutionSpace;
 #endif

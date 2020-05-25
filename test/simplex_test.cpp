@@ -1,5 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -39,47 +38,23 @@ void simplex_test_common(uint32_t E)
 
     Kokkos::fence();
 
-    for (size_t i = 0; i < prediction.size(); i++) {
-        CHECK(prediction(i) ==
-              doctest::Approx(valid_prediction(i)).epsilon(0.01));
+    const auto pred =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
+    const auto valid =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), valid_prediction);
+
+    for (size_t i = 0; i < pred.size(); i++) {
+        CHECK(pred(i) == doctest::Approx(valid(i)).epsilon(0.01));
     }
 }
 
-TEST_CASE("Compute simplex projection for E=2")
-{
-    Kokkos::initialize();
+TEST_CASE("Compute simplex projection for E=2") { simplex_test_common(2); }
 
-    simplex_test_common(2);
+TEST_CASE("Compute simplex projection for E=3") { simplex_test_common(3); }
 
-    Kokkos::finalize();
-}
+TEST_CASE("Compute simplex projection for E=4") { simplex_test_common(4); }
 
-TEST_CASE("Compute simplex projection for E=3")
-{
-    Kokkos::initialize();
-
-    simplex_test_common(3);
-
-    Kokkos::finalize();
-}
-
-TEST_CASE("Compute simplex projection for E=4")
-{
-    Kokkos::initialize();
-
-    simplex_test_common(4);
-
-    Kokkos::finalize();
-}
-
-TEST_CASE("Compute simplex projection for E=5")
-{
-    Kokkos::initialize();
-
-    simplex_test_common(5);
-
-    Kokkos::finalize();
-}
+TEST_CASE("Compute simplex projection for E=5") { simplex_test_common(5); }
 
 // Test data is generated using pyEDM with the following parameters:
 // pyEDM.EmbedDimension(dataFrame=pyEDM.sampleData["TentMap"], lib="1 100",
@@ -93,6 +68,8 @@ void embed_dim_test_common()
 
     Dataset ds1 = load_csv("TentMap_rEDM.csv");
     Dataset ds2 = load_csv("TentMap_rEDM_validation.csv");
+
+    auto ds2_mirror = Kokkos::create_mirror_view_and_copy(HostSpace(), ds2);
 
     std::vector<float> rho(E_max);
     std::vector<float> rho_valid(E_max);
@@ -116,10 +93,22 @@ void embed_dim_test_common()
 
         simplex(prediction, library, lut);
 
-        Kokkos::fence();
+        auto pred =
+            Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
+        auto shift =
+            Kokkos::create_mirror_view_and_copy(HostSpace(), shifted_target);
 
-        rho[E - 1] = corrcoef(prediction, shifted_target);
-        rho_valid[E - 1] = ds2(E - 1, 1);
+        CorrcoefState state;
+
+        Kokkos::parallel_reduce(prediction.size() - 1,
+                                KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
+                                    upd += CorrcoefState(prediction(i),
+                                                         shifted_target(i));
+                                },
+                                Kokkos::Sum<CorrcoefState>(state));
+
+        rho[E - 1] = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
+        rho_valid[E - 1] = ds2_mirror(E - 1, 1);
 
         // Check correlation coefficient
         CHECK(rho[E - 1] == doctest::Approx(rho_valid[E - 1]));
@@ -132,13 +121,17 @@ void embed_dim_test_common()
     CHECK(it - rho.begin() == it2 - rho_valid.begin());
 }
 
-TEST_CASE("Compute optimal embedding dimension")
+TEST_CASE("Compute optimal embedding dimension") { embed_dim_test_common(); }
+
+} // namespace edm
+
+int main(int argc, char **argv)
 {
     Kokkos::initialize();
 
-    embed_dim_test_common();
+    int res = doctest::Context(argc, argv).run();
 
     Kokkos::finalize();
-}
 
-} // namespace edm
+    return res;
+}

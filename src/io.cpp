@@ -83,10 +83,12 @@ Dataset load_hdf5(const std::string &path, const std::string &ds_name)
 
         for (auto j = 0u; j < chunk_size; j++) {
             for (auto k = 0u; k < n_columns; k++) {
-                ds(i + j, k) = rows[j * n_columns + k];
+                mirror(i + j, k) = rows[j * n_columns + k];
             }
         }
     }
+
+    Kokkos::deep_copy(ds, mirror);
 
     return ds;
 }

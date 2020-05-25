@@ -83,7 +83,7 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
 
                 member.team_barrier();
 
-                Kokkos::single(PerTeam(member), [=]() {
+                Kokkos::single(Kokkos::PerTeam(member), [=]() {
                     result(targets(i)) =
                         state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
                 });

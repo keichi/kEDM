@@ -1,5 +1,4 @@
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
+#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5File.hpp>
@@ -42,19 +41,25 @@ void xmap_test_common()
 
         ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rho_valid);
 
+        auto rho_mirror = Kokkos::create_mirror_view_and_copy(HostSpace(), rho);
+
         for (auto j = 0u; j < ds.extent(1); j++) {
-            CHECK(rho[j] == doctest::Approx(rho_valid[j]));
+            CHECK(rho_mirror[j] == doctest::Approx(rho_valid[j]));
         }
     }
 }
 
-TEST_CASE("Compute all-to-all cross mappings")
+TEST_CASE("Compute all-to-all cross mappings") { xmap_test_common(); }
+
+} // namespace edm
+
+int main(int argc, char **argv)
 {
     Kokkos::initialize();
 
-    xmap_test_common();
+    int res = doctest::Context(argc, argv).run();
 
     Kokkos::finalize();
-}
 
-} // namespace edm
+    return res;
+}
