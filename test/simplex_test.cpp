@@ -36,8 +36,6 @@ void simplex_test_common(uint32_t E)
     TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
     simplex(prediction, library, lut);
 
-    Kokkos::fence();
-
     const auto pred =
         Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
     const auto valid =
