@@ -90,13 +90,16 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
     // Partially sort each row
     Kokkos::parallel_for(
         "partial_sort", n_target, KOKKOS_LAMBDA(int i) {
+            // Distance for the current k-th element
+            float kth_dist = FLT_MAX;
+
             for (auto j = 1; j < n_library; j++) {
                 auto cur_dist = distances(i, j);
                 auto cur_idx = indices(i, j);
 
                 // Skip elements larger than the current k-th smallest
                 // element
-                if (j >= top_k && cur_dist > distances(i, top_k - 1)) {
+                if (j >= top_k && cur_dist > kth_dist) {
                     continue;
                 }
 
@@ -115,6 +118,8 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
                 // Insert the new element
                 distances(i, k) = cur_dist;
                 indices(i, k) = cur_idx;
+
+                kth_dist = distances(i, top_k - 1);
             }
         });
 
