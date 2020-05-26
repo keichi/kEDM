@@ -20,6 +20,9 @@ add_library(kedm SHARED src/edim.cpp src/io.cpp src/simplex.cpp src/xmap.cpp
             src/knn.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
 
+add_executable(edm-xmap src/xmap_run.cpp)
+target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos HighFive)
+
 # Tests
 enable_testing()
 
