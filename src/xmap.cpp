@@ -46,45 +46,31 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
         const auto distances = luts[E - 1].distances;
         const auto indices = luts[E - 1].indices;
 
-        Dataset predictions("predictions", distances.extent(0),
-                            h_targets.size());
-
         Kokkos::parallel_for(
             "lookup", Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO),
             KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-                int i = member.league_rank();
-
-                Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, distances.extent(0)),
-                    [=](size_t j) {
-                        auto pred = 0.0f;
-
-                        for (auto e = 0; e < E + 1; e++) {
-                            pred +=
-                                ds(indices(j, e), targets(i)) * distances(j, e);
-                        }
-
-                        predictions(j, i) = pred;
-                    });
-
-                TimeSeries prediction(predictions, Kokkos::ALL, i);
-                TimeSeries shifted_target(
-                    ds, Kokkos::make_pair((E - 1ul) * tau + Tp, ds.extent(0)),
-                    targets(i));
+                int j = member.league_rank();
 
                 CorrcoefState state;
 
                 Kokkos::parallel_reduce(
-                    Kokkos::TeamThreadRange(member, prediction.size()),
+                    Kokkos::TeamThreadRange(member, distances.extent(0)),
                     [=](int i, CorrcoefState &upd) {
-                        upd += CorrcoefState(prediction(i), shifted_target(i));
+                        auto pred = 0.0f;
+
+                        for (auto e = 0; e < E + 1; e++) {
+                            pred +=
+                                ds(indices(i, e), targets(j)) * distances(i, e);
+                        }
+
+                        float actual = ds((E - 1) * tau + Tp + i, targets(j));
+
+                        upd += CorrcoefState(pred, actual);
                     },
                     Kokkos::Sum<CorrcoefState>(state));
 
-                member.team_barrier();
-
                 Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                    result(targets(i)) =
+                    result(targets(j)) =
                         state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
                 });
             });
