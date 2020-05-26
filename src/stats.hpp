@@ -64,25 +64,6 @@ typedef struct corrcoef_state {
     }
 } CorrcoefState;
 
-KOKKOS_INLINE_FUNCTION float corrcoef(const TimeSeries &x, const TimeSeries &y)
-{
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::min;
-    using std::sqrt;
-#endif
-
-    CorrcoefState state;
-
-    Kokkos::parallel_reduce(
-        min(x.size(), y.size()),
-        KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
-            upd += CorrcoefState(x(i), y(i));
-        },
-        Kokkos::Sum<CorrcoefState>(state));
-
-    return state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
-}
-
 } // namespace edm
 
 namespace Kokkos

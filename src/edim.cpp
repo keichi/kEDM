@@ -8,6 +8,25 @@
 namespace edm
 {
 
+float corrcoef(const TimeSeries &x, const TimeSeries &y)
+{
+#ifndef KOKKOS_ENABLE_CUDA
+    using std::min;
+    using std::sqrt;
+#endif
+
+    CorrcoefState state;
+
+    Kokkos::parallel_reduce(
+        min(x.size(), y.size()),
+        KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
+            upd += CorrcoefState(x(i), y(i));
+        },
+        Kokkos::Sum<CorrcoefState>(state));
+
+    return state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
+}
+
 uint32_t edim(const TimeSeries &ts, int E_max, int tau, int Tp)
 {
     std::vector<float> rho(E_max);
