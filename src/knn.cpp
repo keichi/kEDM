@@ -31,60 +31,91 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
 
     // Compute all-to-all distances
     // MDRange parallel version
+    // Kokkos::parallel_for(
+    //     "calc_distances",
+    //     Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target,
+    //     n_library}), KOKKOS_LAMBDA(int i, int j) {
+    //         distances(i, j) = 0.0f;
+    //
+    //         for (auto e = 0; e < E; e++) {
+    //             auto diff = target(i + e * tau) - library(j + e * tau);
+    //             distances(i, j) += diff * diff;
+    //         }
+    //
+    //         indices(i, j) = j;
+    //     });
+
     Kokkos::parallel_for(
-        "calc_distances",
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target, n_library}),
-        KOKKOS_LAMBDA(int i, int j) {
-            distances(i, j) = 0.0f;
+        "calc_distances", Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int j = member.league_rank();
 
-            for (auto e = 0; e < E; e++) {
-                auto diff = target(i + e * tau) - library(j + e * tau);
-                distances(i, j) += diff * diff;
-            }
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_target), [=](size_t i) {
+                    float dist = 0.0f;
 
-            indices(i, j) = j;
+                    for (auto e = 0; e < E; e++) {
+                        float diff = target(i + e * tau) - library(j + e * tau);
+                        dist += diff * diff;
+                    }
+
+                    distances(i, j) = dist;
+                    indices(i, j) = j;
+                });
         });
 
     // Ignore degenerate neighbors
+    // Kokkos::parallel_for(
+    //     "ignore_degenerates",
+    //     Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target,
+    //     n_library}), KOKKOS_LAMBDA(int i, int j) {
+    //         if (target.data() + i == library.data() + j) {
+    //             distances(i, j) = FLT_MAX;
+    //         }
+    //     });
+
     Kokkos::parallel_for(
-        "ignore_degenerates",
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target, n_library}),
-        KOKKOS_LAMBDA(int i, int j) {
-            if (target.data() + i == library.data() + j) {
-                distances(i, j) = FLT_MAX;
-            }
+        "ignore_degenerates", Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int j = member.league_rank();
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_library), [=](size_t i) {
+                    if (target.data() + i == library.data() + j) {
+                        distances(i, j) = FLT_MAX;
+                    }
+                });
         });
 
     // Partially sort each row
-    Kokkos::parallel_for(
-        "partial_sort", n_target, KOKKOS_LAMBDA(const int i) {
-            for (auto j = 1; j < n_library; j++) {
-                auto cur_dist = distances(i, j);
-                auto cur_idx = indices(i, j);
+    Kokkos::parallel_for("partial_sort", n_target, KOKKOS_LAMBDA(int i) {
+        for (auto j = 1; j < n_library; j++) {
+            auto cur_dist = distances(i, j);
+            auto cur_idx = indices(i, j);
 
-                // Skip elements larger than the current k-th smallest
-                // element
-                if (j >= top_k && cur_dist > distances(i, top_k - 1)) {
-                    continue;
-                }
-
-                auto k = 0;
-                // Shift elements until the insertion point is found
-                for (k = min(j, top_k - 1); k > 0; k--) {
-                    if (distances(i, k - 1) <= cur_dist) {
-                        break;
-                    }
-
-                    // Shift element
-                    distances(i, k) = distances(i, k - 1);
-                    indices(i, k) = indices(i, k - 1);
-                }
-
-                // Insert the new element
-                distances(i, k) = cur_dist;
-                indices(i, k) = cur_idx;
+            // Skip elements larger than the current k-th smallest
+            // element
+            if (j >= top_k && cur_dist > distances(i, top_k - 1)) {
+                continue;
             }
-        });
+
+            auto k = 0;
+            // Shift elements until the insertion point is found
+            for (k = min(j, top_k - 1); k > 0; k--) {
+                if (distances(i, k - 1) <= cur_dist) {
+                    break;
+                }
+
+                // Shift element
+                distances(i, k) = distances(i, k - 1);
+                indices(i, k) = indices(i, k - 1);
+            }
+
+            // Insert the new element
+            distances(i, k) = cur_dist;
+            indices(i, k) = cur_idx;
+        }
+    });
 
     // Compute L2 norms from SSDs and shift indices
     Kokkos::parallel_for(
@@ -119,41 +150,40 @@ void normalize_lut(LUT &lut)
     const int top_k = distances.extent(1);
 
     // Normalize lookup table
-    Kokkos::parallel_for(
-        "normalize_distances", L, KOKKOS_LAMBDA(int i) {
-            auto sum_weights = 0.0f;
-            auto min_dist = FLT_MAX;
-            auto max_dist = 0.0f;
+    Kokkos::parallel_for("normalize_distances", L, KOKKOS_LAMBDA(int i) {
+        auto sum_weights = 0.0f;
+        auto min_dist = FLT_MAX;
+        auto max_dist = 0.0f;
 
-            for (auto j = 0; j < top_k; j++) {
-                const auto dist = distances(i, j);
+        for (auto j = 0; j < top_k; j++) {
+            const auto dist = distances(i, j);
 
-                min_dist = min(min_dist, dist);
-                max_dist = max(max_dist, dist);
+            min_dist = min(min_dist, dist);
+            max_dist = max(max_dist, dist);
+        }
+
+        for (auto j = 0; j < top_k; j++) {
+            const auto dist = distances(i, j);
+
+            auto weighted_dist = 0.0f;
+
+            if (min_dist > 0.0f) {
+                weighted_dist = exp(-dist / min_dist);
+            } else {
+                weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
             }
 
-            for (auto j = 0; j < top_k; j++) {
-                const auto dist = distances(i, j);
+            const auto weight = max(weighted_dist, MIN_WEIGHT);
 
-                auto weighted_dist = 0.0f;
+            distances(i, j) = weight;
 
-                if (min_dist > 0.0f) {
-                    weighted_dist = exp(-dist / min_dist);
-                } else {
-                    weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
-                }
+            sum_weights += weight;
+        }
 
-                const auto weight = max(weighted_dist, MIN_WEIGHT);
-
-                distances(i, j) = weight;
-
-                sum_weights += weight;
-            }
-
-            for (auto j = 0; j < top_k; j++) {
-                distances(i, j) /= sum_weights;
-            }
-        });
+        for (auto j = 0; j < top_k; j++) {
+            distances(i, j) /= sum_weights;
+        }
+    });
 }
 
 } // namespace edm
