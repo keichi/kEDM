@@ -46,32 +46,50 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
         const auto distances = luts[E - 1].distances;
         const auto indices = luts[E - 1].indices;
 
+        using ScratchTimeSeries =
+            Kokkos::View<float *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>;
+
+        size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
+
         Kokkos::parallel_for(
-            "lookup", Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO),
+            "lookup",
+            Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
+                .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
             KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-                int j = member.league_rank();
+                int tj = targets(member.league_rank());
+
+                ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
+
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, ds.extent(0)),
+                    [=](int i) { scratch(i) = ds(i, tj); });
+
+                member.team_barrier();
 
                 CorrcoefState state;
 
                 Kokkos::parallel_reduce(
                     Kokkos::TeamThreadRange(member, distances.extent(0)),
                     [=](int i, CorrcoefState &upd) {
-                        auto pred = 0.0f;
+                        float pred = 0.0f;
 
-                        for (auto e = 0; e < E + 1; e++) {
-                            pred +=
-                                ds(indices(i, e), targets(j)) * distances(i, e);
-                        }
+                        Kokkos::parallel_reduce(
+                            Kokkos::ThreadVectorRange(member, E + 1),
+                            [=](int &e, float &p) {
+                                p += scratch(indices(i, e)) * distances(i, e);
+                            },
+                            pred);
 
-                        float actual = ds((E - 1) * tau + Tp + i, targets(j));
+                        float actual = scratch((E - 1) * tau + Tp + i);
 
                         upd += CorrcoefState(pred, actual);
                     },
                     Kokkos::Sum<CorrcoefState>(state));
 
                 Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                    result(targets(j)) =
-                        state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
+                    result(tj) = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
                 });
             });
     }
