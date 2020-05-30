@@ -159,40 +159,41 @@ void normalize_lut(LUT &lut)
     const int top_k = distances.extent(1);
 
     // Normalize lookup table
-    Kokkos::parallel_for("normalize_distances", L, KOKKOS_LAMBDA(int i) {
-        auto sum_weights = 0.0f;
-        auto min_dist = FLT_MAX;
-        auto max_dist = 0.0f;
+    Kokkos::parallel_for(
+        "normalize_distances", L, KOKKOS_LAMBDA(int i) {
+            auto sum_weights = 0.0f;
+            auto min_dist = FLT_MAX;
+            auto max_dist = 0.0f;
 
-        for (auto j = 0; j < top_k; j++) {
-            const auto dist = distances(i, j);
+            for (auto j = 0; j < top_k; j++) {
+                const auto dist = distances(i, j);
 
-            min_dist = min(min_dist, dist);
-            max_dist = max(max_dist, dist);
-        }
-
-        for (auto j = 0; j < top_k; j++) {
-            const auto dist = distances(i, j);
-
-            auto weighted_dist = 0.0f;
-
-            if (min_dist > 0.0f) {
-                weighted_dist = exp(-dist / min_dist);
-            } else {
-                weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
+                min_dist = min(min_dist, dist);
+                max_dist = max(max_dist, dist);
             }
 
-            const auto weight = max(weighted_dist, MIN_WEIGHT);
+            for (auto j = 0; j < top_k; j++) {
+                const auto dist = distances(i, j);
 
-            distances(i, j) = weight;
+                auto weighted_dist = 0.0f;
 
-            sum_weights += weight;
-        }
+                if (min_dist > 0.0f) {
+                    weighted_dist = exp(-dist / min_dist);
+                } else {
+                    weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
+                }
 
-        for (auto j = 0; j < top_k; j++) {
-            distances(i, j) /= sum_weights;
-        }
-    });
+                const auto weight = max(weighted_dist, MIN_WEIGHT);
+
+                distances(i, j) = weight;
+
+                sum_weights += weight;
+            }
+
+            for (auto j = 0; j < top_k; j++) {
+                distances(i, j) /= sum_weights;
+            }
+        });
 }
 
 } // namespace edm
