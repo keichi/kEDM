@@ -24,21 +24,21 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
 
     assert(n_library > 0 && n_target > 0);
 
-    auto distances = _cache.distances;
-    auto indices = _cache.indices;
+    const auto distances = _cache.distances;
+    const auto indices = _cache.indices;
 
     assert(distances.extent(0) >= n_target && distances.extent(1) >= n_library);
 
     Kokkos::parallel_for(
         "calc_distances", Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int j = member.league_rank();
+            const int j = member.league_rank();
 
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_target), [=](size_t i) {
+                Kokkos::TeamThreadRange(member, n_target), [=](int i) {
                     float dist = 0.0f;
 
-                    for (auto e = 0; e < E; e++) {
+                    for (int e = 0; e < E; e++) {
                         float diff = target(i + e * tau) - library(j + e * tau);
                         dist += diff * diff;
                     }
@@ -51,27 +51,18 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
     Kokkos::parallel_for(
         "ignore_degenerates", Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int j = member.league_rank();
+            const int j = member.league_rank();
 
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library), [=](size_t i) {
+                Kokkos::TeamThreadRange(member, n_library), [=](int i) {
                     if (library.data() + i == target.data() + j) {
                         distances(i, j) = FLT_MAX;
                     }
                 });
         });
 
-    using ScratchDist =
-        Kokkos::View<float *,
-                     Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                     Kokkos::MemoryUnmanaged>;
-    using ScratchIdx =
-        Kokkos::View<uint32_t *,
-                     Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                     Kokkos::MemoryUnmanaged>;
-
-    size_t scratch_size =
-        ScratchDist::shmem_size(top_k) + ScratchIdx::shmem_size(top_k);
+    int scratch_size =
+        ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
 
     // Partially sort each row
     Kokkos::parallel_for(
@@ -80,21 +71,21 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
             .set_scratch_size(0, Kokkos::PerThread(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             // Scratch views to hold the top-k elements
-            ScratchDist scratch_dist(member.thread_scratch(0), top_k);
-            ScratchIdx scratch_idx(member.thread_scratch(0), top_k);
+            ScratchDistances scratch_dist(member.thread_scratch(0), top_k);
+            ScratchIndices scratch_idx(member.thread_scratch(0), top_k);
 
             Kokkos::single(Kokkos::PerThread(member), [=]() {
-                int i = member.league_rank() * member.team_size() +
-                        member.team_rank();
+                const int i = member.league_rank() * member.team_size() +
+                              member.team_rank();
 
                 if (i >= n_target) return;
 
                 scratch_dist(0) = distances(i, 0);
                 scratch_idx(0) = indices(i, 0);
 
-                for (auto j = 1; j < n_library; j++) {
-                    float cur_dist = distances(i, j);
-                    uint32_t cur_idx = indices(i, j);
+                for (int j = 1; j < n_library; j++) {
+                    const float cur_dist = distances(i, j);
+                    const uint32_t cur_idx = indices(i, j);
 
                     // Skip elements larger than the current k-th smallest
                     // element
@@ -119,7 +110,7 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
                     scratch_idx(k) = cur_idx;
                 }
 
-                for (auto j = 0; j < top_k; j++) {
+                for (int j = 0; j < top_k; j++) {
                     distances(i, j) = scratch_dist(j);
                     indices(i, j) = scratch_idx(j);
                 }
@@ -161,21 +152,20 @@ void normalize_lut(LUT &lut)
     // Normalize lookup table
     Kokkos::parallel_for(
         "normalize_distances", L, KOKKOS_LAMBDA(int i) {
-            auto sum_weights = 0.0f;
-            auto min_dist = FLT_MAX;
-            auto max_dist = 0.0f;
+            float sum_weights = 0.0f;
+            float min_dist = FLT_MAX;
+            float max_dist = 0.0f;
 
             for (auto j = 0; j < top_k; j++) {
-                const auto dist = distances(i, j);
-
+                float dist = distances(i, j);
                 min_dist = min(min_dist, dist);
                 max_dist = max(max_dist, dist);
             }
 
             for (auto j = 0; j < top_k; j++) {
-                const auto dist = distances(i, j);
+                const float dist = distances(i, j);
 
-                auto weighted_dist = 0.0f;
+                float weighted_dist = 0.0f;
 
                 if (min_dist > 0.0f) {
                     weighted_dist = exp(-dist / min_dist);
@@ -183,14 +173,14 @@ void normalize_lut(LUT &lut)
                     weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
                 }
 
-                const auto weight = max(weighted_dist, MIN_WEIGHT);
+                const float weight = max(weighted_dist, MIN_WEIGHT);
 
                 distances(i, j) = weight;
 
                 sum_weights += weight;
             }
 
-            for (auto j = 0; j < top_k; j++) {
+            for (int j = 0; j < top_k; j++) {
                 distances(i, j) /= sum_weights;
             }
         });

@@ -16,9 +16,9 @@ void simplex(TimeSeries &prediction, const TimeSeries &target, const LUT &lut)
 
     Kokkos::parallel_for(
         "lookup", distances.extent(0), KOKKOS_LAMBDA(int i) {
-            auto pred = 0.0f;
+            float pred = 0.0f;
 
-            for (auto j = 0u; j < distances.extent(1); j++) {
+            for (int j = 0u; j < distances.extent(1); j++) {
                 pred += target(indices(i, j)) * distances(i, j);
             }
 

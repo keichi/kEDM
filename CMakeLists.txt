@@ -16,8 +16,13 @@ set(HIGHFIVE_UNIT_TESTS OFF)
 set(HIGHFIVE_EXAMPLES OFF)
 add_subdirectory(src/thirdparty/highfive)
 
-add_library(kedm SHARED src/edim.cpp src/io.cpp src/simplex.cpp src/xmap.cpp
-            src/knn.cpp)
+add_library(kedm SHARED
+  src/edim.cpp
+  src/io.cpp
+  src/simplex.cpp
+  src/xmap.cpp
+  src/knn.cpp
+  src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
 
 add_executable(edm-xmap src/xmap_run.cpp)

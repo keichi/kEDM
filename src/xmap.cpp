@@ -13,7 +13,7 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
     std::vector<LUT> luts;
 
     // Allocate kNN tables
-    for (auto E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
@@ -21,19 +21,19 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
     NearestNeighbors knn(cache);
 
     // Compute kNN tables for all E
-    for (auto E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         knn.run(library, library, luts[E - 1], E, tau, Tp, E + 1);
         normalize_lut(luts[E - 1]);
     }
 
     // Group time series by their optimal embedding dimensions
     std::vector<std::vector<uint32_t>> groups(E_max);
-    for (auto i = 0u; i < ds.extent(1); i++) {
+    for (int i = 0u; i < ds.extent(1); i++) {
         groups[edims[i] - 1].push_back(i);
     }
 
     // Perform lookups
-    for (auto E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         if (!groups[E - 1].size()) {
             continue;
         }

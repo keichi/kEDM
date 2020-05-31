@@ -41,7 +41,7 @@ void simplex_test_common(uint32_t E)
     const auto valid =
         Kokkos::create_mirror_view_and_copy(HostSpace(), valid_prediction);
 
-    for (size_t i = 0; i < pred.size(); i++) {
+    for (auto i = 0u; i < pred.size(); i++) {
         CHECK(pred(i) == doctest::Approx(valid(i)).epsilon(0.01));
     }
 }

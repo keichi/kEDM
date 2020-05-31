@@ -17,10 +17,15 @@ using Dataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
 // TimeSeries also has left layout even though it's 1D
 using TimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
 
-struct LUT {
-    using Distances = Kokkos::View<float **, DevSpace>;
-    using Indices = Kokkos::View<uint32_t **, DevSpace>;
+using Distances = Kokkos::View<float **, DevSpace>;
+using Indices = Kokkos::View<uint32_t **, DevSpace>;
 
+using ScratchDistances = Kokkos::View<float *, DevSpace::scratch_memory_space,
+                                      Kokkos::MemoryUnmanaged>;
+using ScratchIndices = Kokkos::View<uint32_t *, DevSpace::scratch_memory_space,
+                                    Kokkos::MemoryUnmanaged>;
+
+struct LUT {
     Distances distances;
     Indices indices;
 
