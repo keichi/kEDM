@@ -30,7 +30,8 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     assert(distances.extent(0) >= n_target && distances.extent(1) >= n_library);
 
     Kokkos::parallel_for(
-        "calc_distances", Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO),
+        "EDM::knn::calc_distances",
+        Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int j = member.league_rank();
 
@@ -49,7 +50,8 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         });
 
     Kokkos::parallel_for(
-        "ignore_degenerates", Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        "EDM::knn::ignore_degenerates",
+        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int j = member.league_rank();
 
@@ -66,7 +68,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
     // Partially sort each row
     Kokkos::parallel_for(
-        "partial_sort",
+        "EDM::knn::partial_sort",
         Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerThread(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
@@ -119,7 +121,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
     // Compute L2 norms from SSDs and shift indices
     Kokkos::parallel_for(
-        "calc_norms",
+        "EDM::knn::calc_norms",
         Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target, top_k}),
         KOKKOS_LAMBDA(int i, int j) {
             distances(i, j) = sqrt(distances(i, j));
@@ -151,7 +153,7 @@ void normalize_lut(LUT &lut)
 
     // Normalize lookup table
     Kokkos::parallel_for(
-        "normalize_distances", L, KOKKOS_LAMBDA(int i) {
+        "EDM::normalize_distances", L, KOKKOS_LAMBDA(int i) {
             float sum_weights = 0.0f;
             float min_dist = FLT_MAX;
             float max_dist = 0.0f;

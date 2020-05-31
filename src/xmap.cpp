@@ -45,15 +45,10 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
         const auto distances = luts[E - 1].distances;
         const auto indices = luts[E - 1].indices;
 
-        using ScratchTimeSeries =
-            Kokkos::View<float *,
-                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                         Kokkos::MemoryUnmanaged>;
-
         size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
 
         Kokkos::parallel_for(
-            "lookup",
+            "EDM::xmap::lookup",
             Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
                 .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
             KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
