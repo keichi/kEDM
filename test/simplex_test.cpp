@@ -26,11 +26,9 @@ void simplex_test_common(uint32_t E)
 
     TimeSeries valid_prediction(ds2, Kokkos::ALL, 0);
 
-    LUT cache(target.size(), library.size());
-    NearestNeighbors knn(cache);
-
+    LUT tmp_lut(target.size(), library.size());
     LUT lut(target.size() - (E - 1) * tau, E + 1);
-    knn.run(library, target, lut, E, tau, Tp, E + 1);
+    knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
     normalize_lut(lut);
 
     TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
@@ -72,7 +70,7 @@ void embed_dim_test_common()
     std::vector<float> rho(E_max);
     std::vector<float> rho_valid(E_max);
 
-    LUT cache(400, 100);
+    LUT tmp_lut(400, 100);
 
     for (auto E = 1; E <= E_max; E++) {
         TimeSeries ts(ds1, Kokkos::ALL, 1);
@@ -80,9 +78,7 @@ void embed_dim_test_common()
         TimeSeries target(ts, std::make_pair(200ul - (E - 1) * tau, 500ul));
 
         LUT lut(target.size() - (E - 1) * tau, E + 1);
-
-        NearestNeighbors knn(cache);
-        knn.run(library, target, lut, E, tau, Tp, E + 1);
+        knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
         normalize_lut(lut);
 
         TimeSeries prediction("prediction", target.size() - (E - 1) * tau);

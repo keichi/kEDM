@@ -8,8 +8,8 @@
 namespace edm
 {
 
-void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
-                           LUT &lut, int E, int tau, int Tp, int top_k)
+void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
+         LUT &tmp, int E, int tau, int Tp, int top_k)
 {
 #ifndef KOKKOS_ENABLE_CUDA
     using std::max;
@@ -24,8 +24,8 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
 
     assert(n_library > 0 && n_target > 0);
 
-    const auto distances = _cache.distances;
-    const auto indices = _cache.indices;
+    const auto distances = tmp.distances;
+    const auto indices = tmp.indices;
 
     assert(distances.extent(0) >= n_target && distances.extent(1) >= n_library);
 
@@ -127,10 +127,10 @@ void NearestNeighbors::run(const TimeSeries &library, const TimeSeries &target,
         });
 
     // Copy LUT from cache to output
-    Kokkos::deep_copy(lut.distances,
+    Kokkos::deep_copy(out.distances,
                       Kokkos::subview(distances, std::make_pair(0, n_target),
                                       std::make_pair(0, top_k)));
-    Kokkos::deep_copy(lut.indices,
+    Kokkos::deep_copy(out.indices,
                       Kokkos::subview(indices, std::make_pair(0, n_target),
                                       std::make_pair(0, top_k)));
 }

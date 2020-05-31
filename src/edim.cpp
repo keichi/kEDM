@@ -15,13 +15,12 @@ int edim(const TimeSeries &ts, int E_max, int tau, int Tp)
     auto library = TimeSeries(ts, std::make_pair(0ul, ts.size() / 2));
     auto target = TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
 
-    LUT cache(ts.size(), ts.size());
-    NearestNeighbors knn(cache);
+    LUT tmp_lut(ts.size(), ts.size());
 
     for (int E = 1; E <= E_max; E++) {
         LUT lut(target.size() - (E - 1) * tau, E + 1);
 
-        knn.run(library, target, lut, E, tau, Tp, E + 1);
+        knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
         normalize_lut(lut);
 
         TimeSeries prediction("prediction", target.size() - (E - 1) * tau);

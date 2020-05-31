@@ -17,18 +17,17 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
         luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
-    LUT cache(ds.extent(0), ds.extent(0));
-    NearestNeighbors knn(cache);
+    LUT tmp_lut(ds.extent(0), ds.extent(0));
 
     // Compute kNN tables for all E
     for (int E = 1; E <= E_max; E++) {
-        knn.run(library, library, luts[E - 1], E, tau, Tp, E + 1);
+        knn(library, library, luts[E - 1], tmp_lut, E, tau, Tp, E + 1);
         normalize_lut(luts[E - 1]);
     }
 
     // Group time series by their optimal embedding dimensions
     std::vector<std::vector<uint32_t>> groups(E_max);
-    for (int i = 0u; i < ds.extent(1); i++) {
+    for (size_t i = 0; i < ds.extent(1); i++) {
         groups[edims[i] - 1].push_back(i);
     }
 
