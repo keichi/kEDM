@@ -21,13 +21,6 @@ cmake -DCMAKE_C_COMPILER=$(which gcc-9) \
 
 ### Linux (with CUDA)
 
-Use nvcc+clang since HighFive does not compile with nvcc+gcc (see
-https://github.com/BlueBrain/HighFive/issues/180).
-
 ```
-export NVCC_WRAPPER_DEFAULT_COMPILER=$(which clang++)
-
-cmake -DCMAKE_C_COMPILER=$(which clang) \
-      -DCMAKE_CXX_COMPILER=/opt/kokkos/bin/nvcc_wrapper \
-      -DCMAKE_BUILD_TYPE=Debug ..
+cmake -DCMAKE_CXX_COMPILER=/opt/kokkos/bin/nvcc_wrapper ..
 ```
