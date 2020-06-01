@@ -5,28 +5,23 @@
 namespace edm
 {
 
-#ifdef KOKKOS_ENABLE_CUDA
-using DevSpace = Kokkos::CudaSpace;
-#else
-using DevSpace = Kokkos::DefaultExecutionSpace;
-#endif
+using DevSpace = Kokkos::DefaultExecutionSpace::memory_space;
+using DevScratchSpace = Kokkos::DefaultExecutionSpace::scratch_memory_space;
 using HostSpace = Kokkos::HostSpace;
 
-// Dataset is alyways left layout regardless of the backend
-using Dataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
-// TimeSeries also has left layout even though it's 1D
-using TimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
+using Dataset = Kokkos::View<float **, DevSpace>;
+using TimeSeries = Kokkos::View<float *, DevSpace>;
 
-using ScratchTimeSeries = Kokkos::View<float *, DevSpace::scratch_memory_space,
-                                       Kokkos::MemoryUnmanaged>;
+using ScratchTimeSeries =
+    Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 
 using Distances = Kokkos::View<float **, DevSpace>;
 using Indices = Kokkos::View<uint32_t **, DevSpace>;
 
-using ScratchDistances = Kokkos::View<float *, DevSpace::scratch_memory_space,
-                                      Kokkos::MemoryUnmanaged>;
-using ScratchIndices = Kokkos::View<uint32_t *, DevSpace::scratch_memory_space,
-                                    Kokkos::MemoryUnmanaged>;
+using ScratchDistances =
+    Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
+using ScratchIndices =
+    Kokkos::View<uint32_t *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 
 struct LUT {
     Distances distances;
