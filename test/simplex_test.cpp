@@ -87,21 +87,7 @@ void embed_dim_test_common()
 
         simplex(prediction, library, lut);
 
-        auto pred =
-            Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
-        auto shift =
-            Kokkos::create_mirror_view_and_copy(HostSpace(), shifted_target);
-
-        CorrcoefState state;
-
-        Kokkos::parallel_reduce(
-            prediction.size() - 1,
-            KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
-                upd += CorrcoefState(prediction(i), shifted_target(i));
-            },
-            Kokkos::Sum<CorrcoefState>(state));
-
-        rho[E - 1] = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
+        rho[E - 1] = corrcoef(prediction, shifted_target);
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);
 
         // Check correlation coefficient
