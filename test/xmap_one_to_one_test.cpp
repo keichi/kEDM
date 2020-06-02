@@ -35,7 +35,7 @@ void cross_mapping_test_common(uint32_t E)
     knn(library, library, lut, tmp_lut, E, tau, Tp, E + 1);
     normalize_lut(lut);
 
-    TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
+    MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);
     simplex(prediction, target, lut);
 
     const auto pred =

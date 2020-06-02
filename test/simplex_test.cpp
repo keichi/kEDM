@@ -31,7 +31,7 @@ void simplex_test_common(uint32_t E)
     knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
     normalize_lut(lut);
 
-    TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
+    MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);
     simplex(prediction, library, lut);
 
     const auto pred =
@@ -81,7 +81,8 @@ void embed_dim_test_common()
         knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
         normalize_lut(lut);
 
-        TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
+        MutableTimeSeries prediction("prediction",
+                                     target.size() - (E - 1) * tau);
         TimeSeries shifted_target(
             target, std::make_pair((E - 1) * tau + Tp, target.size()));
 

@@ -9,8 +9,11 @@ using DevSpace = Kokkos::DefaultExecutionSpace::memory_space;
 using DevScratchSpace = Kokkos::DefaultExecutionSpace::scratch_memory_space;
 using HostSpace = Kokkos::HostSpace;
 
-using Dataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
-using TimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
+using Dataset = Kokkos::View<const float **, Kokkos::LayoutLeft, DevSpace>;
+using MutableDataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
+
+using TimeSeries = Kokkos::View<const float *, Kokkos::LayoutLeft, DevSpace>;
+using MutableTimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
 
 using ScratchTimeSeries =
     Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;

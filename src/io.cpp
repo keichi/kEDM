@@ -46,7 +46,7 @@ Dataset load_csv(const std::string &path)
         n_rows++;
     }
 
-    auto ds = Dataset("dataset", n_rows, n_columns);
+    auto ds = MutableDataset("dataset", n_rows, n_columns);
     auto mirror = Kokkos::create_mirror_view(ds);
 
     for (auto i = 0; i < n_columns; i++) {
@@ -57,7 +57,7 @@ Dataset load_csv(const std::string &path)
 
     Kokkos::deep_copy(ds, mirror);
 
-    return ds;
+    return Dataset(ds);
 }
 
 Dataset load_hdf5(const std::string &path, const std::string &ds_name)
@@ -73,7 +73,7 @@ Dataset load_hdf5(const std::string &path, const std::string &ds_name)
 
     std::vector<float> rows(MAX_CHUNK_SIZE * n_columns);
 
-    auto ds = Dataset("dataset", n_rows, n_columns);
+    auto ds = MutableDataset("dataset", n_rows, n_columns);
     auto mirror = Kokkos::create_mirror_view(ds);
 
     for (auto i = 0u; i < n_rows; i += MAX_CHUNK_SIZE) {
@@ -90,7 +90,7 @@ Dataset load_hdf5(const std::string &path, const std::string &ds_name)
 
     Kokkos::deep_copy(ds, mirror);
 
-    return ds;
+    return Dataset(ds);
 }
 
 } // namespace edm

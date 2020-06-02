@@ -23,7 +23,8 @@ uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp)
         knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
         normalize_lut(lut);
 
-        TimeSeries prediction("prediction", target.size() - (E - 1) * tau);
+        MutableTimeSeries prediction("prediction",
+                                     target.size() - (E - 1) * tau);
         TimeSeries shifted_target(
             target, std::make_pair((E - 1ul) * tau + Tp, target.size()));
 

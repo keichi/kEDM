@@ -6,7 +6,8 @@
 namespace edm
 {
 
-void simplex(TimeSeries &prediction, const TimeSeries &target, const LUT &lut);
+void simplex(const MutableTimeSeries &prediction, const TimeSeries &target,
+             const LUT &lut);
 
 } // namespace edm
 
