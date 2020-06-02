@@ -8,7 +8,7 @@
 namespace edm
 {
 
-int edim(const TimeSeries &ts, int E_max, int tau, int Tp)
+uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp)
 {
     std::vector<float> rho(E_max);
 
@@ -17,7 +17,7 @@ int edim(const TimeSeries &ts, int E_max, int tau, int Tp)
 
     LUT tmp_lut(ts.size(), ts.size());
 
-    for (int E = 1; E <= E_max; E++) {
+    for (uint32_t E = 1; E <= E_max; E++) {
         LUT lut(target.size() - (E - 1) * tau, E + 1);
 
         knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);

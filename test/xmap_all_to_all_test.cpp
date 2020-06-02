@@ -19,8 +19,8 @@ void xmap_test_common()
     const auto ds_corrcoef = file.getDataSet("corrcoef");
     const auto ds_edim = file.getDataSet("embedding");
 
-    std::vector<int> optimal_E(ds.extent(1));
-    std::vector<int> optimal_E_valid(ds.extent(1));
+    std::vector<uint32_t> optimal_E(ds.extent(1));
+    std::vector<uint32_t> optimal_E_valid(ds.extent(1));
 
     ds_edim.read(optimal_E_valid);
 

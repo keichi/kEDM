@@ -14,7 +14,7 @@ void run(const std::string &path, const std::string &dataset)
 {
     const auto ds = edm::load_hdf5(path, dataset);
 
-    std::vector<int> optimal_E(ds.extent(1));
+    std::vector<uint32_t> optimal_E(ds.extent(1));
 
     for (auto i = 0u; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
