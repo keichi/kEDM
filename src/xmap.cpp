@@ -7,6 +7,54 @@
 namespace edm
 {
 
+void _xmap(CrossMap &result, const Dataset &ds, const LUT &lut,
+           const DevTargets &targets, uint32_t E, int32_t tau, int32_t Tp)
+{
+    const auto distances = lut.distances;
+    const auto indices = lut.indices;
+
+    size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
+
+    Kokkos::parallel_for(
+        "EDM::xmap::lookup",
+        Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            uint32_t tj = targets(member.league_rank());
+
+            ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, ds.extent(0)),
+                                 [=](uint32_t i) { scratch(i) = ds(i, tj); });
+
+            member.team_barrier();
+
+            CorrcoefState state;
+
+            Kokkos::parallel_reduce(
+                Kokkos::TeamThreadRange(member, distances.extent(0)),
+                [=](uint32_t i, CorrcoefState &upd) {
+                    float pred = 0.0f;
+
+                    Kokkos::parallel_reduce(
+                        Kokkos::ThreadVectorRange(member, E + 1),
+                        [=](uint32_t &e, float &p) {
+                            p += scratch(indices(i, e)) * distances(i, e);
+                        },
+                        pred);
+
+                    float actual = scratch((E - 1) * tau + Tp + i);
+
+                    upd += CorrcoefState(pred, actual);
+                },
+                Kokkos::Sum<CorrcoefState>(state));
+
+            Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                result(tj) = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
+            });
+        });
+}
+
 void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
           const std::vector<uint32_t> &edims, uint32_t E_max, int32_t tau,
           int32_t Tp)
@@ -43,50 +91,7 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
         DevTargets targets("targets", h_targets.size());
         Kokkos::deep_copy(targets, h_targets);
 
-        const auto distances = luts[E - 1].distances;
-        const auto indices = luts[E - 1].indices;
-
-        size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
-
-        Kokkos::parallel_for(
-            "EDM::xmap::lookup",
-            Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
-                .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
-            KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-                uint32_t tj = targets(member.league_rank());
-
-                ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
-
-                Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, ds.extent(0)),
-                    [=](uint32_t i) { scratch(i) = ds(i, tj); });
-
-                member.team_barrier();
-
-                CorrcoefState state;
-
-                Kokkos::parallel_reduce(
-                    Kokkos::TeamThreadRange(member, distances.extent(0)),
-                    [=](uint32_t i, CorrcoefState &upd) {
-                        float pred = 0.0f;
-
-                        Kokkos::parallel_reduce(
-                            Kokkos::ThreadVectorRange(member, E + 1),
-                            [=](uint32_t &e, float &p) {
-                                p += scratch(indices(i, e)) * distances(i, e);
-                            },
-                            pred);
-
-                        float actual = scratch((E - 1) * tau + Tp + i);
-
-                        upd += CorrcoefState(pred, actual);
-                    },
-                    Kokkos::Sum<CorrcoefState>(state));
-
-                Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                    result(tj) = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
-                });
-            });
+        _xmap(result, ds, luts[E - 1], targets, E, tau, Tp);
     }
 }
 
