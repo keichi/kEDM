@@ -82,18 +82,9 @@ void group_ts(std::vector<Targets> &groups, const std::vector<uint32_t> &edims,
 }
 
 void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
-          const std::vector<Targets> &groups, uint32_t E_max, int32_t tau,
-          int32_t Tp)
+          const std::vector<Targets> &groups, std::vector<LUT> &luts,
+          LUT &tmp_lut, uint32_t E_max, int32_t tau, int32_t Tp)
 {
-    std::vector<LUT> luts;
-
-    // Allocate kNN tables
-    for (uint32_t E = 1; E <= E_max; E++) {
-        luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
-    }
-
-    LUT tmp_lut(ds.extent(0), ds.extent(0));
-
     // Compute kNN tables for all E
     for (uint32_t E = 1; E <= E_max; E++) {
         knn(library, library, luts[E - 1], tmp_lut, E, tau, Tp, E + 1);

@@ -13,6 +13,9 @@ namespace edm
 
 void xmap_test_common()
 {
+    const uint32_t E_max = 20;
+    const int32_t tau = 1;
+
     const auto ds = load_hdf5("xmap_all_to_all_test.h5", "values");
 
     const HighFive::File file("xmap_all_to_all_test_validation.h5");
@@ -26,13 +29,22 @@ void xmap_test_common()
 
     for (auto i = 0u; i < ds.extent(1); i++) {
         TimeSeries ts(ds, Kokkos::ALL, i);
-        optimal_E[i] = edim(ts, 20, 1, 1);
+        optimal_E[i] = edim(ts, E_max, 1, 1);
 
         CHECK(optimal_E[i] == optimal_E_valid[i]);
     }
 
+    std::vector<LUT> luts;
+
+    // Allocate kNN tables
+    for (uint32_t E = 1; E <= E_max; E++) {
+        luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
+    }
+
+    LUT tmp_lut(ds.extent(0), ds.extent(0));
+
     std::vector<Targets> groups;
-    group_ts(groups, optimal_E, 20);
+    group_ts(groups, optimal_E, E_max);
 
     CrossMap rho("xmap", ds.extent(1));
     std::vector<float> rho_valid(ds.extent(1));
@@ -40,7 +52,7 @@ void xmap_test_common()
     for (auto i = 0u; i < ds.extent(1); i++) {
         TimeSeries library(ds, Kokkos::ALL, i);
 
-        xmap(rho, ds, library, groups, 20, 1, 0);
+        xmap(rho, ds, library, groups, luts, tmp_lut, E_max, 1, 0);
 
         ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rho_valid);
 
