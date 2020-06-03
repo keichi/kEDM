@@ -39,9 +39,7 @@ struct LUT {
 
 using CrossMap = Kokkos::View<float *, DevSpace>;
 
-using HostTargets = Kokkos::View<uint32_t *, HostSpace,
-                                 Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-using DevTargets = Kokkos::View<uint32_t *, DevSpace>;
+using Targets = Kokkos::View<uint32_t *, DevSpace>;
 
 } // namespace edm
 

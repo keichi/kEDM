@@ -26,13 +26,16 @@ void run(const std::string &path, const std::string &dataset)
                   << timer.seconds() << " seconds." << std::endl;
     }
 
+    std::vector<edm::Targets> groups;
+    edm::group_ts(groups, optimal_E, 20);
+
     edm::CrossMap rho("xmap", ds.extent(1));
 
     for (auto i = 0u; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
         edm::TimeSeries library(ds, Kokkos::ALL, i);
 
-        edm::xmap(rho, ds, library, optimal_E, 20, 1, 0);
+        edm::xmap(rho, ds, library, groups, 20, 1, 0);
 
         std::cout << "Cross map for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;

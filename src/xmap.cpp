@@ -8,7 +8,7 @@ namespace edm
 {
 
 void _xmap(CrossMap &result, const Dataset &ds, const LUT &lut,
-           const DevTargets &targets, uint32_t E, int32_t tau, int32_t Tp)
+           const Targets &targets, uint32_t E, int32_t tau, int32_t Tp)
 {
     const auto distances = lut.distances;
     const auto indices = lut.indices;
@@ -55,8 +55,34 @@ void _xmap(CrossMap &result, const Dataset &ds, const LUT &lut,
         });
 }
 
+// Group time series by their optimal embedding dimensions
+void group_ts(std::vector<Targets> &groups, const std::vector<uint32_t> &edims,
+              uint32_t E_max)
+{
+    std::vector<std::vector<uint32_t>> h_groups(E_max);
+
+    groups.resize(E_max);
+
+    for (uint32_t i = 0; i < edims.size(); i++) {
+        h_groups[edims[i] - 1].push_back(i);
+    }
+
+    for (uint32_t E = 1; E <= E_max; E++) {
+        Targets targets("targets", h_groups[E - 1].size());
+
+        auto mirror = Kokkos::create_mirror_view(targets);
+
+        for (uint32_t j = 0; j < h_groups[E - 1].size(); j++) {
+            mirror(j) = h_groups[E - 1][j];
+        }
+
+        Kokkos::deep_copy(targets, mirror);
+        groups[E - 1] = targets;
+    }
+}
+
 void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
-          const std::vector<uint32_t> &edims, uint32_t E_max, int32_t tau,
+          const std::vector<Targets> &groups, uint32_t E_max, int32_t tau,
           int32_t Tp)
 {
     std::vector<LUT> luts;
@@ -74,24 +100,13 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
         normalize_lut(luts[E - 1]);
     }
 
-    // Group time series by their optimal embedding dimensions
-    std::vector<std::vector<uint32_t>> groups(E_max);
-    for (uint32_t i = 0; i < ds.extent(1); i++) {
-        groups[edims[i] - 1].push_back(i);
-    }
-
     // Perform lookups
     for (uint32_t E = 1; E <= E_max; E++) {
         if (!groups[E - 1].size()) {
             continue;
         }
 
-        // TODO This needs to be done only once
-        HostTargets h_targets(groups[E - 1].data(), groups[E - 1].size());
-        DevTargets targets("targets", h_targets.size());
-        Kokkos::deep_copy(targets, h_targets);
-
-        _xmap(result, ds, luts[E - 1], targets, E, tau, Tp);
+        _xmap(result, ds, luts[E - 1], groups[E - 1], E, tau, Tp);
     }
 }
 

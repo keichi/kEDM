@@ -31,13 +31,16 @@ void xmap_test_common()
         CHECK(optimal_E[i] == optimal_E_valid[i]);
     }
 
+    std::vector<Targets> groups;
+    group_ts(groups, optimal_E, 20);
+
     CrossMap rho("xmap", ds.extent(1));
     std::vector<float> rho_valid(ds.extent(1));
 
     for (auto i = 0u; i < ds.extent(1); i++) {
         TimeSeries library(ds, Kokkos::ALL, i);
 
-        xmap(rho, ds, library, optimal_E, 20, 1, 0);
+        xmap(rho, ds, library, groups, 20, 1, 0);
 
         ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rho_valid);
 
