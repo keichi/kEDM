@@ -37,6 +37,14 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_target), [=](uint32_t i) {
+                    indices(i, j) = j;
+
+                    // Ignore degenerate neighbor
+                    if (library.data() + i == target.data() + j) {
+                        distances(i, j) = FLT_MAX;
+                        return;
+                    }
+
                     float dist = 0.0f;
 
                     for (uint32_t e = 0; e < E; e++) {
@@ -45,21 +53,6 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                     }
 
                     distances(i, j) = dist;
-                    indices(i, j) = j;
-                });
-        });
-
-    Kokkos::parallel_for(
-        "EDM::knn::ignore_degenerates",
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            const uint32_t j = member.league_rank();
-
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library), [=](uint32_t i) {
-                    if (library.data() + i == target.data() + j) {
-                        distances(i, j) = FLT_MAX;
-                    }
                 });
         });
 
@@ -112,20 +105,12 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                     scratch_idx(k) = cur_idx;
                 }
 
+                // Compute L2 norms from SSDs and shift indices
                 for (uint32_t j = 0; j < top_k; j++) {
-                    distances(i, j) = scratch_dist(j);
-                    indices(i, j) = scratch_idx(j);
+                    distances(i, j) = sqrt(scratch_dist(j));
+                    indices(i, j) = scratch_idx(j) + shift;
                 }
             });
-        });
-
-    // Compute L2 norms from SSDs and shift indices
-    Kokkos::parallel_for(
-        "EDM::knn::calc_norms",
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {n_target, top_k}),
-        KOKKOS_LAMBDA(uint32_t i, uint32_t j) {
-            distances(i, j) = sqrt(distances(i, j));
-            indices(i, j) += shift;
         });
 
     // Copy LUT from cache to output
