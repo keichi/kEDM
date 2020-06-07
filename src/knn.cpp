@@ -40,7 +40,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                     indices(i, j) = j;
 
                     // Ignore degenerate neighbor
-                    if (library.data() + i == target.data() + j) {
+                    if (target.data() + i == library.data() + j) {
                         distances(i, j) = FLT_MAX;
                         return;
                     }
