@@ -31,11 +31,23 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
     assert(distances.extent(0) >= n_target && distances.extent(1) >= n_library);
 
+    size_t scratch_size = ScratchTimeSeries::shmem_size(E);
+
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
-        Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO),
+        Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const uint32_t j = member.league_rank();
+
+            // Scratch views to hold the top-k elements
+            ScratchTimeSeries scratch_library(member.team_scratch(0), E);
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, E),
+                [=](uint32_t i) { scratch_library(i) = library(j + i * tau); });
+
+            member.team_barrier();
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_target), [=](uint32_t i) {
@@ -49,16 +61,20 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
                     float dist = 0.0f;
 
-                    for (uint32_t e = 0; e < E; e++) {
-                        float diff = target(i + e * tau) - library(j + e * tau);
-                        dist += diff * diff;
-                    }
+                    Kokkos::parallel_reduce(
+                        Kokkos::ThreadVectorRange(member, E),
+                        [=](uint32_t e, float &d) {
+                            float diff =
+                                target(i + e * tau) - scratch_library(e);
+                            d += diff * diff;
+                        },
+                        dist);
 
                     distances(i, j) = dist;
                 });
         });
 
-    size_t scratch_size =
+    scratch_size =
         ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
 
     // Partially sort each row
