@@ -159,39 +159,40 @@ void normalize_lut(LUT &lut)
     const uint32_t top_k = distances.extent(1);
 
     // Normalize lookup table
-    Kokkos::parallel_for("EDM::normalize_distances", L, KOKKOS_LAMBDA(int i) {
-        float sum_weights = 0.0f;
-        float min_dist = FLT_MAX;
-        float max_dist = 0.0f;
+    Kokkos::parallel_for(
+        "EDM::normalize_distances", L, KOKKOS_LAMBDA(int i) {
+            float sum_weights = 0.0f;
+            float min_dist = FLT_MAX;
+            float max_dist = 0.0f;
 
-        for (uint32_t j = 0; j < top_k; j++) {
-            float dist = distances(i, j);
-            min_dist = min(min_dist, dist);
-            max_dist = max(max_dist, dist);
-        }
-
-        for (uint32_t j = 0; j < top_k; j++) {
-            const float dist = distances(i, j);
-
-            float weighted_dist = 0.0f;
-
-            if (min_dist > 0.0f) {
-                weighted_dist = exp(-dist / min_dist);
-            } else {
-                weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
+            for (uint32_t j = 0; j < top_k; j++) {
+                float dist = distances(i, j);
+                min_dist = min(min_dist, dist);
+                max_dist = max(max_dist, dist);
             }
 
-            const float weight = max(weighted_dist, MIN_WEIGHT);
+            for (uint32_t j = 0; j < top_k; j++) {
+                const float dist = distances(i, j);
 
-            distances(i, j) = weight;
+                float weighted_dist = 0.0f;
 
-            sum_weights += weight;
-        }
+                if (min_dist > 0.0f) {
+                    weighted_dist = exp(-dist / min_dist);
+                } else {
+                    weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
+                }
 
-        for (uint32_t j = 0; j < top_k; j++) {
-            distances(i, j) /= sum_weights;
-        }
-    });
+                const float weight = max(weighted_dist, MIN_WEIGHT);
+
+                distances(i, j) = weight;
+
+                sum_weights += weight;
+            }
+
+            for (uint32_t j = 0; j < top_k; j++) {
+                distances(i, j) /= sum_weights;
+            }
+        });
 
     Kokkos::Profiling::popRegion();
 }
