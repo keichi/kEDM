@@ -16,6 +16,8 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     using std::min;
 #endif
 
+    Kokkos::Profiling::pushRegion("EDM::knn");
+
     assert(E > 0 && tau > 0 && Tp >= 0 && top_k > 0);
 
     const int shift = (E - 1) * tau + Tp;
@@ -120,6 +122,8 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     Kokkos::deep_copy(out.indices,
                       Kokkos::subview(indices, std::make_pair(0u, n_target),
                                       std::make_pair(0u, top_k)));
+
+    Kokkos::Profiling::popRegion();
 }
 
 void normalize_lut(LUT &lut)
@@ -131,46 +135,49 @@ void normalize_lut(LUT &lut)
     using std::sqrt;
 #endif
 
+    Kokkos::Profiling::pushRegion("EDM::normalize_lut");
+
     auto distances = lut.distances;
     auto indices = lut.indices;
     const uint32_t L = distances.extent(0);
     const uint32_t top_k = distances.extent(1);
 
     // Normalize lookup table
-    Kokkos::parallel_for(
-        "EDM::normalize_distances", L, KOKKOS_LAMBDA(int i) {
-            float sum_weights = 0.0f;
-            float min_dist = FLT_MAX;
-            float max_dist = 0.0f;
+    Kokkos::parallel_for("EDM::normalize_distances", L, KOKKOS_LAMBDA(int i) {
+        float sum_weights = 0.0f;
+        float min_dist = FLT_MAX;
+        float max_dist = 0.0f;
 
-            for (uint32_t j = 0; j < top_k; j++) {
-                float dist = distances(i, j);
-                min_dist = min(min_dist, dist);
-                max_dist = max(max_dist, dist);
+        for (uint32_t j = 0; j < top_k; j++) {
+            float dist = distances(i, j);
+            min_dist = min(min_dist, dist);
+            max_dist = max(max_dist, dist);
+        }
+
+        for (uint32_t j = 0; j < top_k; j++) {
+            const float dist = distances(i, j);
+
+            float weighted_dist = 0.0f;
+
+            if (min_dist > 0.0f) {
+                weighted_dist = exp(-dist / min_dist);
+            } else {
+                weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
             }
 
-            for (uint32_t j = 0; j < top_k; j++) {
-                const float dist = distances(i, j);
+            const float weight = max(weighted_dist, MIN_WEIGHT);
 
-                float weighted_dist = 0.0f;
+            distances(i, j) = weight;
 
-                if (min_dist > 0.0f) {
-                    weighted_dist = exp(-dist / min_dist);
-                } else {
-                    weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
-                }
+            sum_weights += weight;
+        }
 
-                const float weight = max(weighted_dist, MIN_WEIGHT);
+        for (uint32_t j = 0; j < top_k; j++) {
+            distances(i, j) /= sum_weights;
+        }
+    });
 
-                distances(i, j) = weight;
-
-                sum_weights += weight;
-            }
-
-            for (uint32_t j = 0; j < top_k; j++) {
-                distances(i, j) /= sum_weights;
-            }
-        });
+    Kokkos::Profiling::popRegion();
 }
 
 } // namespace edm

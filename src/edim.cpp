@@ -10,6 +10,8 @@ namespace edm
 
 uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp)
 {
+    Kokkos::Profiling::pushRegion("EDM::edim");
+
     std::vector<float> rho(E_max);
 
     auto library = TimeSeries(ts, std::make_pair(0ul, ts.size() / 2));
@@ -32,6 +34,8 @@ uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp)
 
         rho[E - 1] = corrcoef(prediction, shifted_target);
     }
+
+    Kokkos::Profiling::popRegion();
 
     return std::max_element(rho.begin(), rho.end()) - rho.begin() + 1;
 }

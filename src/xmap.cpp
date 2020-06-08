@@ -85,6 +85,8 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
           const std::vector<Targets> &groups, std::vector<LUT> &luts,
           LUT &tmp_lut, uint32_t E_max, int32_t tau, int32_t Tp)
 {
+    Kokkos::Profiling::pushRegion("EDM::xmap");
+
     // Compute kNN tables for all E
     for (uint32_t E = 1; E <= E_max; E++) {
         knn(library, library, luts[E - 1], tmp_lut, E, tau, Tp, E + 1);
@@ -99,6 +101,8 @@ void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
 
         _xmap(result, ds, luts[E - 1], groups[E - 1], E, tau, Tp);
     }
+
+    Kokkos::Profiling::popRegion();
 }
 
 } // namespace edm

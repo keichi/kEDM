@@ -10,6 +10,8 @@ namespace edm
 void simplex(const MutableTimeSeries &prediction, const TimeSeries &target,
              const LUT &lut)
 {
+    Kokkos::Profiling::pushRegion("EDM::simplex");
+
     const auto distances = lut.distances;
     const auto indices = lut.indices;
 
@@ -25,6 +27,8 @@ void simplex(const MutableTimeSeries &prediction, const TimeSeries &target,
 
             prediction(i) = pred;
         });
+
+    Kokkos::Profiling::popRegion();
 }
 
 } // namespace edm
