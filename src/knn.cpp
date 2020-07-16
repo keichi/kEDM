@@ -33,6 +33,8 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
     size_t scratch_size = ScratchTimeSeries::shmem_size(E);
 
+#ifdef KOKKOS_ENABLE_CUDA
+    // Calculate all-to-all distances
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
         Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO)
@@ -40,12 +42,11 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const uint32_t j = member.league_rank();
 
-            // Scratch views to hold the top-k elements
             ScratchTimeSeries scratch_library(member.team_scratch(0), E);
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, E),
-                [=](uint32_t i) { scratch_library(i) = library(j + i * tau); });
+                [=](uint32_t e) { scratch_library(e) = library(j + e * tau); });
 
             member.team_barrier();
 
@@ -73,10 +74,39 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                     distances(i, j) = dist;
                 });
         });
+#else
+    Kokkos::parallel_for(
+        "EDM::knn::calc_distances", n_target,
+        KOKKOS_LAMBDA(uint32_t i) {
+            #pragma ivdep
+            #pragma code_align 32
+            for (uint32_t j = 0; j < n_library; j++) {
+                distances(i, j) = 0.0f;
+                indices(i, j) = j;
+            }
+
+            for (uint32_t e = 0; e < E; e++) {
+                #pragma ivdep
+                for (uint32_t j = 0; j < n_library; j++) {
+                    float diff = target(i + e * tau) - library(j + e * tau);
+
+                    distances(i, j) += diff * diff;
+                }
+            }
+
+            for (uint32_t j = 0; j < n_library; j++) {
+                // Ignore degenerate neighbor
+                if (target.data() + i == library.data() + j) {
+                    distances(i, j) = FLT_MAX;
+                }
+            }
+        });
+#endif
 
     scratch_size =
         ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
 
+#ifdef KOKKOS_ENABLE_CUDA
     // Partially sort each row
     Kokkos::parallel_for(
         "EDM::knn::partial_sort",
@@ -138,6 +168,27 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     Kokkos::deep_copy(out.indices,
                       Kokkos::subview(indices, std::make_pair(0u, n_target),
                                       std::make_pair(0u, top_k)));
+#else
+    Kokkos::parallel_for(
+        "EDM::knn::partial_sort", n_target,
+        KOKKOS_LAMBDA(uint32_t i) {
+            // TODO This assumes LayoutRight
+            std::partial_sort(
+                &indices(i, 0), &indices(i, top_k), &indices(i, n_library),
+                [&](uint32_t a, uint32_t b) -> uint32_t {
+                    return distances(i, a) < distances(i, b);
+            });
+
+            // Compute L2 norms from SSDs and shift indices
+            // Copy LUT from cache to output
+            #pragma ivdep
+            for (uint32_t j = 0; j < top_k; j++) {
+                uint32_t idx = indices(i, j);
+                out.distances(i, j) = sqrt(distances(i, idx));
+                out.indices(i, j) = idx + shift;
+            }
+        });
+#endif
 
     Kokkos::Profiling::popRegion();
 }
