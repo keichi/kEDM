@@ -76,30 +76,39 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         });
 #else
     Kokkos::parallel_for(
-        "EDM::knn::calc_distances", n_target,
-        KOKKOS_LAMBDA(uint32_t i) {
-            #pragma ivdep
-            #pragma code_align 32
-            for (uint32_t j = 0; j < n_library; j++) {
-                distances(i, j) = 0.0f;
-                indices(i, j) = j;
-            }
+        "EDM::knn::calc_distances",
+        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int i = member.league_rank() * member.team_size() + member.team_rank();
+
+            if (i >= n_target) return;
+
+            Kokkos::parallel_for(
+                Kokkos::ThreadVectorRange(member, n_library),
+                [=](uint32_t j) {
+                    distances(i, j) = 0.0f;
+                    indices(i, j) = j;
+                });
 
             for (uint32_t e = 0; e < E; e++) {
-                #pragma ivdep
-                for (uint32_t j = 0; j < n_library; j++) {
-                    float diff = target(i + e * tau) - library(j + e * tau);
+                Kokkos::parallel_for(
+                    Kokkos::ThreadVectorRange(member, n_library),
+                    [=](uint32_t j) {
+                        float diff = target(i + e * tau) - library(j + e * tau);
 
-                    distances(i, j) += diff * diff;
-                }
+                        distances(i, j) += diff * diff;
+                    });
             }
 
-            for (uint32_t j = 0; j < n_library; j++) {
-                // Ignore degenerate neighbor
-                if (target.data() + i == library.data() + j) {
-                    distances(i, j) = FLT_MAX;
-                }
-            }
+            Kokkos::parallel_for(
+                Kokkos::ThreadVectorRange(member, n_library),
+                [=](uint32_t j) {
+                    // Ignore degenerate neighbor
+                    if (target.data() + i == library.data() + j) {
+                        distances(i, j) = FLT_MAX;
+                    }
+                });
+
         });
 #endif
 
