@@ -7,6 +7,7 @@
 
 #include "../src/edim.hpp"
 #include "../src/io.hpp"
+#include "../src/stats.hpp"
 #include "../src/types.hpp"
 #include "../src/xmap.hpp"
 
@@ -41,15 +42,26 @@ void run(const std::string &path, const std::string &dataset)
     std::vector<edm::Targets> groups;
     edm::group_ts(groups, optimal_E, E_max);
 
-    edm::CrossMap rho("xmap", ds.extent(1));
+    edm::CrossMap ccm("ccm", ds.extent(1));
+    edm::CrossMap rho("rho", ds.extent(1));
 
     for (auto i = 0u; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
         edm::TimeSeries library(ds, Kokkos::ALL, i);
 
-        edm::xmap(rho, ds, library, groups, luts, tmp_lut, E_max, tau, 0);
+        edm::xmap(ccm, ds, library, groups, luts, tmp_lut, E_max, tau, 0);
 
         std::cout << "Cross map for time series #" << i << " took "
+                  << timer.seconds() << " seconds." << std::endl;
+    }
+
+    for (auto i = 0u; i < ds.extent(1); i++) {
+        Kokkos::Timer timer;
+        edm::TimeSeries library(ds, Kokkos::ALL, i);
+
+        edm::corrcoef(rho, ds, library);
+
+        std::cout << "Correlation for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
     }
 }

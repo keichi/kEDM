@@ -49,9 +49,8 @@ void _xmap(CrossMap &result, const Dataset &ds, const LUT &lut,
                 },
                 Kokkos::Sum<CorrcoefState>(state));
 
-            Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                result(tj) = state.xy_m2 / sqrt(state.x_m2 * state.y_m2);
-            });
+            Kokkos::single(Kokkos::PerTeam(member),
+                           [=]() { result(tj) = state.rho(); });
         });
 }
 

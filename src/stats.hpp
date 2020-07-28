@@ -20,6 +20,9 @@ typedef struct corrcoef_state {
     }
 
     KOKKOS_INLINE_FUNCTION
+    float rho() const { return xy_m2 / sqrt(x_m2 * y_m2); }
+
+    KOKKOS_INLINE_FUNCTION
     corrcoef_state &operator+=(const corrcoef_state &src)
     {
         const uint32_t n_a = n, n_b = src.n;
@@ -65,6 +68,7 @@ typedef struct corrcoef_state {
 } CorrcoefState;
 
 float corrcoef(const TimeSeries &x, const TimeSeries &y);
+void corrcoef(CrossMap &rho, const Dataset &ds, const TimeSeries &x);
 
 } // namespace edm
 
