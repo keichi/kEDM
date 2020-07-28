@@ -89,13 +89,13 @@ void run(const std::string &input_path, const std::string &dataset,
 int main(int argc, char *argv[])
 {
     if (argc < 4) {
-        std::cout << "Usage: edm-xmap input dataset output" << std::endl;
+        std::cout << "Usage: edm-xmap input output dataset" << std::endl;
         return 1;
     }
 
     const std::string input_path = argv[1];
-    const std::string dataset = argv[2];
-    const std::string output_path = argv[3];
+    const std::string output_path = argv[2];
+    const std::string dataset = argv[3];
 
     Kokkos::initialize();
 
