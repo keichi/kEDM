@@ -11,12 +11,15 @@
 #include "../src/types.hpp"
 #include "../src/xmap.hpp"
 
-void run(const std::string &path, const std::string &dataset)
+void run(const std::string &input_path, const std::string &dataset,
+         const std::string &output_path)
 {
     const uint32_t E_max = 20;
     const int32_t tau = 1;
 
-    const auto ds = edm::load_hdf5(path, dataset);
+    HighFive::File output(output_path, HighFive::File::Overwrite);
+
+    const auto ds = edm::load_hdf5(input_path, dataset);
 
     std::vector<uint32_t> optimal_E(ds.extent(1));
 
@@ -29,6 +32,10 @@ void run(const std::string &path, const std::string &dataset)
         std::cout << "Simpelx for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
     }
+
+    auto dataspace = HighFive::DataSpace::From(optimal_E);
+    auto ds_edim = output.createDataSet<uint32_t>("/embedding", dataspace);
+    ds_edim.write(optimal_E);
 
     std::vector<edm::LUT> luts;
 
@@ -45,6 +52,13 @@ void run(const std::string &path, const std::string &dataset)
     edm::CrossMap ccm("ccm", ds.extent(1));
     edm::CrossMap rho("rho", ds.extent(1));
 
+    auto ccm_mirror = Kokkos::create_mirror_view(ccm);
+    auto rho_mirror = Kokkos::create_mirror_view(rho);
+
+    dataspace = HighFive::DataSpace({ds.extent(1), ds.extent(1)});
+    auto ds_ccm = output.createDataSet<float>("/ccm", dataspace);
+    auto ds_rho = output.createDataSet<float>("/rho", dataspace);
+
     for (auto i = 0u; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
         edm::TimeSeries library(ds, Kokkos::ALL, i);
@@ -53,6 +67,9 @@ void run(const std::string &path, const std::string &dataset)
 
         std::cout << "Cross map for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
+
+        Kokkos::deep_copy(ccm_mirror, ccm);
+        ds_ccm.select({i, 0}, {1, ds.extent(1)}).write(ccm_mirror.data());
     }
 
     for (auto i = 0u; i < ds.extent(1); i++) {
@@ -63,21 +80,26 @@ void run(const std::string &path, const std::string &dataset)
 
         std::cout << "Correlation for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
+
+        Kokkos::deep_copy(rho_mirror, rho);
+        ds_rho.select({i, 0}, {1, ds.extent(1)}).write(rho_mirror.data());
     }
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3) {
-        std::cout << "Usage: edm-xmap file dataset" << std::endl;
+    if (argc < 4) {
+        std::cout << "Usage: edm-xmap input dataset output" << std::endl;
         return 1;
     }
-    const std::string path = argv[1];
+
+    const std::string input_path = argv[1];
     const std::string dataset = argv[2];
+    const std::string output_path = argv[3];
 
     Kokkos::initialize();
 
-    run(path, dataset);
+    run(input_path, dataset, output_path);
 
     Kokkos::finalize();
 
