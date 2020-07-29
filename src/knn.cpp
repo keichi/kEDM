@@ -79,16 +79,16 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         "EDM::knn::calc_distances",
         Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int i = member.league_rank() * member.team_size() + member.team_rank();
+            int i =
+                member.league_rank() * member.team_size() + member.team_rank();
 
             if (i >= n_target) return;
 
-            Kokkos::parallel_for(
-                Kokkos::ThreadVectorRange(member, n_library),
-                [=](uint32_t j) {
-                    distances(i, j) = 0.0f;
-                    indices(i, j) = j;
-                });
+            Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
+                                 [=](uint32_t j) {
+                                     distances(i, j) = 0.0f;
+                                     indices(i, j) = j;
+                                 });
 
             for (uint32_t e = 0; e < E; e++) {
                 Kokkos::parallel_for(
@@ -101,14 +101,12 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
             }
 
             Kokkos::parallel_for(
-                Kokkos::ThreadVectorRange(member, n_library),
-                [=](uint32_t j) {
+                Kokkos::ThreadVectorRange(member, n_library), [=](uint32_t j) {
                     // Ignore degenerate neighbor
                     if (target.data() + i == library.data() + j) {
                         distances(i, j) = FLT_MAX;
                     }
                 });
-
         });
 #endif
 
@@ -179,18 +177,16 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                                       std::make_pair(0u, top_k)));
 #else
     Kokkos::parallel_for(
-        "EDM::knn::partial_sort", n_target,
-        KOKKOS_LAMBDA(uint32_t i) {
+        "EDM::knn::partial_sort", n_target, KOKKOS_LAMBDA(uint32_t i) {
             // TODO This assumes LayoutRight
-            std::partial_sort(
-                &indices(i, 0), &indices(i, top_k), &indices(i, n_library),
-                [&](uint32_t a, uint32_t b) -> uint32_t {
-                    return distances(i, a) < distances(i, b);
-            });
+            std::partial_sort(&indices(i, 0), &indices(i, top_k),
+                              &indices(i, n_library),
+                              [&](uint32_t a, uint32_t b) -> uint32_t {
+                                  return distances(i, a) < distances(i, b);
+                              });
 
             // Compute L2 norms from SSDs and shift indices
             // Copy LUT from cache to output
-            #pragma ivdep
             for (uint32_t j = 0; j < top_k; j++) {
                 uint32_t idx = indices(i, j);
                 out.distances(i, j) = sqrt(distances(i, idx));
