@@ -82,11 +82,13 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
             int i =
                 member.league_rank() * member.team_size() + member.team_rank();
 
-            if (i >= n_target) return;
-
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
                                  [=](uint32_t j) {
                                      distances(i, j) = 0.0f;
+                                 });
+
+            Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
+                                 [=](uint32_t j) {
                                      indices(i, j) = j;
                                  });
 
