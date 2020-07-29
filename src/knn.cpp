@@ -52,8 +52,6 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_target), [=](uint32_t i) {
-                    indices(i, j) = j;
-
                     // Ignore degenerate neighbor
                     if (target.data() + i == library.data() + j) {
                         distances(i, j) = FLT_MAX;
@@ -128,12 +126,9 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
                 if (i >= n_target) return;
 
-                scratch_dist(0) = distances(i, 0);
-                scratch_idx(0) = indices(i, 0);
-
-                for (uint32_t j = 1; j < n_library; j++) {
+                for (uint32_t j = 0; j < n_library; j++) {
                     const float cur_dist = distances(i, j);
-                    const uint32_t cur_idx = indices(i, j);
+                    const uint32_t cur_idx = j;
 
                     // Skip elements larger than the current k-th smallest
                     // element
