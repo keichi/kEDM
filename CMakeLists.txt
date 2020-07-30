@@ -10,10 +10,15 @@ find_package(Kokkos REQUIRED)
 # HDF5
 find_package(HDF5 REQUIRED)
 
-# HgighFive
-set(HIGHFIVE_USE_BOOST OFF)
-set(HIGHFIVE_UNIT_TESTS OFF)
-set(HIGHFIVE_EXAMPLES OFF)
+# MPI
+find_package(MPI)
+if(MPI_CXX_FOUND AND HDF5_IS_PARALLEL)
+  add_executable(edm-xmap-mpi src/xmap_run_mpi.cpp)
+  target_link_libraries(edm-xmap-mpi PRIVATE kedm Kokkos::kokkos HighFive
+                        MPI::MPI_CXX)
+endif()
+
+# HighFive
 add_subdirectory(src/thirdparty/highfive)
 
 add_library(kedm SHARED
