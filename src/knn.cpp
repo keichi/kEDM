@@ -109,7 +109,6 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     scratch_size =
         ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
 
-#ifdef KOKKOS_ENABLE_CUDA
     // Partially sort each row
     Kokkos::parallel_for(
         "EDM::knn::partial_sort",
@@ -168,25 +167,6 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     Kokkos::deep_copy(out.indices,
                       Kokkos::subview(indices, std::make_pair(0u, n_target),
                                       std::make_pair(0u, top_k)));
-#else
-    Kokkos::parallel_for(
-        "EDM::knn::partial_sort", n_target, KOKKOS_LAMBDA(uint32_t i) {
-            // TODO This assumes LayoutRight
-            std::partial_sort(&indices(i, 0), &indices(i, top_k),
-                              &indices(i, n_library),
-                              [&](uint32_t a, uint32_t b) -> uint32_t {
-                                  return distances(i, a) < distances(i, b);
-                              });
-
-            // Compute L2 norms from SSDs and shift indices
-            // Copy LUT from cache to output
-            for (uint32_t j = 0; j < top_k; j++) {
-                uint32_t idx = indices(i, j);
-                out.distances(i, j) = sqrt(distances(i, idx));
-                out.indices(i, j) = idx + shift;
-            }
-        });
-#endif
 
     Kokkos::Profiling::popRegion();
 }
