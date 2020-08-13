@@ -103,56 +103,98 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         });
 #endif
 
-    scratch_size =
-        ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
+    const int team_size = 2;
+    scratch_size = ScratchDistances::shmem_size(team_size, top_k) +
+                   ScratchIndices::shmem_size(team_size, top_k);
 
     // Partially sort each row
     Kokkos::parallel_for(
         "EDM::knn::partial_sort",
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
-            .set_scratch_size(0, Kokkos::PerThread(scratch_size)),
+        Kokkos::TeamPolicy<>(n_target, team_size)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             // Scratch views to hold the top-k elements
-            ScratchDistances scratch_dist(member.thread_scratch(0), top_k);
-            ScratchIndices scratch_idx(member.thread_scratch(0), top_k);
+            ScratchDistances scratch_dist(member.team_scratch(0), team_size,
+                                          top_k);
+            ScratchIndices scratch_idx(member.team_scratch(0), team_size,
+                                       top_k);
 
-            Kokkos::single(Kokkos::PerThread(member), [=]() {
-                const uint32_t i = member.league_rank() * member.team_size() +
-                                   member.team_rank();
+            const uint32_t i = member.league_rank();
+            const uint32_t r = member.team_rank();
 
-                if (i >= n_target) return;
+            for (uint32_t j = 0; j < top_k; j++) {
+                scratch_dist(r, j) = FLT_MAX;
+            }
 
-                for (uint32_t j = 0; j < n_library; j++) {
-                    const float cur_dist = distances(i, j);
-                    const uint32_t cur_idx = j;
+            member.team_barrier();
 
-                    // Skip elements larger than the current k-th smallest
-                    // element
-                    if (j >= top_k && cur_dist > scratch_dist(top_k - 1)) {
-                        continue;
+            for (uint32_t j = 0; j < n_library; j++) {
+                const float cur_dist = distances(i, j);
+                const uint32_t cur_idx = j;
+
+                // Not my shard
+                if (j % team_size != r) continue;
+
+                // Skip elements larger than the current k-th smallest
+                // element
+                if (j / team_size >= top_k &&
+                    cur_dist > scratch_dist(r, top_k - 1)) {
+                    continue;
+                }
+
+                uint32_t k = 0;
+                // Shift elements until the insertion point is found
+                for (k = min(j / team_size, top_k - 1); k > 0; k--) {
+                    if (scratch_dist(r, k - 1) <= cur_dist) {
+                        break;
                     }
 
-                    uint32_t k = 0;
-                    // Shift elements until the insertion point is found
-                    for (k = min(j, top_k - 1); k > 0; k--) {
-                        if (scratch_dist(k - 1) <= cur_dist) {
-                            break;
+                    // Shift element
+                    scratch_dist(r, k) = scratch_dist(r, k - 1);
+                    scratch_idx(r, k) = scratch_idx(r, k - 1);
+                }
+
+                // Insert the new element
+                scratch_dist(r, k) = cur_dist;
+                scratch_idx(r, k) = cur_idx;
+            }
+
+            member.team_barrier();
+
+            Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                // Each thread has top-k elements. Now aggregate the global
+                // top-k elements to rank zero.
+                for (uint32_t r = 1; r < team_size; r++) {
+                    for (uint32_t j = 0; j < top_k; j++) {
+                        const float cur_dist = scratch_dist(r, j);
+                        const uint32_t cur_idx = scratch_idx(r, j);
+
+                        if (cur_dist > scratch_dist(0, top_k - 1)) {
+                            continue;
                         }
 
-                        // Shift element
-                        scratch_dist(k) = scratch_dist(k - 1);
-                        scratch_idx(k) = scratch_idx(k - 1);
-                    }
+                        uint32_t k = 0;
+                        // Shift elements until the insertion point is found
+                        for (k = top_k - 1; k > 0; k--) {
+                            if (scratch_dist(0, k - 1) <= cur_dist) {
+                                break;
+                            }
 
-                    // Insert the new element
-                    scratch_dist(k) = cur_dist;
-                    scratch_idx(k) = cur_idx;
+                            // Shift element
+                            scratch_dist(0, k) = scratch_dist(0, k - 1);
+                            scratch_idx(0, k) = scratch_idx(0, k - 1);
+                        }
+
+                        // Insert the new element
+                        scratch_dist(0, k) = cur_dist;
+                        scratch_idx(0, k) = cur_idx;
+                    }
                 }
 
                 // Compute L2 norms from SSDs and shift indices
                 for (uint32_t j = 0; j < top_k; j++) {
-                    distances(i, j) = sqrt(scratch_dist(j));
-                    indices(i, j) = scratch_idx(j) + shift;
+                    distances(i, j) = sqrt(scratch_dist(0, j));
+                    indices(i, j) = scratch_idx(0, j) + shift;
                 }
             });
         });

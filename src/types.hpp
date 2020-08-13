@@ -21,10 +21,10 @@ using ScratchTimeSeries =
 using Distances = Kokkos::View<float **, DevSpace>;
 using Indices = Kokkos::View<uint32_t **, DevSpace>;
 
-using ScratchDistances =
-    Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
-using ScratchIndices =
-    Kokkos::View<uint32_t *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
+using ScratchDistances = Kokkos::View<float **, Kokkos::LayoutRight,
+                                      DevScratchSpace, Kokkos::MemoryUnmanaged>;
+using ScratchIndices = Kokkos::View<uint32_t **, Kokkos::LayoutRight,
+                                    DevScratchSpace, Kokkos::MemoryUnmanaged>;
 
 struct LUT {
     Distances distances;
