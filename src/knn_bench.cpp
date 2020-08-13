@@ -7,7 +7,7 @@
 #include "../src/types.hpp"
 
 const uint32_t L = 10000;
-const uint32_t E = 20;
+const uint32_t E = 1;
 const uint32_t tau = 1;
 const uint32_t Tp = 1;
 
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 
     Kokkos::Timer timer;
 
-    for (auto i = 0; i < 1000; i++) {
+    for (auto i = 0; i < 10; i++) {
         edm::knn(library, target, lut_out, lut_tmp, E, tau, Tp, E + 1);
     }
 

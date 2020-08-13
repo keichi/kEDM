@@ -103,7 +103,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         });
 #endif
 
-    const int team_size = 2;
+    const int team_size = 32;
     scratch_size = ScratchDistances::shmem_size(team_size, top_k) +
                    ScratchIndices::shmem_size(team_size, top_k);
 
@@ -128,36 +128,34 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
             member.team_barrier();
 
-            for (uint32_t j = 0; j < n_library; j++) {
-                const float cur_dist = distances(i, j);
-                const uint32_t cur_idx = j;
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_library), [=](uint32_t j) {
+                    const float cur_dist = distances(i, j);
+                    const uint32_t cur_idx = j;
 
-                // Not my shard
-                if (j % team_size != r) continue;
-
-                // Skip elements larger than the current k-th smallest
-                // element
-                if (j / team_size >= top_k &&
-                    cur_dist > scratch_dist(r, top_k - 1)) {
-                    continue;
-                }
-
-                uint32_t k = 0;
-                // Shift elements until the insertion point is found
-                for (k = min(j / team_size, top_k - 1); k > 0; k--) {
-                    if (scratch_dist(r, k - 1) <= cur_dist) {
-                        break;
+                    // Skip elements larger than the current k-th smallest
+                    // element
+                    if (j / team_size >= top_k &&
+                        cur_dist > scratch_dist(r, top_k - 1)) {
+                        return;
                     }
 
-                    // Shift element
-                    scratch_dist(r, k) = scratch_dist(r, k - 1);
-                    scratch_idx(r, k) = scratch_idx(r, k - 1);
-                }
+                    uint32_t k = 0;
+                    // Shift elements until the insertion point is found
+                    for (k = min(j / team_size, top_k - 1); k > 0; k--) {
+                        if (scratch_dist(r, k - 1) <= cur_dist) {
+                            break;
+                        }
 
-                // Insert the new element
-                scratch_dist(r, k) = cur_dist;
-                scratch_idx(r, k) = cur_idx;
-            }
+                        // Shift element
+                        scratch_dist(r, k) = scratch_dist(r, k - 1);
+                        scratch_idx(r, k) = scratch_idx(r, k - 1);
+                    }
+
+                    // Insert the new element
+                    scratch_dist(r, k) = cur_dist;
+                    scratch_idx(r, k) = cur_idx;
+                });
 
             member.team_barrier();
 
