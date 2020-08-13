@@ -105,7 +105,9 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
     const int team_size = 32;
     scratch_size = ScratchDistances::shmem_size(team_size, top_k) +
-                   ScratchIndices::shmem_size(team_size, top_k);
+                   ScratchIndices::shmem_size(team_size, top_k) +
+                   Kokkos::View<uint32_t *, DevScratchSpace,
+                                Kokkos::MemoryUnmanaged>::shmem_size(team_size);
 
     // Partially sort each row
     Kokkos::parallel_for(
@@ -118,10 +120,13 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                                           top_k);
             ScratchIndices scratch_idx(member.team_scratch(0), team_size,
                                        top_k);
+            Kokkos::View<uint32_t *, DevScratchSpace, Kokkos::MemoryUnmanaged>
+                scratch_head(member.team_scratch(0), team_size);
 
             const uint32_t i = member.league_rank();
             const uint32_t r = member.team_rank();
 
+            scratch_head(r) = 0;
             for (uint32_t j = 0; j < top_k; j++) {
                 scratch_dist(r, j) = FLT_MAX;
             }
@@ -160,39 +165,29 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
             member.team_barrier();
 
             Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                // Each thread has top-k elements. Now aggregate the global
-                // top-k elements to rank zero.
-                for (uint32_t r = 1; r < team_size; r++) {
-                    for (uint32_t j = 0; j < top_k; j++) {
-                        const float cur_dist = scratch_dist(r, j);
-                        const uint32_t cur_idx = scratch_idx(r, j);
-
-                        if (cur_dist > scratch_dist(0, top_k - 1)) {
-                            continue;
-                        }
-
-                        uint32_t k = 0;
-                        // Shift elements until the insertion point is found
-                        for (k = top_k - 1; k > 0; k--) {
-                            if (scratch_dist(0, k - 1) <= cur_dist) {
-                                break;
-                            }
-
-                            // Shift element
-                            scratch_dist(0, k) = scratch_dist(0, k - 1);
-                            scratch_idx(0, k) = scratch_idx(0, k - 1);
-                        }
-
-                        // Insert the new element
-                        scratch_dist(0, k) = cur_dist;
-                        scratch_idx(0, k) = cur_idx;
-                    }
-                }
-
-                // Compute L2 norms from SSDs and shift indices
+                // Each thread owns its top-k elements. Now aggregate the
+                // global top-k elements to rank zero.
                 for (uint32_t j = 0; j < top_k; j++) {
-                    distances(i, j) = sqrt(scratch_dist(0, j));
-                    indices(i, j) = scratch_idx(0, j) + shift;
+                    float min_dist = FLT_MAX;
+                    uint32_t min_rank = 0;
+
+                    for (uint32_t r = 0; r < team_size; r++) {
+                        if (scratch_head(r) >= top_k) continue;
+
+                        if (scratch_dist(r, scratch_head(r)) < min_dist) {
+                            min_dist = scratch_dist(r, scratch_head(r));
+                            min_rank = r;
+                        }
+                    }
+
+                    // Compute L2 norms from SSDs and shift indices
+                    distances(i, j) = sqrt(min_dist);
+                    // indices(i, j) = scratch_idx(min_rank, 0) + shift;
+                    indices(i, j) =
+                        scratch_idx(min_rank, scratch_head(min_rank)) + shift;
+
+                    scratch_head(min_rank) =
+                        min(scratch_head(min_rank) + 1, top_k);
                 }
             });
         });
@@ -206,7 +201,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                                       std::make_pair(0u, top_k)));
 
     Kokkos::Profiling::popRegion();
-}
+} // namespace edm
 
 void normalize_lut(LUT &lut)
 {
