@@ -19,6 +19,9 @@ if(MPI_CXX_FOUND AND HDF5_IS_PARALLEL)
 endif()
 
 # HighFive
+set(HIGHFIVE_USE_BOOST OFF)
+set(HIGHFIVE_UNIT_TESTS OFF)
+set(HIGHFIVE_EXAMPLES OFF)
 add_subdirectory(src/thirdparty/highfive)
 
 add_library(kedm SHARED
