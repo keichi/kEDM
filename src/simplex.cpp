@@ -21,7 +21,7 @@ void simplex(const MutableTimeSeries &prediction, const TimeSeries &target,
         "EDM::simplex::lookup", distances.extent(0), KOKKOS_LAMBDA(int i) {
             float pred = 0.0f;
 
-            for (int j = 0; j < distances.extent(1); j++) {
+            for (size_t j = 0; j < distances.extent(1); j++) {
                 pred += target(indices(i, j)) * distances(i, j);
             }
 

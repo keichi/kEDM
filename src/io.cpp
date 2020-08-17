@@ -66,9 +66,8 @@ Dataset load_hdf5(const std::string &path, const std::string &ds_name)
     const auto dataset = file.getDataSet(ds_name);
     const auto shape = dataset.getDimensions();
 
-    size_t n_rows = shape[0];
-    size_t n_columns = shape[1];
-
+    const size_t n_rows = shape[0];
+    const size_t n_columns = shape[1];
     const size_t MAX_CHUNK_SIZE = 100;
 
     std::vector<float> rows(MAX_CHUNK_SIZE * n_columns);
@@ -76,13 +75,13 @@ Dataset load_hdf5(const std::string &path, const std::string &ds_name)
     auto ds = MutableDataset("dataset", n_rows, n_columns);
     auto mirror = Kokkos::create_mirror_view(ds);
 
-    for (auto i = 0; i < n_rows; i += MAX_CHUNK_SIZE) {
-        const auto chunk_size = std::min(MAX_CHUNK_SIZE, n_rows - i);
+    for (size_t i = 0; i < n_rows; i += MAX_CHUNK_SIZE) {
+        const size_t chunk_size = std::min(MAX_CHUNK_SIZE, n_rows - i);
 
         dataset.select({i, 0}, {chunk_size, n_columns}).read(rows.data());
 
-        for (auto j = 0; j < chunk_size; j++) {
-            for (auto k = 0; k < n_columns; k++) {
+        for (size_t j = 0; j < chunk_size; j++) {
+            for (size_t k = 0; k < n_columns; k++) {
                 mirror(i + j, k) = rows[j * n_columns + k];
             }
         }

@@ -27,7 +27,7 @@ void xmap_test_common()
 
     ds_edim.read(optimal_E_valid);
 
-    for (auto i = 0; i < ds.extent(1); i++) {
+    for (size_t i = 0; i < ds.extent(1); i++) {
         TimeSeries ts(ds, Kokkos::ALL, i);
         optimal_E[i] = edim(ts, E_max, 1, 1);
 
@@ -49,7 +49,7 @@ void xmap_test_common()
     CrossMap rho("xmap", ds.extent(1));
     std::vector<float> rho_valid(ds.extent(1));
 
-    for (auto i = 0; i < ds.extent(1); i++) {
+    for (size_t i = 0; i < ds.extent(1); i++) {
         TimeSeries library(ds, Kokkos::ALL, i);
 
         xmap(rho, ds, library, groups, luts, tmp_lut, E_max, 1, 0);
@@ -58,7 +58,7 @@ void xmap_test_common()
 
         auto rho_mirror = Kokkos::create_mirror_view_and_copy(HostSpace(), rho);
 
-        for (auto j = 0; j < ds.extent(1); j++) {
+        for (size_t j = 0; j < ds.extent(1); j++) {
             CHECK(rho_mirror[j] == doctest::Approx(rho_valid[j]));
         }
     }
