@@ -10,19 +10,20 @@
 namespace edm
 {
 
-void simplex_test_common(uint32_t E)
+void simplex_test_common(int E)
 {
-    const uint32_t tau = 1;
-    const auto Tp = 1;
+    const int tau = 1;
+    const int Tp = 1;
 
-    Dataset ds1 = load_csv("simplex_test_data.csv");
-    Dataset ds2 =
+    const Dataset ds1 = load_csv("simplex_test_data.csv");
+    const Dataset ds2 =
         load_csv("simplex_test_validation_E" + std::to_string(E) + ".csv");
 
-    TimeSeries ts(ds1, Kokkos::ALL, 0);
-    TimeSeries library(ts, std::make_pair(0ul, ts.size() / 2));
-    TimeSeries target(ts, std::make_pair(ts.size() / 2 - (E - 1) * tau,
-                                         ts.size() - (E - 1) * tau));
+    const TimeSeries ts(ds1, Kokkos::ALL, 0);
+    const TimeSeries library(ts,
+                             std::make_pair<size_t, size_t>(0, ts.size() / 2));
+    const TimeSeries target(ts, std::make_pair(ts.size() / 2 - (E - 1) * tau,
+                                               ts.size() - (E - 1) * tau));
 
     TimeSeries valid_prediction(ds2, Kokkos::ALL, 0);
 
@@ -39,7 +40,7 @@ void simplex_test_common(uint32_t E)
     const auto valid =
         Kokkos::create_mirror_view_and_copy(HostSpace(), valid_prediction);
 
-    for (auto i = 0u; i < pred.size(); i++) {
+    for (size_t i = 0; i < pred.size(); i++) {
         CHECK(pred(i) == doctest::Approx(valid(i)).epsilon(0.01));
     }
 }
@@ -58,9 +59,9 @@ TEST_CASE("Compute simplex projection for E=5") { simplex_test_common(5); }
 //                      maxE=20)
 void embed_dim_test_common()
 {
-    const size_t tau = 1;
-    const auto Tp = 1;
-    const auto E_max = 20;
+    const int tau = 1;
+    const int Tp = 1;
+    const int E_max = 20;
 
     Dataset ds1 = load_csv("TentMap_rEDM.csv");
     Dataset ds2 = load_csv("TentMap_rEDM_validation.csv");
@@ -74,8 +75,8 @@ void embed_dim_test_common()
 
     for (auto E = 1; E <= E_max; E++) {
         TimeSeries ts(ds1, Kokkos::ALL, 1);
-        TimeSeries library(ts, std::make_pair(0ul, 100ul));
-        TimeSeries target(ts, std::make_pair(200ul - (E - 1) * tau, 500ul));
+        TimeSeries library(ts, std::make_pair(0, 100));
+        TimeSeries target(ts, std::make_pair(200 - (E - 1) * tau, 500));
 
         LUT lut(target.size() - (E - 1) * tau, E + 1);
         knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
@@ -84,7 +85,8 @@ void embed_dim_test_common()
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
         TimeSeries shifted_target(
-            target, std::make_pair((E - 1) * tau + Tp, target.size()));
+            target,
+            std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
         simplex(prediction, library, lut);
 

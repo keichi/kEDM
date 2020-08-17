@@ -13,8 +13,8 @@ namespace edm
 
 void xmap_test_common()
 {
-    const uint32_t E_max = 20;
-    const int32_t tau = 1;
+    const int E_max = 20;
+    const int tau = 1;
 
     const auto ds = load_hdf5("xmap_all_to_all_test.h5", "values");
 
@@ -22,12 +22,12 @@ void xmap_test_common()
     const auto ds_corrcoef = file.getDataSet("corrcoef");
     const auto ds_edim = file.getDataSet("embedding");
 
-    std::vector<uint32_t> optimal_E(ds.extent(1));
-    std::vector<uint32_t> optimal_E_valid(ds.extent(1));
+    std::vector<int> optimal_E(ds.extent(1));
+    std::vector<int> optimal_E_valid(ds.extent(1));
 
     ds_edim.read(optimal_E_valid);
 
-    for (auto i = 0u; i < ds.extent(1); i++) {
+    for (auto i = 0; i < ds.extent(1); i++) {
         TimeSeries ts(ds, Kokkos::ALL, i);
         optimal_E[i] = edim(ts, E_max, 1, 1);
 
@@ -37,7 +37,7 @@ void xmap_test_common()
     std::vector<LUT> luts;
 
     // Allocate kNN tables
-    for (uint32_t E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
@@ -49,7 +49,7 @@ void xmap_test_common()
     CrossMap rho("xmap", ds.extent(1));
     std::vector<float> rho_valid(ds.extent(1));
 
-    for (auto i = 0u; i < ds.extent(1); i++) {
+    for (auto i = 0; i < ds.extent(1); i++) {
         TimeSeries library(ds, Kokkos::ALL, i);
 
         xmap(rho, ds, library, groups, luts, tmp_lut, E_max, 1, 0);
@@ -58,7 +58,7 @@ void xmap_test_common()
 
         auto rho_mirror = Kokkos::create_mirror_view_and_copy(HostSpace(), rho);
 
-        for (auto j = 0u; j < ds.extent(1); j++) {
+        for (auto j = 0; j < ds.extent(1); j++) {
             CHECK(rho_mirror[j] == doctest::Approx(rho_valid[j]));
         }
     }

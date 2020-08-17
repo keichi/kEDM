@@ -6,7 +6,7 @@
 namespace edm
 {
 typedef struct corrcoef_state {
-    uint32_t n;
+    int n;
     float x_mean, y_mean, x_m2, y_m2, xy_m2;
 
     KOKKOS_INLINE_FUNCTION corrcoef_state()
@@ -25,8 +25,8 @@ typedef struct corrcoef_state {
     KOKKOS_INLINE_FUNCTION
     corrcoef_state &operator+=(const corrcoef_state &src)
     {
-        const uint32_t n_a = n, n_b = src.n;
-        const uint32_t n_ab = n_a + n_b;
+        const int n_a = n, n_b = src.n;
+        const int n_ab = n_a + n_b;
 
         const float x_delta = src.x_mean - x_mean;
         const float y_delta = src.y_mean - y_mean;
@@ -48,8 +48,8 @@ typedef struct corrcoef_state {
     KOKKOS_INLINE_FUNCTION void
     operator+=(const volatile corrcoef_state &src) volatile
     {
-        const uint32_t n_a = n, n_b = src.n;
-        const uint32_t n_ab = n_a + n_b;
+        const int n_a = n, n_b = src.n;
+        const int n_ab = n_a + n_b;
 
         const float x_delta = src.x_mean - x_mean;
         const float y_delta = src.y_mean - y_mean;

@@ -18,10 +18,10 @@ void simplex(const MutableTimeSeries &prediction, const TimeSeries &target,
     assert(prediction.size() == distances.extent(0));
 
     Kokkos::parallel_for(
-        "EDM::simplex::lookup", distances.extent(0), KOKKOS_LAMBDA(uint32_t i) {
+        "EDM::simplex::lookup", distances.extent(0), KOKKOS_LAMBDA(int i) {
             float pred = 0.0f;
 
-            for (uint32_t j = 0; j < distances.extent(1); j++) {
+            for (int j = 0; j < distances.extent(1); j++) {
                 pred += target(indices(i, j)) * distances(i, j);
             }
 

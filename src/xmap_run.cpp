@@ -14,16 +14,16 @@
 void run(const std::string &input_path, const std::string &dataset,
          const std::string &output_path)
 {
-    const uint32_t E_max = 20;
-    const int32_t tau = 1;
+    const int E_max = 20;
+    const int tau = 1;
 
     HighFive::File output(output_path, HighFive::File::Overwrite);
 
     const auto ds = edm::load_hdf5(input_path, dataset);
 
-    std::vector<uint32_t> optimal_E(ds.extent(1));
+    std::vector<int> optimal_E(ds.extent(1));
 
-    for (auto i = 0u; i < ds.extent(1); i++) {
+    for (size_t i = 0; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
 
         edm::TimeSeries ts(ds, Kokkos::ALL, i);
@@ -34,13 +34,13 @@ void run(const std::string &input_path, const std::string &dataset,
     }
 
     auto dataspace = HighFive::DataSpace::From(optimal_E);
-    auto ds_edim = output.createDataSet<uint32_t>("/embedding", dataspace);
+    auto ds_edim = output.createDataSet<int>("/embedding", dataspace);
     ds_edim.write(optimal_E);
 
     std::vector<edm::LUT> luts;
 
     // Allocate kNN tables
-    for (uint32_t E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         luts.push_back(edm::LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
@@ -59,7 +59,7 @@ void run(const std::string &input_path, const std::string &dataset,
     auto ds_ccm = output.createDataSet<float>("/ccm", dataspace);
     auto ds_rho = output.createDataSet<float>("/rho", dataspace);
 
-    for (auto i = 0u; i < ds.extent(1); i++) {
+    for (size_t i = 0; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
         edm::TimeSeries library(ds, Kokkos::ALL, i);
 
@@ -72,7 +72,7 @@ void run(const std::string &input_path, const std::string &dataset,
         ds_ccm.select({i, 0}, {1, ds.extent(1)}).write(ccm_mirror.data());
     }
 
-    for (auto i = 0u; i < ds.extent(1); i++) {
+    for (size_t i = 0; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
         edm::TimeSeries library(ds, Kokkos::ALL, i);
 

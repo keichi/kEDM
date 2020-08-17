@@ -8,18 +8,20 @@
 namespace edm
 {
 
-uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp)
+int edim(const TimeSeries &ts, int E_max, int tau, int Tp)
 {
     Kokkos::Profiling::pushRegion("EDM::edim");
 
     std::vector<float> rho(E_max);
 
-    auto library = TimeSeries(ts, std::make_pair(0ul, ts.size() / 2));
-    auto target = TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
+    const auto library =
+        TimeSeries(ts, std::make_pair<size_t, size_t>(0, ts.size() / 2));
+    const auto target =
+        TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
 
     LUT tmp_lut(ts.size(), ts.size());
 
-    for (uint32_t E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         LUT lut(target.size() - (E - 1) * tau, E + 1);
 
         knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
@@ -28,7 +30,8 @@ uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp)
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
         TimeSeries shifted_target(
-            target, std::make_pair((E - 1ul) * tau + Tp, target.size()));
+            target,
+            std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
         simplex(prediction, library, lut);
 

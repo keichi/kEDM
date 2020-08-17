@@ -24,11 +24,11 @@ void test_knn_common(int E)
     Dataset d_validation =
         load_csv("knn_test_validation_E" + std::to_string(E) + ".csv");
 
-    auto distances =
+    const auto distances =
         Kokkos::create_mirror_view_and_copy(HostSpace(), lut.distances);
-    auto indices =
+    const auto indices =
         Kokkos::create_mirror_view_and_copy(HostSpace(), lut.indices);
-    auto validation =
+    const auto validation =
         Kokkos::create_mirror_view_and_copy(HostSpace(), d_validation);
 
     CHECK(distances.extent(0) == validation.extent(0));
@@ -37,8 +37,8 @@ void test_knn_common(int E)
     CHECK(indices.extent(0) == validation.extent(0));
     CHECK(indices.extent(1) == validation.extent(1));
 
-    for (auto row = 0u; row < distances.extent(0); row++) {
-        for (auto col = 0u; col < distances.extent(1); col++) {
+    for (size_t row = 0; row < distances.extent(0); row++) {
+        for (size_t col = 0; col < distances.extent(1); col++) {
             CHECK(distances(row, col) == doctest::Approx(validation(row, col)));
         }
     }
@@ -47,9 +47,9 @@ void test_knn_common(int E)
 
     Kokkos::deep_copy(distances, lut.distances);
 
-    for (auto row = 0u; row < distances.extent(0); row++) {
+    for (size_t row = 0; row < distances.extent(0); row++) {
         auto sum = 0.0f;
-        for (auto col = 0u; col < distances.extent(1); col++) {
+        for (size_t col = 0; col < distances.extent(1); col++) {
             sum += distances(row, col);
         }
 

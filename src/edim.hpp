@@ -6,7 +6,7 @@
 namespace edm
 {
 
-uint32_t edim(const TimeSeries &ts, uint32_t E_max, int32_t tau, int32_t Tp);
+int edim(const TimeSeries &ts, int E_max, int tau, int Tp);
 
 } // namespace edm
 

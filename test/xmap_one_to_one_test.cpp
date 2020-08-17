@@ -14,7 +14,7 @@ namespace edm
 // pyEDM.Simplex(dataFrame=pyEDM.sampleData["sardine_anchovy_sst"],
 //               E=3, Tp=1, columns="anchovy", target="np_sst", lib="1 76",
 //               pred="1 76", verbose=True)
-void cross_mapping_test_common(uint32_t E)
+void cross_mapping_test_common(int E)
 {
     const auto tau = 1;
     const auto Tp = 1;
@@ -25,10 +25,10 @@ void cross_mapping_test_common(uint32_t E)
 
     LUT tmp_lut(ds1.extent(0), ds1.extent(0));
 
-    const auto library =
-        TimeSeries(ds1, std::make_pair(0ul, ds1.extent(0) - (E - 1)), 1u);
-    const auto target =
-        TimeSeries(ds1, std::make_pair(0ul, ds1.extent(0) - (E - 1)), 4u);
+    const auto library = TimeSeries(
+        ds1, std::make_pair<size_t, size_t>(0, ds1.extent(0) - (E - 1)), 1);
+    const auto target = TimeSeries(
+        ds1, std::make_pair<size_t, size_t>(0, ds1.extent(0) - (E - 1)), 4);
     const auto valid_prediction = TimeSeries(ds2, Kokkos::ALL, 0);
 
     LUT lut(target.size() - (E - 1) * tau, E + 1);
@@ -45,7 +45,7 @@ void cross_mapping_test_common(uint32_t E)
 
     CHECK(pred.size() == valid.size());
 
-    for (auto i = 0u; i < pred.size(); i++) {
+    for (size_t i = 0; i < pred.size(); i++) {
         CHECK(pred(i) == doctest::Approx(valid(i)));
     }
 }

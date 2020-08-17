@@ -6,10 +6,10 @@
 #include "../src/knn.hpp"
 #include "../src/types.hpp"
 
-const uint32_t L = 10000;
-const uint32_t E = 1;
-const uint32_t tau = 1;
-const uint32_t Tp = 1;
+const int L = 10000;
+const int E = 1;
+const int tau = 1;
+const int Tp = 1;
 
 int main(int argc, char *argv[])
 {

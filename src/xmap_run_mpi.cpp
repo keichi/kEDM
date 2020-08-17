@@ -16,8 +16,8 @@
 void run(const std::string &input_path, const std::string &dataset,
          const std::string &output_path)
 {
-    const uint32_t E_max = 20;
-    const int32_t tau = 1;
+    const int E_max = 20;
+    const int tau = 1;
 
     HighFive::File output(
         output_path, HighFive::File::Overwrite,
@@ -30,12 +30,12 @@ void run(const std::string &input_path, const std::string &dataset,
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    uint32_t block_size = ds.extent(1) / size;
-    uint32_t block_start = block_size * rank;
-    uint32_t block_end =
-        std::min(block_size * (rank + 1), static_cast<uint32_t>(ds.extent(1)));
+    int block_size = ds.extent(1) / size;
+    int block_start = block_size * rank;
+    int block_end =
+        std::min(block_size * (rank + 1), static_cast<int>(ds.extent(1)));
 
-    std::vector<uint32_t> optimal_E(block_size * size);
+    std::vector<int> optimal_E(block_size * size);
 
     for (auto i = block_start; i < block_end; i++) {
         Kokkos::Timer timer;
@@ -51,13 +51,13 @@ void run(const std::string &input_path, const std::string &dataset,
                   block_size, MPI_INT, MPI_COMM_WORLD);
 
     auto dataspace = HighFive::DataSpace({ds.extent(1)});
-    auto ds_edim = output.createDataSet<uint32_t>("/embedding", dataspace);
+    auto ds_edim = output.createDataSet<int>("/embedding", dataspace);
     ds_edim.write(optimal_E);
 
     std::vector<edm::LUT> luts;
 
     // Allocate kNN tables
-    for (uint32_t E = 1; E <= E_max; E++) {
+    for (int E = 1; E <= E_max; E++) {
         luts.push_back(edm::LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
