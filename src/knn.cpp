@@ -103,7 +103,12 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         });
 #endif
 
+#ifdef KOKKOS_ENABLE_CUDA
     const int team_size = 32;
+#else
+    const int team_size = 1;
+#endif
+
     scratch_size = ScratchDistances::shmem_size(team_size, top_k) +
                    ScratchIndices::shmem_size(team_size, top_k) +
                    Kokkos::View<uint32_t *, DevScratchSpace,
