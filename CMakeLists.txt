@@ -24,6 +24,12 @@ set(HIGHFIVE_UNIT_TESTS OFF)
 set(HIGHFIVE_EXAMPLES OFF)
 add_subdirectory(src/thirdparty/highfive)
 
+# cxxopts
+set(CXXOPTS_BUILD_TESTS OFF)
+set(CXXOPTS_BUILD_EXAMPLES OFF)
+set(CXXOPTS_ENABLE_INSTALL OFF)
+add_subdirectory(src/thirdparty/cxxopts)
+
 add_library(kedm SHARED
   src/edim.cpp
   src/io.cpp
@@ -37,7 +43,7 @@ add_executable(edm-xmap src/xmap_run.cpp)
 target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos HighFive)
 
 add_executable(knn-bench src/knn_bench.cpp)
-target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos)
+target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos cxxopts)
 
 # Tests
 enable_testing()
