@@ -14,7 +14,7 @@ float corrcoef(const TimeSeries &x, const TimeSeries &y)
 
     Kokkos::parallel_reduce(
         "EDM::stats::corrcef", min(x.size(), y.size()),
-        KOKKOS_LAMBDA(int i, CorrcoefState & upd) {
+        KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
             upd += CorrcoefState(x(i), y(i));
         },
         Kokkos::Sum<CorrcoefState>(state));

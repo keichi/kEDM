@@ -10,6 +10,7 @@
 
 int main(int argc, char *argv[])
 {
+    // clang-format off
     cxxopts::Options options("knn-bench", "Benchmark k-nearest neighbor kernel");
     options.add_options()
       ("e,embedding-dim", "Embedding dimension", cxxopts::value<int>()->default_value("20"))
@@ -17,6 +18,7 @@ int main(int argc, char *argv[])
       ("i,iteration", "Number of iterations", cxxopts::value<int>()->default_value("10"))
       ("t,tau", "Time delay", cxxopts::value<int>()->default_value("1"))
       ("h,help", "Print usage");
+    // clang-format on
 
     const auto result = options.parse(argc, argv);
 
