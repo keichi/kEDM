@@ -8,30 +8,11 @@
 namespace edm
 {
 
-void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
-         LUT &tmp, int E, int tau, int Tp, int top_k)
+void calc_distances(const TimeSeries &library, const TimeSeries &target,
+                    const Distances &distances, size_t n_library,
+                    size_t n_target, int E, int tau)
 {
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::max;
-    using std::min;
-#endif
-
-    Kokkos::Profiling::pushRegion("EDM::knn");
-
-    assert(E > 0 && tau > 0 && Tp >= 0 && top_k > 0);
-
-    const int shift = (E - 1) * tau + Tp;
-    const int n_library = library.size() - shift;
-    const int n_target = target.size() - shift + Tp;
-
-    assert(n_library > 0 && n_target > 0);
-
-    const auto distances = tmp.distances;
-    const auto indices = tmp.indices;
-
-    assert(distances.extent(0) >= n_target && distances.extent(1) >= n_library);
-
-    size_t scratch_size = ScratchTimeSeries::shmem_size(E);
+    const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
 
 #ifdef KOKKOS_ENABLE_CUDA
     // Calculate all-to-all distances
@@ -60,14 +41,10 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
 
                     float dist = 0.0f;
 
-                    Kokkos::parallel_reduce(
-                        Kokkos::ThreadVectorRange(member, E),
-                        [=](int e, float &d) {
-                            float diff =
-                                scratch_target(e) - library(j + e * tau);
-                            d += diff * diff;
-                        },
-                        dist);
+                    for (int e = 0; e < E; e++) {
+                        float diff = scratch_target(e) - library(j + e * tau);
+                        dist += diff * diff;
+                    }
 
                     distances(i, j) = dist;
                 });
@@ -77,7 +54,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
         "EDM::knn::calc_distances",
         Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int i =
+            const int i =
                 member.league_rank() * member.team_size() + member.team_rank();
 
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
@@ -101,6 +78,14 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                 });
         });
 #endif
+}
+
+void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
+                  size_t n_target, int top_k, int shift)
+{
+#ifndef KOKKOS_ENABLE_CUDA
+    using std::min;
+#endif
 
 #ifdef KOKKOS_ENABLE_CUDA
     const int team_size = 32;
@@ -108,10 +93,11 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     const int team_size = 1;
 #endif
 
-    scratch_size = ScratchDistances::shmem_size(team_size, top_k) +
-                   ScratchIndices::shmem_size(team_size, top_k) +
-                   Kokkos::View<int *, DevScratchSpace,
-                                Kokkos::MemoryUnmanaged>::shmem_size(team_size);
+    const size_t scratch_size =
+        ScratchDistances::shmem_size(team_size, top_k) +
+        ScratchIndices::shmem_size(team_size, top_k) +
+        Kokkos::View<int *, DevScratchSpace,
+                     Kokkos::MemoryUnmanaged>::shmem_size(team_size);
 
     // Partially sort each row
     Kokkos::parallel_for(
@@ -185,9 +171,9 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                     }
 
                     // Compute L2 norms from SSDs and shift indices
-                    distances(i, j) = sqrt(min_dist);
+                    out.distances(i, j) = sqrt(min_dist);
                     // indices(i, j) = scratch_idx(min_rank, 0) + shift;
-                    indices(i, j) =
+                    out.indices(i, j) =
                         scratch_idx(min_rank, scratch_head(min_rank)) + shift;
 
                     scratch_head(min_rank) =
@@ -195,14 +181,28 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
                 }
             });
         });
+}
 
-    // Copy LUT from cache to output
-    Kokkos::deep_copy(out.distances,
-                      Kokkos::subview(distances, std::make_pair(0, n_target),
-                                      std::make_pair(0, top_k)));
-    Kokkos::deep_copy(out.indices,
-                      Kokkos::subview(indices, std::make_pair(0, n_target),
-                                      std::make_pair(0, top_k)));
+void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
+         LUT &tmp, int E, int tau, int Tp, int top_k)
+{
+    Kokkos::Profiling::pushRegion("EDM::knn");
+
+    assert(E > 0 && tau > 0 && Tp >= 0 && top_k > 0);
+
+    const int shift = (E - 1) * tau + Tp;
+    const int n_library = library.size() - shift;
+    const int n_target = target.size() - shift + Tp;
+
+    assert(n_library > 0 && n_target > 0);
+    assert(out.distances.extent(0) >= n_target &&
+           out.distances.extent(1) >= n_library);
+
+    // Calculate all-to-all distances
+    calc_distances(library, target, tmp.distances, n_library, n_target, E, tau);
+
+    // Sort the distance matrix
+    partial_sort(tmp.distances, out, n_library, n_target, top_k, shift);
 
     Kokkos::Profiling::popRegion();
 } // namespace edm
