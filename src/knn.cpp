@@ -12,9 +12,10 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
                     const Distances &distances, size_t n_library,
                     size_t n_target, int E, int tau)
 {
+#ifdef KOKKOS_ENABLE_CUDA
     const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
 
-#ifdef KOKKOS_ENABLE_CUDA
+#if 0
     // Calculate all-to-all distances
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
@@ -42,7 +43,8 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
-                        float diff = scratch_target(e) - library(j + e * tau);
+                        const float diff =
+                            scratch_target(e) - library(j + e * tau);
                         dist += diff * diff;
                     }
 
@@ -50,12 +52,48 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
                 });
         });
 #else
+    // Calculate all-to-all distances
+    Kokkos::parallel_for(
+        "EDM::knn::calc_distances",
+        Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            const uint32_t j = member.league_rank();
+
+            ScratchTimeSeries scratch_library(member.team_scratch(0), E);
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, E),
+                [=](uint32_t e) { scratch_library(e) = library(j + e * tau); });
+
+            member.team_barrier();
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_target), [=](uint32_t i) {
+                    // Ignore degenerate neighbor
+                    if (target.data() + i == library.data() + j) {
+                        distances(i, j) = FLT_MAX;
+                        return;
+                    }
+
+                    float dist = 0.0f;
+
+                    for (int e = 0; e < E; e++) {
+                        const float diff =
+                            scratch_library(e) - target(i + e * tau);
+                        dist += diff * diff;
+                    }
+
+                    distances(i, j) = dist;
+                });
+        });
+#endif
+#else
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
         Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            const int i =
-                member.league_rank() * member.team_size() + member.team_rank();
+            const int i = member.league_rank();
 
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
                                  [=](int j) { distances(i, j) = 0.0f; });
@@ -80,6 +118,7 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
 #endif
 }
 
+#if 0
 void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
                   size_t n_target, int top_k, int shift)
 {
@@ -126,7 +165,6 @@ void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_library), [=](int j) {
                     const float cur_dist = distances(i, j);
-                    const int cur_idx = j;
 
                     // Skip elements larger than the current k-th smallest
                     // element
@@ -149,7 +187,7 @@ void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
 
                     // Insert the new element
                     scratch_dist(r, k) = cur_dist;
-                    scratch_idx(r, k) = cur_idx;
+                    scratch_idx(r, k) = j;
                 });
 
             member.team_barrier();
@@ -172,7 +210,6 @@ void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
 
                     // Compute L2 norms from SSDs and shift indices
                     out.distances(i, j) = sqrt(min_dist);
-                    // indices(i, j) = scratch_idx(min_rank, 0) + shift;
                     out.indices(i, j) =
                         scratch_idx(min_rank, scratch_head(min_rank)) + shift;
 
@@ -182,6 +219,68 @@ void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
             });
         });
 }
+#else
+void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
+                  size_t n_target, int top_k, int shift)
+{
+#ifndef KOKKOS_ENABLE_CUDA
+    using std::min;
+#endif
+
+    const size_t scratch_size =
+        ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
+
+    // Partially sort each row
+    Kokkos::parallel_for(
+        "EDM::knn::partial_sort",
+        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerThread(scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            // Scratch views to hold the top-k elements
+            ScratchDistances scratch_dist(member.thread_scratch(0), top_k);
+            ScratchIndices scratch_idx(member.thread_scratch(0), top_k);
+
+            Kokkos::single(Kokkos::PerThread(member), [=]() {
+                const int i = member.league_rank() * member.team_size() +
+                              member.team_rank();
+
+                if (i >= n_target) return;
+
+                for (int j = 0; j < n_library; j++) {
+                    const float cur_dist = distances(i, j);
+
+                    // Skip elements larger than the current k-th smallest
+                    // element
+                    if (j >= top_k && cur_dist > scratch_dist(top_k - 1)) {
+                        continue;
+                    }
+
+                    int k = 0;
+                    // Shift elements until the insertion point is found
+                    for (k = min(j, top_k - 1); k > 0; k--) {
+                        if (scratch_dist(k - 1) <= cur_dist) {
+                            break;
+                        }
+
+                        // Shift element
+                        scratch_dist(k) = scratch_dist(k - 1);
+                        scratch_idx(k) = scratch_idx(k - 1);
+                    }
+
+                    // Insert the new element
+                    scratch_dist(k) = cur_dist;
+                    scratch_idx(k) = j;
+                }
+
+                // Compute L2 norms from SSDs and shift indices
+                for (int j = 0; j < top_k; j++) {
+                    out.distances(i, j) = sqrt(scratch_dist(j));
+                    out.indices(i, j) = scratch_idx(j) + shift;
+                }
+            });
+        });
+}
+#endif
 
 void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
          LUT &tmp, int E, int tau, int Tp, int top_k)
@@ -205,7 +304,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     partial_sort(tmp.distances, out, n_library, n_target, top_k, shift);
 
     Kokkos::Profiling::popRegion();
-} // namespace edm
+}
 
 void normalize_lut(LUT &lut)
 {

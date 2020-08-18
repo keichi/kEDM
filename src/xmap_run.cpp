@@ -65,10 +65,11 @@ void run(const std::string &input_path, const std::string &dataset,
 
         edm::xmap(ccm, ds, library, groups, luts, tmp_lut, E_max, tau, 0);
 
+        Kokkos::deep_copy(ccm_mirror, ccm);
+
         std::cout << "Cross map for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
 
-        Kokkos::deep_copy(ccm_mirror, ccm);
         ds_ccm.select({i, 0}, {1, ds.extent(1)}).write(ccm_mirror.data());
     }
 
@@ -78,10 +79,11 @@ void run(const std::string &input_path, const std::string &dataset,
 
         edm::corrcoef(rho, ds, library);
 
+        Kokkos::deep_copy(rho_mirror, rho);
+
         std::cout << "Correlation for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
 
-        Kokkos::deep_copy(rho_mirror, rho);
         ds_rho.select({i, 0}, {1, ds.extent(1)}).write(rho_mirror.data());
     }
 }

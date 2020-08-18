@@ -36,12 +36,9 @@ void _xmap(CrossMap &result, const Dataset &ds, const LUT &lut,
                 [=](int i, CorrcoefState &upd) {
                     float pred = 0.0f;
 
-                    Kokkos::parallel_reduce(
-                        Kokkos::ThreadVectorRange(member, E + 1),
-                        [=](int &e, float &p) {
-                            p += scratch(indices(i, e)) * distances(i, e);
-                        },
-                        pred);
+                    for (int e = 0; e < E + 1; e++) {
+                        pred += scratch(indices(i, e)) * distances(i, e);
+                    }
 
                     float actual = scratch((E - 1) * tau + Tp + i);
 
@@ -62,7 +59,7 @@ void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
 
     groups.resize(E_max);
 
-    for (int i = 0; i < edims.size(); i++) {
+    for (size_t i = 0; i < edims.size(); i++) {
         h_groups[edims[i] - 1].push_back(i);
     }
 
@@ -71,7 +68,7 @@ void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
 
         auto mirror = Kokkos::create_mirror_view(targets);
 
-        for (int j = 0; j < h_groups[E - 1].size(); j++) {
+        for (size_t j = 0; j < h_groups[E - 1].size(); j++) {
             mirror(j) = h_groups[E - 1][j];
         }
 
