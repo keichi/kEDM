@@ -49,8 +49,14 @@ jobs:
         cd build
         cmake \
           -DCMAKE_CXX_COMPILER=/opt/kokkos/bin/nvcc_wrapper \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DREGISTER_TESTS=OFF ..
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DREGISTER_TESTS=OFF \
+          -DHIGHFIVE_USE_BOOST=OFF \
+          -DHIGHFIVE_UNIT_TESTS=OFF \
+          -DHIGHFIVE_EXAMPLES=OFF \
+          -DCXXOPTS_BUILD_TESTS=OFF \
+          -DCXXOPTS_BUILD_EXAMPLES=OFF \
+          -DCXXOPTS_ENABLE_INSTALL=OFF ..
         make -j $(nproc)
       env:
         NVCC_WRAPPER_DEFAULT_COMPILER: clang++

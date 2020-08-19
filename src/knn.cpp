@@ -9,8 +9,8 @@ namespace edm
 {
 
 void calc_distances(const TimeSeries &library, const TimeSeries &target,
-                    const Distances &distances, size_t n_library,
-                    size_t n_target, int E, int tau)
+                    const Distances &distances, int n_library, int n_target,
+                    int E, int tau)
 {
 #ifdef KOKKOS_ENABLE_CUDA
     const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
@@ -58,18 +58,18 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
         Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            const uint32_t j = member.league_rank();
+            const int j = member.league_rank();
 
             ScratchTimeSeries scratch_library(member.team_scratch(0), E);
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, E),
-                [=](uint32_t e) { scratch_library(e) = library(j + e * tau); });
+                [=](int e) { scratch_library(e) = library(j + e * tau); });
 
             member.team_barrier();
 
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_target), [=](uint32_t i) {
+                Kokkos::TeamThreadRange(member, n_target), [=](int i) {
                     // Ignore degenerate neighbor
                     if (target.data() + i == library.data() + j) {
                         distances(i, j) = FLT_MAX;
@@ -220,8 +220,8 @@ void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
         });
 }
 #else
-void partial_sort(const Distances &distances, const LUT &out, size_t n_library,
-                  size_t n_target, int top_k, int shift)
+void partial_sort(const Distances &distances, const LUT &out, int n_library,
+                  int n_target, int top_k, int shift)
 {
 #ifndef KOKKOS_ENABLE_CUDA
     using std::min;
@@ -294,8 +294,10 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     const int n_target = target.size() - shift + Tp;
 
     assert(n_library > 0 && n_target > 0);
-    assert(out.distances.extent(0) >= n_target &&
-           out.distances.extent(1) >= n_library);
+    assert(tmp.distances.extent(0) >= static_cast<size_t>(n_target) &&
+           tmp.distances.extent(1) >= static_cast<size_t>(n_library));
+    assert(out.distances.extent(0) == static_cast<size_t>(n_target) &&
+           out.distances.extent(1) == static_cast<size_t>(top_k));
 
     // Calculate all-to-all distances
     calc_distances(library, target, tmp.distances, n_library, n_target, E, tau);
