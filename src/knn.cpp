@@ -98,18 +98,22 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
             Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
                                  [=](int j) { distances(i, j) = 0.0f; });
 
+            // Calculate all-to-all distances
             for (int e = 0; e < E; e++) {
-                Kokkos::parallel_for(
-                    Kokkos::ThreadVectorRange(member, n_library), [=](int j) {
-                        float diff = target(i + e * tau) - library(j + e * tau);
+                const float tmp = target(i + e * tau);
 
+                // For some reason, defining the loop counter as a uint32_t
+                // rather than an int results in faster (~15%) code with icc
+                Kokkos::parallel_for(
+                    Kokkos::ThreadVectorRange(member, n_library), [=](uint32_t j) {
+                        const float diff = tmp - library(j + e * tau);
                         distances(i, j) += diff * diff;
                     });
             }
 
+            // Ignore degenerate neighbor
             Kokkos::parallel_for(
                 Kokkos::ThreadVectorRange(member, n_library), [=](int j) {
-                    // Ignore degenerate neighbor
                     if (target.data() + i == library.data() + j) {
                         distances(i, j) = FLT_MAX;
                     }
