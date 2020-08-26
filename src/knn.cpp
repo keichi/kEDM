@@ -8,9 +8,9 @@
 namespace edm
 {
 
-void calc_distances(const TimeSeries &library, const TimeSeries &target,
-                    const TmpDistances &distances, int n_library, int n_target,
-                    int E, int tau)
+void calc_distances(TimeSeries library, TimeSeries target,
+                    TmpDistances distances, int n_library, int n_target, int E,
+                    int tau)
 {
 #ifdef KOKKOS_ENABLE_CUDA
     const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
@@ -85,8 +85,8 @@ void calc_distances(const TimeSeries &library, const TimeSeries &target,
 }
 
 #ifdef KOKKOS_ENABLE_CUDA
-void partial_sort(const TmpDistances &distances, const LUT &out,
-                  size_t n_library, size_t n_target, int top_k, int shift)
+void partial_sort(TmpDistances distances, LUT out, size_t n_library,
+                  size_t n_target, int top_k, int shift)
 {
     const int team_size = 32;
 
@@ -178,8 +178,8 @@ void partial_sort(const TmpDistances &distances, const LUT &out,
         });
 }
 #else
-void partial_sort(const TmpDistances &distances, const LUT &out, int n_library,
-                  int n_target, int top_k, int shift)
+void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
+                  int top_k, int shift)
 {
     using std::min;
 
@@ -238,8 +238,8 @@ void partial_sort(const TmpDistances &distances, const LUT &out, int n_library,
 }
 #endif
 
-void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
-         TmpDistances &tmp, int E, int tau, int Tp, int top_k)
+void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
+         int E, int tau, int Tp, int top_k)
 {
     Kokkos::Profiling::pushRegion("EDM::knn");
 
@@ -264,7 +264,7 @@ void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
     Kokkos::Profiling::popRegion();
 }
 
-void normalize_lut(LUT &lut)
+void normalize_lut(LUT lut)
 {
 #ifndef KOKKOS_ENABLE_CUDA
     using std::exp;

@@ -11,9 +11,9 @@ namespace edm
 void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
               int E_max);
 
-void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
+void xmap(CrossMap result, Dataset ds, TimeSeries library,
           const std::vector<Targets> &groups, std::vector<LUT> &luts,
-          TmpDistances &tmp, int E_max, int tau, int Tp);
+          TmpDistances tmp, int E_max, int tau, int Tp);
 
 } // namespace edm
 

@@ -3,7 +3,7 @@
 namespace edm
 {
 
-float corrcoef(const TimeSeries &x, const TimeSeries &y)
+float corrcoef(TimeSeries x, TimeSeries y)
 {
 #ifndef KOKKOS_ENABLE_CUDA
     using std::min;
@@ -22,7 +22,7 @@ float corrcoef(const TimeSeries &x, const TimeSeries &y)
     return state.rho();
 }
 
-void corrcoef(CrossMap &rho, const Dataset &ds, const TimeSeries &x)
+void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
 {
 #ifndef KOKKOS_ENABLE_CUDA
     using std::min;

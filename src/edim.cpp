@@ -8,7 +8,7 @@
 namespace edm
 {
 
-int edim(const TimeSeries &ts, int E_max, int tau, int Tp)
+int edim(TimeSeries ts, int E_max, int tau, int Tp)
 {
     Kokkos::Profiling::pushRegion("EDM::edim");
 

@@ -8,10 +8,10 @@ namespace edm
 
 const float MIN_WEIGHT = 1e-6f;
 
-void knn(const TimeSeries &library, const TimeSeries &target, LUT &out,
-         TmpDistances &tmp, int E, int tau, int Tp, int top_k);
+void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
+         int E, int tau, int Tp, int top_k);
 
-void normalize_lut(LUT &lut);
+void normalize_lut(LUT lut);
 
 } // namespace edm
 

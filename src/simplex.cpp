@@ -7,8 +7,7 @@
 namespace edm
 {
 
-void simplex(const MutableTimeSeries &prediction, const TimeSeries &target,
-             const LUT &lut)
+void simplex(MutableTimeSeries prediction, TimeSeries target, LUT lut)
 {
     Kokkos::Profiling::pushRegion("EDM::simplex");
 
