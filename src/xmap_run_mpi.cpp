@@ -61,7 +61,7 @@ void run(const std::string &input_path, const std::string &dataset,
         luts.push_back(edm::LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
-    edm::LUT tmp_lut(ds.extent(0), ds.extent(0));
+    edm::TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));
 
     std::vector<edm::Targets> groups;
     edm::group_ts(groups, optimal_E, E_max);
@@ -80,7 +80,7 @@ void run(const std::string &input_path, const std::string &dataset,
         Kokkos::Timer timer;
         edm::TimeSeries library(ds, Kokkos::ALL, i);
 
-        edm::xmap(ccm, ds, library, groups, luts, tmp_lut, E_max, tau, 0);
+        edm::xmap(ccm, ds, library, groups, luts, tmp, E_max, tau, 0);
 
         std::cout << "Cross map for time series #" << i << " took "
                   << timer.seconds() << " seconds." << std::endl;
