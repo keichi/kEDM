@@ -17,9 +17,9 @@ void test_knn_common(int E)
     Dataset ds = load_csv("knn_test_data.csv");
     TimeSeries ts(ds, Kokkos::ALL, 0);
 
-    LUT tmp_lut(ts.size(), ts.size());
+    TmpDistances tmp("tmp_distances", ts.size(), ts.size());
     LUT lut(ts.size() - (E - 1) * tau, top_k);
-    knn(ts, ts, lut, tmp_lut, E, tau, Tp, top_k);
+    knn(ts, ts, lut, tmp, E, tau, Tp, top_k);
 
     Dataset d_validation =
         load_csv("knn_test_validation_E" + std::to_string(E) + ".csv");

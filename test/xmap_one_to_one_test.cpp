@@ -23,7 +23,7 @@ void cross_mapping_test_common(int E)
     Dataset ds2 =
         load_csv("anchovy_sst_validation_E" + std::to_string(E) + ".csv");
 
-    LUT tmp_lut(ds1.extent(0), ds1.extent(0));
+    TmpDistances tmp("tmp_distances", ds1.extent(0), ds1.extent(0));
 
     const auto library = TimeSeries(
         ds1, std::make_pair<size_t, size_t>(0, ds1.extent(0) - (E - 1)), 1);
@@ -32,7 +32,7 @@ void cross_mapping_test_common(int E)
     const auto valid_prediction = TimeSeries(ds2, Kokkos::ALL, 0);
 
     LUT lut(target.size() - (E - 1) * tau, E + 1);
-    knn(library, library, lut, tmp_lut, E, tau, Tp, E + 1);
+    knn(library, library, lut, tmp, E, tau, Tp, E + 1);
     normalize_lut(lut);
 
     MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);

@@ -41,7 +41,7 @@ void xmap_test_common()
         luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
-    LUT tmp_lut(ds.extent(0), ds.extent(0));
+    TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));
 
     std::vector<Targets> groups;
     group_ts(groups, optimal_E, E_max);
@@ -52,7 +52,7 @@ void xmap_test_common()
     for (size_t i = 0; i < ds.extent(1); i++) {
         TimeSeries library(ds, Kokkos::ALL, i);
 
-        xmap(rho, ds, library, groups, luts, tmp_lut, E_max, 1, 0);
+        xmap(rho, ds, library, groups, luts, tmp, E_max, 1, 0);
 
         ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rho_valid);
 

@@ -13,7 +13,7 @@ void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
 
 void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
           const std::vector<Targets> &groups, std::vector<LUT> &luts,
-          LUT &tmp_lut, int E_max, int tau, int Tp);
+          TmpDistances &tmp, int E_max, int tau, int Tp);
 
 } // namespace edm
 

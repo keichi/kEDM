@@ -53,13 +53,13 @@ int main(int argc, char *argv[])
     Kokkos::deep_copy(library, h_library);
     Kokkos::deep_copy(target, h_target);
 
-    edm::LUT lut_tmp(L, L);
+    edm::TmpDistances tmp("tmp_distances", L, L);
     edm::LUT lut_out(L - (E - 1) * tau, E + 1);
 
     Kokkos::Timer timer;
 
     for (auto i = 0; i < iterations; i++) {
-        edm::knn(library, target, lut_out, lut_tmp, E, tau, Tp, E + 1);
+        edm::knn(library, target, lut_out, tmp, E, tau, Tp, E + 1);
     }
 
     std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;

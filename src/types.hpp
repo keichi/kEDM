@@ -15,18 +15,16 @@ using MutableDataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;
 using TimeSeries = Kokkos::View<const float *, Kokkos::LayoutLeft, DevSpace>;
 using MutableTimeSeries = Kokkos::View<float *, Kokkos::LayoutLeft, DevSpace>;
 
+// Used in lookup
 using ScratchTimeSeries =
     Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 
-#if 0
-using Distances = Kokkos::View<float **, Kokkos::LayoutRight, DevSpace>;
-using Indices = Kokkos::View<int **, Kokkos::LayoutRight, DevSpace>;
-#else
 using Distances = Kokkos::View<float **, DevSpace>;
 using Indices = Kokkos::View<int **, DevSpace>;
-#endif
 
-#if 0
+// Used in kNN (partial sort)
+using TmpDistances = Kokkos::View<float **, Kokkos::LayoutRight, DevSpace>;
+#ifdef KOKKOS_ENABLE_CUDA
 using ScratchDistances =
     Kokkos::View<float **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 using ScratchIndices =

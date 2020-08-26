@@ -79,13 +79,13 @@ void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
 
 void xmap(CrossMap &result, const Dataset &ds, const TimeSeries &library,
           const std::vector<Targets> &groups, std::vector<LUT> &luts,
-          LUT &tmp_lut, int E_max, int tau, int Tp)
+          TmpDistances &tmp, int E_max, int tau, int Tp)
 {
     Kokkos::Profiling::pushRegion("EDM::xmap");
 
     // Compute kNN tables for all E
     for (int E = 1; E <= E_max; E++) {
-        knn(library, library, luts[E - 1], tmp_lut, E, tau, Tp, E + 1);
+        knn(library, library, luts[E - 1], tmp, E, tau, Tp, E + 1);
         normalize_lut(luts[E - 1]);
     }
 

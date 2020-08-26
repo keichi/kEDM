@@ -19,12 +19,12 @@ int edim(const TimeSeries &ts, int E_max, int tau, int Tp)
     const auto target =
         TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
 
-    LUT tmp_lut(ts.size(), ts.size());
+    TmpDistances tmp("tmp_distances", ts.size(), ts.size());
 
     for (int E = 1; E <= E_max; E++) {
         LUT lut(target.size() - (E - 1) * tau, E + 1);
 
-        knn(library, target, lut, tmp_lut, E, tau, Tp, E + 1);
+        knn(library, target, lut, tmp, E, tau, Tp, E + 1);
         normalize_lut(lut);
 
         MutableTimeSeries prediction("prediction",
