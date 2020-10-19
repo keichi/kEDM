@@ -4,6 +4,6 @@
 [submodule "src/thirdparty/highfive"]
 	path = src/thirdparty/highfive
 	url = https://github.com/keichi/HighFive.git
-[submodule "src/thirdparty/cxxopts"]
-	path = src/thirdparty/cxxopts
-	url = https://github.com/jarro2783/cxxopts
+[submodule "src/thirdparty/argh"]
+	path = src/thirdparty/argh
+	url = https://github.com/adishavit/argh.git
