@@ -86,7 +86,8 @@ void run(const std::string &input_path, const std::string &dataset,
                   << timer.seconds() << " seconds." << std::endl;
 
         Kokkos::deep_copy(ccm_mirror, ccm);
-        ds_ccm.select({i, 0}, {1, ds.extent(1)}).write(ccm_mirror.data());
+        ds_ccm.select({static_cast<size_t>(i), 0}, {1, ds.extent(1)})
+            .write(ccm_mirror.data());
     }
 
     for (auto i = block_start; i < block_end; i++) {
@@ -99,7 +100,8 @@ void run(const std::string &input_path, const std::string &dataset,
                   << timer.seconds() << " seconds." << std::endl;
 
         Kokkos::deep_copy(rho_mirror, rho);
-        ds_rho.select({i, 0}, {1, ds.extent(1)}).write(rho_mirror.data());
+        ds_rho.select({static_cast<size_t>(i), 0}, {1, ds.extent(1)})
+            .write(rho_mirror.data());
     }
 }
 
