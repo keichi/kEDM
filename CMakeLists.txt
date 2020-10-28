@@ -65,12 +65,9 @@ target_link_libraries(xmap_one_to_one_test PRIVATE kedm Kokkos::kokkos doctest::
 add_executable(xmap_all_to_all_test test/xmap_all_to_all_test.cpp)
 target_link_libraries(xmap_all_to_all_test PRIVATE kedm Kokkos::kokkos HighFive doctest::doctest)
 
-# Register tests
 option(REGISTER_TESTS "Register unit tests" ON)
 
-if(REGISTER_TESTS)
 doctest_discover_tests(knn_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(simplex_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(xmap_one_to_one_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(xmap_all_to_all_test WORKING_DIRECTORY ../test/)
-endif()
