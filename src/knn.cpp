@@ -85,8 +85,8 @@ void calc_distances(TimeSeries library, TimeSeries target,
 }
 
 #ifdef KOKKOS_ENABLE_CUDA
-void partial_sort(TmpDistances distances, LUT out, size_t n_library,
-                  size_t n_target, int top_k, int shift)
+void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
+                  int top_k, int shift)
 {
     const int team_size = 32;
 
