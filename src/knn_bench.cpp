@@ -6,6 +6,7 @@
 #include <argh.h>
 
 #include "knn.hpp"
+#include "timer.hpp"
 #include "types.hpp"
 
 void usage(const std::string &app_name)
@@ -74,12 +75,35 @@ int main(int argc, char *argv[])
     edm::LUT lut_out(L - (E - 1) * tau, E + 1);
 
     Kokkos::Timer timer;
+    Timer timer_distances;
+    Timer timer_sorting;
 
     for (auto i = 0; i < iterations; i++) {
-        edm::knn(library, target, lut_out, tmp, E, tau, Tp, E + 1);
+        const int shift = (E - 1) * tau + Tp;
+        const int n_library = library.size() - shift;
+        const int n_target = target.size() - shift + Tp;
+
+        timer_distances.start();
+
+        // Calculate all-to-all distances
+        edm::calc_distances(library, target, tmp, n_library, n_target, E, tau);
+
+        timer_distances.stop();
+
+        timer_sorting.start();
+
+        // Sort the distance matrix
+        edm::partial_sort(tmp, lut_out, n_library, n_target, E + 1, shift);
+
+        timer_sorting.stop();
     }
 
     std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;
+
+    std::cout << "calc_distances " << timer_distances.elapsed() / iterations
+              << std::endl;
+    std::cout << "partial_sort " << timer_sorting.elapsed() / iterations
+              << std::endl;
 
     return 0;
 }
