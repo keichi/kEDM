@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include <Kokkos_Random.hpp>
 #include <argh.h>
 
 #include "knn.hpp"
@@ -56,20 +57,9 @@ int main(int argc, char *argv[])
     edm::MutableTimeSeries library("library", L);
     edm::MutableTimeSeries target("target", L);
 
-    auto h_library = Kokkos::create_mirror_view(library);
-    auto h_target = Kokkos::create_mirror_view(target);
-
-    std::random_device rand_dev;
-    std::default_random_engine engine(rand_dev());
-    std::uniform_real_distribution<> dist(0.0f, 1.0f);
-
-    for (auto i = 0; i < L; i++) {
-        h_library(i) = dist(engine);
-        h_target(i) = dist(engine);
-    }
-
-    Kokkos::deep_copy(library, h_library);
-    Kokkos::deep_copy(target, h_target);
+    Kokkos::Random_XorShift64_Pool<> rand_pool(1931);
+    Kokkos::fill_random(library, rand_pool, 1.0);
+    Kokkos::fill_random(target, rand_pool, 1.0);
 
     edm::TmpDistances tmp("tmp_distances", L, L);
     edm::LUT lut_out(L - (E - 1) * tau, E + 1);
