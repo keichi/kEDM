@@ -82,8 +82,14 @@ int main(int argc, char *argv[])
     for (auto i = 0; i < iterations; i++) {
         edm::knn(library, target, lut, tmp, E, tau, Tp, E + 1);
 
+        Kokkos::fence();
+
         timer_lookup.start();
+
         edm::_xmap(ccm, dataset, lut, targets, E, tau, Tp);
+
+        Kokkos::fence();
+
         timer_lookup.stop();
     }
 

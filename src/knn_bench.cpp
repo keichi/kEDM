@@ -78,12 +78,16 @@ int main(int argc, char *argv[])
         // Calculate all-to-all distances
         edm::calc_distances(library, target, tmp, n_library, n_target, E, tau);
 
+        Kokkos::fence();
+
         timer_distances.stop();
 
         timer_sorting.start();
 
         // Sort the distance matrix
         edm::partial_sort(tmp, lut_out, n_library, n_target, E + 1, shift);
+
+        Kokkos::fence();
 
         timer_sorting.stop();
     }
