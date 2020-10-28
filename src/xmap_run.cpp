@@ -5,11 +5,11 @@
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5File.hpp>
 
-#include "../src/edim.hpp"
-#include "../src/io.hpp"
-#include "../src/stats.hpp"
-#include "../src/types.hpp"
-#include "../src/xmap.hpp"
+#include "edim.hpp"
+#include "io.hpp"
+#include "stats.hpp"
+#include "types.hpp"
+#include "xmap.hpp"
 
 void run(const std::string &input_path, const std::string &dataset,
          const std::string &output_path)

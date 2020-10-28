@@ -5,8 +5,8 @@
 
 #include <argh.h>
 
-#include "../src/knn.hpp"
-#include "../src/types.hpp"
+#include "knn.hpp"
+#include "types.hpp"
 
 void usage(const std::string &app_name)
 {
