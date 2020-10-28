@@ -42,6 +42,9 @@ target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos HighFive)
 add_executable(knn-bench src/knn_bench.cpp)
 target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
 
+add_executable(lookup-bench src/lookup_bench.cpp)
+target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
+
 # Tests
 enable_testing()
 
