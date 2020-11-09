@@ -7,3 +7,6 @@
 [submodule "src/thirdparty/argh"]
 	path = src/thirdparty/argh
 	url = https://github.com/adishavit/argh.git
+[submodule "src/thirdparty/simd"]
+	path = src/thirdparty/simd
+	url = https://github.com/kokkos/simd-math

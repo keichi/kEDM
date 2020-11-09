@@ -15,6 +15,8 @@
 #define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
 #endif
 
+#include "thirdparty/simd/simd.hpp"
+
 #include "knn.hpp"
 #include "types.hpp"
 
@@ -25,76 +27,57 @@ void calc_distances(TimeSeries library, TimeSeries target,
                     TmpDistances distances, int n_library, int n_target, int E,
                     int tau)
 {
-#ifdef KOKKOS_ENABLE_CUDA
-    const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
+    using simd_t = simd::simd<float, simd::simd_abi::native>;
 
-    Kokkos::parallel_for(
-        "EDM::knn::calc_distances",
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
-            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            const int i = member.league_rank();
-
-            // Load subset of target time series to shared memory
-            ScratchTimeSeries scratch_target(member.team_scratch(0), E);
-
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, E),
-                [=](int e) { scratch_target(e) = target(i + e * tau); });
-
-            member.team_barrier();
-
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library), [=](int j) {
-                    // Ignore degenerate neighbor
-                    if (target.data() + i == library.data() + j) {
-                        distances(i, j) = FLT_MAX;
-                        return;
-                    }
-
-                    float dist = 0.0f;
-
-                    for (int e = 0; e < E; e++) {
-                        const float diff =
-                            scratch_target(e) - library(j + e * tau);
-                        dist += diff * diff;
-                    }
-
-                    distances(i, j) = dist;
-                });
-        });
-#else
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
         Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int i = member.league_rank();
 
-            Kokkos::parallel_for(Kokkos::ThreadVectorRange(member, n_library),
-                                 [=](int j) { distances(i, j) = 0.0f; });
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member,
+                                        distances.extent(1) / simd_t::size()),
+                [=](int j) {
+                    simd_t dist = simd_t(0.0f);
 
-            for (int e = 0; e < E; e++) {
-                const float tmp = target(i + e * tau);
+                    for (int e = 0; e < E; e++) {
+                        simd_t diff = simd_t(target(i + e * tau)) -
+                                      simd_t(library.data() +
+                                                 j * simd_t::size() + e * tau,
+                                             simd::element_aligned_tag());
+                        dist += diff * diff;
+                    }
 
-                // For some reason, defining the loop counter as a uint32_t
-                // rather than an int results in faster (~15%) code with icc
-                Kokkos::parallel_for(
-                    Kokkos::ThreadVectorRange(member, n_library),
-                    [=](uint32_t j) {
-                        const float diff = tmp - library(j + e * tau);
-                        distances(i, j) += diff * diff;
-                    });
-            }
+                    dist.copy_to(distances.data() + i * distances.extent(1) +
+                                     j * simd_t::size(),
+                                 simd::element_aligned_tag());
+                });
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member,
+                                        distances.extent(1) / simd_t::size() *
+                                            simd_t::size(),
+                                        distances.extent(1)),
+                [=](int j) {
+                    float dist = 0.0f;
+
+                    for (int e = 0; e < E; e++) {
+                        float diff = target(i + e * tau) - library(j + e * tau);
+                        dist += diff * diff;
+                    }
+
+                    distances(i, j) = dist;
+                });
 
             // Ignore degenerate neighbor
             Kokkos::parallel_for(
-                Kokkos::ThreadVectorRange(member, n_library), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_library), [=](int j) {
                     if (target.data() + i == library.data() + j) {
                         distances(i, j) = FLT_MAX;
                     }
                 });
         });
-#endif
 }
 
 #ifdef KOKKOS_ENABLE_CUDA
