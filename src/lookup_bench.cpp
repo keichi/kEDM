@@ -7,6 +7,19 @@
 #include <Kokkos_Random.hpp>
 #include <argh.h>
 
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_SWITCH
+#define LIKWID_MARKER_REGISTER(regionTag)
+#define LIKWID_MARKER_START(regionTag)
+#define LIKWID_MARKER_STOP(regionTag)
+#define LIKWID_MARKER_CLOSE
+#define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
+#endif
+
 #include "knn.hpp"
 #include "timer.hpp"
 #include "types.hpp"
@@ -79,6 +92,15 @@ int main(int argc, char *argv[])
     Kokkos::Timer timer;
     Timer timer_lookup;
 
+    LIKWID_MARKER_INIT;
+
+#pragma omp parallel
+    {
+        LIKWID_MARKER_THREADINIT;
+
+        LIKWID_MARKER_REGISTER("lookup");
+    }
+
     for (auto i = 0; i < iterations; i++) {
         edm::knn(library, target, lut, tmp, E, tau, Tp, E + 1);
 
@@ -86,12 +108,24 @@ int main(int argc, char *argv[])
 
         timer_lookup.start();
 
+#pragma omp parallel
+        {
+            LIKWID_MARKER_START("lookup");
+        }
+
         edm::_xmap(ccm, dataset, lut, targets, E, tau, Tp);
 
         Kokkos::fence();
 
+#pragma omp parallel
+        {
+            LIKWID_MARKER_STOP("lookup");
+        }
+
         timer_lookup.stop();
     }
+
+    LIKWID_MARKER_CLOSE;
 
     std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;
     std::cout << "lookup " << timer_lookup.elapsed() / iterations << std::endl;

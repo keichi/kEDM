@@ -6,6 +6,19 @@
 #include <Kokkos_Random.hpp>
 #include <argh.h>
 
+#ifdef LIKWID_PERFMON
+#include <likwid.h>
+#else
+#define LIKWID_MARKER_INIT
+#define LIKWID_MARKER_THREADINIT
+#define LIKWID_MARKER_SWITCH
+#define LIKWID_MARKER_REGISTER(regionTag)
+#define LIKWID_MARKER_START(regionTag)
+#define LIKWID_MARKER_STOP(regionTag)
+#define LIKWID_MARKER_CLOSE
+#define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
+#endif
+
 #include "knn.hpp"
 #include "timer.hpp"
 #include "types.hpp"
@@ -68,6 +81,16 @@ int main(int argc, char *argv[])
     Timer timer_distances;
     Timer timer_sorting;
 
+    LIKWID_MARKER_INIT;
+
+#pragma omp parallel
+    {
+        LIKWID_MARKER_THREADINIT;
+
+        LIKWID_MARKER_REGISTER("calc_distances");
+        LIKWID_MARKER_REGISTER("partial_sort");
+    }
+
     for (auto i = 0; i < iterations; i++) {
         const int shift = (E - 1) * tau + Tp;
         const int n_library = library.size() - shift;
@@ -75,22 +98,44 @@ int main(int argc, char *argv[])
 
         timer_distances.start();
 
+#pragma omp parallel
+        {
+            LIKWID_MARKER_START("calc_distances");
+        }
+
         // Calculate all-to-all distances
         edm::calc_distances(library, target, tmp, n_library, n_target, E, tau);
 
         Kokkos::fence();
 
+#pragma omp parallel
+        {
+            LIKWID_MARKER_STOP("calc_distances");
+        }
+
         timer_distances.stop();
 
         timer_sorting.start();
+
+#pragma omp parallel
+        {
+            LIKWID_MARKER_START("partial_sort");
+        }
 
         // Sort the distance matrix
         edm::partial_sort(tmp, lut_out, n_library, n_target, E + 1, shift);
 
         Kokkos::fence();
 
+#pragma omp parallel
+        {
+            LIKWID_MARKER_STOP("partial_sort");
+        }
+
         timer_sorting.stop();
     }
+
+    LIKWID_MARKER_CLOSE;
 
     std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;
 

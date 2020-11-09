@@ -45,6 +45,17 @@ target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
 add_executable(lookup-bench src/lookup_bench.cpp)
 target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
 
+option(USE_LIKWID "Enable LIKWID performance counters")
+if(USE_LIKWID)
+  find_package(likwid)
+
+  target_link_libraries(knn-bench PRIVATE likwid::likwid)
+  target_compile_definitions(knn-bench PRIVATE -DLIKWID_PERFMON)
+
+  target_link_libraries(lookup-bench PRIVATE likwid::likwid)
+  target_compile_definitions(lookup-bench PRIVATE -DLIKWID_PERFMON)
+endif()
+
 # Tests
 enable_testing()
 
