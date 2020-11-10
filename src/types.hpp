@@ -24,17 +24,10 @@ using Indices = Kokkos::View<int **, DevSpace>;
 
 // Used in kNN (partial sort)
 using TmpDistances = Kokkos::View<float **, Kokkos::LayoutRight, DevSpace>;
-#ifdef KOKKOS_ENABLE_CUDA
 using ScratchDistances =
     Kokkos::View<float **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 using ScratchIndices =
     Kokkos::View<int **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
-#else
-using ScratchDistances =
-    Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
-using ScratchIndices =
-    Kokkos::View<int *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
-#endif
 
 struct LUT {
     Distances distances;

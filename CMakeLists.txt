@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(kokkos-edm)
 
-add_compile_options(-Wall -Wextra -pedantic)
+add_compile_options(-Wall -Wextra -pedantic -Wno-unknown-pragmas)
 
 # Kokkos
 find_package(Kokkos REQUIRED)

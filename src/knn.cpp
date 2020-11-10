@@ -93,11 +93,15 @@ void calc_distances(TimeSeries library, TimeSeries target,
         });
 }
 
-#ifdef KOKKOS_ENABLE_CUDA
 void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
                   int top_k, int shift)
 {
+#ifdef KOKKOS_ENABLE_CUDA
     const int team_size = 32;
+#else
+    const int team_size = 1;
+    using std::min;
+#endif
 
     const size_t scratch_size =
         ScratchDistances::shmem_size(team_size, top_k) +
@@ -186,66 +190,6 @@ void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
             });
         });
 }
-#else
-void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
-                  int top_k, int shift)
-{
-    using std::min;
-
-    const size_t scratch_size =
-        ScratchDistances::shmem_size(top_k) + ScratchIndices::shmem_size(top_k);
-
-    // Partially sort each row
-    Kokkos::parallel_for(
-        "EDM::knn::partial_sort",
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
-            .set_scratch_size(0, Kokkos::PerThread(scratch_size)),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            // Scratch views to hold the top-k elements
-            ScratchDistances scratch_dist(member.thread_scratch(0), top_k);
-            ScratchIndices scratch_idx(member.thread_scratch(0), top_k);
-
-            Kokkos::single(Kokkos::PerThread(member), [=]() {
-                const int i = member.league_rank() * member.team_size() +
-                              member.team_rank();
-
-                if (i >= n_target) return;
-
-                for (int j = 0; j < n_library; j++) {
-                    const float cur_dist = distances(i, j);
-
-                    // Skip elements larger than the current k-th smallest
-                    // element
-                    if (j >= top_k && cur_dist > scratch_dist(top_k - 1)) {
-                        continue;
-                    }
-
-                    int k = 0;
-                    // Shift elements until the insertion point is found
-                    for (k = min(j, top_k - 1); k > 0; k--) {
-                        if (scratch_dist(k - 1) <= cur_dist) {
-                            break;
-                        }
-
-                        // Shift element
-                        scratch_dist(k) = scratch_dist(k - 1);
-                        scratch_idx(k) = scratch_idx(k - 1);
-                    }
-
-                    // Insert the new element
-                    scratch_dist(k) = cur_dist;
-                    scratch_idx(k) = j;
-                }
-
-                // Compute L2 norms from SSDs and shift indices
-                for (int j = 0; j < top_k; j++) {
-                    out.distances(i, j) = sqrt(scratch_dist(j));
-                    out.indices(i, j) = scratch_idx(j) + shift;
-                }
-            });
-        });
-}
-#endif
 
 void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
          int E, int tau, int Tp, int top_k)
@@ -275,13 +219,6 @@ void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
 
 void normalize_lut(LUT lut)
 {
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::exp;
-    using std::max;
-    using std::min;
-    using std::sqrt;
-#endif
-
     Kokkos::Profiling::pushRegion("EDM::normalize_lut");
 
     auto distances = lut.distances;
@@ -298,8 +235,8 @@ void normalize_lut(LUT lut)
 
             for (int j = 0; j < top_k; j++) {
                 float dist = distances(i, j);
-                min_dist = min(min_dist, dist);
-                max_dist = max(max_dist, dist);
+                min_dist = fmin(min_dist, dist);
+                max_dist = fmax(max_dist, dist);
             }
 
             for (int j = 0; j < top_k; j++) {
@@ -313,7 +250,7 @@ void normalize_lut(LUT lut)
                     weighted_dist = dist > 0.0f ? 0.0f : 1.0f;
                 }
 
-                const float weight = max(weighted_dist, MIN_WEIGHT);
+                const float weight = fmax(weighted_dist, MIN_WEIGHT);
 
                 distances(i, j) = weight;
 
