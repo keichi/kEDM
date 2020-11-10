@@ -29,12 +29,25 @@ void calc_distances(TimeSeries library, TimeSeries target,
 {
     using simd_t = simd::simd<float, simd::simd_abi::native>;
 
+    const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
+
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int i = member.league_rank();
 
+            // Load subset of target time series to team scratch
+            ScratchTimeSeries scratch_target(member.team_scratch(0), E);
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, E),
+                [=](int e) { scratch_target(e) = target(i + e * tau); });
+
+            member.team_barrier();
+
+            // Vectorized loop
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member,
                                         distances.extent(1) / simd_t::size()),
@@ -42,18 +55,18 @@ void calc_distances(TimeSeries library, TimeSeries target,
                     simd_t dist = simd_t(0.0f);
 
                     for (int e = 0; e < E; e++) {
-                        simd_t diff = simd_t(target(i + e * tau)) -
-                                      simd_t(library.data() +
-                                                 j * simd_t::size() + e * tau,
-                                             simd::element_aligned_tag());
+                        simd_t diff =
+                            simd_t(scratch_target(e)) -
+                            simd_t(&library(j * simd_t::size() + e * tau),
+                                   simd::element_aligned_tag());
                         dist += diff * diff;
                     }
 
-                    dist.copy_to(distances.data() + i * distances.extent(1) +
-                                     j * simd_t::size(),
+                    dist.copy_to(&distances(i, j * simd_t::size()),
                                  simd::element_aligned_tag());
                 });
 
+            // Remainder loop
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member,
                                         distances.extent(1) / simd_t::size() *
@@ -63,14 +76,14 @@ void calc_distances(TimeSeries library, TimeSeries target,
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
-                        float diff = target(i + e * tau) - library(j + e * tau);
+                        float diff = scratch_target(e) - library(j + e * tau);
                         dist += diff * diff;
                     }
 
                     distances(i, j) = dist;
                 });
 
-            // Ignore degenerate neighbor
+            // Ignore degenerate neighbors
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_library), [=](int j) {
                     if (target.data() + i == library.data() + j) {
