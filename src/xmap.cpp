@@ -7,6 +7,42 @@
 namespace edm
 {
 
+void lookup(MutableDataset result, Dataset ds, SimplexLUT lut, Targets targets,
+            int E)
+{
+    const auto distances = lut.distances;
+    const auto indices = lut.indices;
+
+    size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
+
+    Kokkos::parallel_for(
+        "EDM::xmap::lookup",
+        Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            const int j = targets(member.league_rank());
+
+            ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, ds.extent(0)),
+                                 [=](int i) { scratch(i) = ds(i, j); });
+
+            member.team_barrier();
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, distances.extent(0)),
+                [=](int i) {
+                    float pred = 0.0f;
+
+                    for (int e = 0; e < E + 1; e++) {
+                        pred += scratch(indices(i, e)) * distances(i, e);
+                    }
+
+                    result(i, j) = pred;
+                });
+        });
+}
+
 void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
            int tau, int Tp)
 {
@@ -20,12 +56,12 @@ void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
         Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int tj = targets(member.league_rank());
+            const int j = targets(member.league_rank());
 
             ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, ds.extent(0)),
-                                 [=](int i) { scratch(i) = ds(i, tj); });
+                                 [=](int i) { scratch(i) = ds(i, j); });
 
             member.team_barrier();
 
@@ -47,7 +83,7 @@ void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
                 Kokkos::Sum<CorrcoefState>(state));
 
             Kokkos::single(Kokkos::PerTeam(member),
-                           [=]() { result(tj) = state.rho(); });
+                           [=]() { result(j) = state.rho(); });
         });
 }
 
