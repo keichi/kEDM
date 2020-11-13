@@ -34,6 +34,7 @@ void lookup(MutableDataset result, Dataset ds, SimplexLUT lut, Targets targets,
                 [=](int i) {
                     float pred = 0.0f;
 
+#pragma unroll
                     for (int e = 0; e < E + 1; e++) {
                         pred += scratch(indices(i, e)) * distances(i, e);
                     }
