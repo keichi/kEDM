@@ -2,12 +2,18 @@ name: build
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
   build-linux-cuda:
+    strategy:
+      matrix:
+        cxx: [clang++, g++]
+      fail-fast: false
     runs-on: ubuntu-latest
     container:
       image: nvidia/cuda:10.2-devel
@@ -27,7 +33,7 @@ jobs:
       run: |
         git clone https://github.com/kokkos/kokkos.git
         cd kokkos
-        git checkout 3.1.00
+        git checkout 3.3.00
         mkdir build
         cd build
         cmake \
@@ -42,7 +48,7 @@ jobs:
         make -j $(nproc)
         make install
       env:
-        NVCC_WRAPPER_DEFAULT_COMPILER: clang++
+        NVCC_WRAPPER_DEFAULT_COMPILER: ${{ matrix.cxx }}
     - name: Build kEDM
       run: |
         mkdir build
@@ -62,6 +68,10 @@ jobs:
         NVCC_WRAPPER_DEFAULT_COMPILER: clang++
 
   build-linux:
+    strategy:
+      matrix:
+        cxx: [clang++, g++]
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -71,10 +81,11 @@ jobs:
       run: |
         git clone https://github.com/kokkos/kokkos.git
         cd kokkos
-        git checkout 3.1.00
+        git checkout 3.3.00
         mkdir build
         cd build
         cmake \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
           -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
           -DBUILD_SHARED_LIBS=ON \
           -DKokkos_ENABLE_SERIAL=ON \
@@ -87,7 +98,10 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Debug ..
+        cmake \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_BUILD_TYPE=Debug \
+          ..
         make -j $(nproc)
     - name: Run kEDM unit tests
       run: ctest
@@ -96,25 +110,53 @@ jobs:
       working-directory: build
 
   build-macos:
+    strategy:
+      matrix:
+        cxx: [clang++, g++-10]
+      fail-fast: false
     runs-on: macOS-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
+    - name: Install libomp
+      if: matrix.cxx == 'clang++'
+      run: |
+        brew install libomp
     - name: Build and install Kokkos
+      if: matrix.cxx == 'clang++'
       run: |
         git clone https://github.com/kokkos/kokkos.git
         cd kokkos
-        git checkout 3.1.00
+        git checkout 3.3.00
         mkdir build
         cd build
         cmake \
-          -DCMAKE_CXX_COMPILER=$(which g++-9) \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_CXX_FLAGS="-I/usr/local/include" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" \
+          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib" \
           -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
           -DBUILD_SHARED_LIBS=ON \
           -DKokkos_ENABLE_SERIAL=ON \
           -DKokkos_ENABLE_OPENMP=ON ..
-        make -j $(nproc)
+        make -j $(sysctl -n hw.physicalcpu_max)
+        sudo make install
+    - name: Build and install Kokkos
+      if: matrix.cxx == 'g++-10'
+      run: |
+        git clone https://github.com/kokkos/kokkos.git
+        cd kokkos
+        git checkout 3.3.00
+        mkdir build
+        cd build
+        cmake \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_INSTALL_PREFIX=/opt/kokkos \
+          -DBUILD_SHARED_LIBS=ON \
+          -DKokkos_ENABLE_SERIAL=ON \
+          -DKokkos_ENABLE_OPENMP=ON ..
+        make -j $(sysctl -n hw.physicalcpu_max)
         sudo make install
     - name: Install HDF5
       run: brew install hdf5
@@ -123,7 +165,10 @@ jobs:
         mkdir build
         cd build
         cmake \
-          -DCMAKE_CXX_COMPILER=$(which g++-9) \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_CXX_FLAGS="-I/usr/local/include" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" \
+          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib" \
           -DCMAKE_BUILD_TYPE=Debug \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
