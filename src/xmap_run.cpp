@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -18,7 +19,8 @@ typedef struct {
     std::string dataset;
     int E_max;
     int tau;
-    bool cross_correlation;
+    bool enable_rho;
+    bool enable_rho_diff;
     bool verbose;
 } Config;
 
@@ -40,7 +42,7 @@ void run_find_embedding_dimension(edm::Dataset ds, std::vector<int> &optimal_E,
     }
 
     auto dataspace = HighFive::DataSpace::From(optimal_E);
-    auto ds_edim = output.createDataSet<int>("/embedding_dimension", dataspace);
+    auto ds_edim = output.createDataSet<int>("/e", dataspace);
     ds_edim.write(optimal_E);
 }
 
@@ -63,7 +65,7 @@ void run_convergent_cross_mapping(edm::Dataset ds,
     auto ccm_mirror = Kokkos::create_mirror_view(ccm);
 
     auto dataspace = HighFive::DataSpace({ds.extent(1), ds.extent(1)});
-    auto ds_ccm = output.createDataSet<float>("/ccm_rho", dataspace);
+    auto ds_ccm = output.createDataSet<float>("/ccm", dataspace);
 
     for (size_t i = 0; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
@@ -89,7 +91,7 @@ void run_cross_correlation(edm::Dataset ds, HighFive::File &output)
     auto rho_mirror = Kokkos::create_mirror_view(rho);
 
     auto dataspace = HighFive::DataSpace({ds.extent(1), ds.extent(1)});
-    auto ds_rho = output.createDataSet<float>("/cross_correlation", dataspace);
+    auto ds_rho = output.createDataSet<float>("/rho", dataspace);
 
     for (size_t i = 0; i < ds.extent(1); i++) {
         Kokkos::Timer timer;
@@ -108,6 +110,29 @@ void run_cross_correlation(edm::Dataset ds, HighFive::File &output)
     }
 }
 
+void run_rho_diff(edm::Dataset ds, HighFive::File &output)
+{
+    auto dataspace = HighFive::DataSpace({ds.extent(1), ds.extent(1)});
+    auto ds_ccm = output.getDataSet("/ccm");
+    auto ds_rho = output.getDataSet("/rho");
+    auto ds_rho_diff = output.createDataSet<float>("/rhodiff", dataspace);
+
+    std::vector<float> ccm(ds.extent(1));
+    std::vector<float> rho(ds.extent(1));
+    std::vector<float> rho_diff(ds.extent(1));
+
+    for (size_t i = 0; i < ds.extent(1); i++) {
+        ds_ccm.select({i, 0}, {1, ds.extent(1)}).read(ccm.data());
+        ds_rho.select({i, 0}, {1, ds.extent(1)}).read(rho.data());
+
+        for (size_t j = 0; j < ds.extent(1); j++) {
+            rho_diff[j] = ccm[j] - std::abs(rho[j]);
+        }
+
+        ds_rho_diff.select({i, 0}, {1, ds.extent(1)}).write(rho_diff.data());
+    }
+}
+
 void run()
 {
     HighFive::File output(config.output_path, HighFive::File::Overwrite);
@@ -119,8 +144,12 @@ void run()
     run_find_embedding_dimension(ds, optimal_E, output);
     run_convergent_cross_mapping(ds, optimal_E, output);
 
-    if (config.cross_correlation) {
+    if (config.enable_rho) {
         run_cross_correlation(ds, output);
+    }
+
+    if (config.enable_rho_diff) {
+        run_rho_diff(ds, output);
     }
 }
 
@@ -138,7 +167,8 @@ void usage(const std::string &app_name)
         "  -d, --dataset arg           HDF5 dataset name (default: \"values\")\n"
         "  -e, --max-embedding-dim arg Embedding dimension (default: 20)\n"
         "  -t, --tau arg               Time delay (default: 1)\n"
-        "  --cross-correlation         Compute cross correlation (default: false)\n"
+        "  --rho                       Compute cross correlation (default: false)\n"
+        "  --rho-diff                  Compute rho diff(default: false)\n"
         "  -h, --help                  Show this help";
 
     std::cout << msg << std::endl;
@@ -167,7 +197,8 @@ int main(int argc, char *argv[])
     cmdl({"e", "embedding-dim"}, 20) >> config.E_max;
     cmdl({"t", "tau"}, 1) >> config.tau;
 
-    config.cross_correlation = cmdl[{"--cross-correlation"}];
+    config.enable_rho = cmdl[{"--rho"}];
+    config.enable_rho_diff = cmdl[{"--rho-diff"}];
     config.verbose = cmdl[{"-v", "--verbose"}];
 
     Kokkos::initialize();
