@@ -158,7 +158,7 @@ void usage(const std::string &app_name)
 {
     std::string msg =
         app_name +
-        ": All-to-all Convergent Cross Mapping Application\n"
+        ": All-to-all Convergent Cross Mapping Tool\n"
         "\n"
         "Usage:\n"
         "  " +
@@ -169,6 +169,7 @@ void usage(const std::string &app_name)
         "  -t, --tau arg               Time delay (default: 1)\n"
         "  --rho                       Compute cross correlation (default: false)\n"
         "  --rho-diff                  Compute rho diff(default: false)\n"
+        "  -v, --verbose               Enable verbose output\n"
         "  -h, --help                  Show this help";
 
     std::cout << msg << std::endl;

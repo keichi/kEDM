@@ -40,7 +40,6 @@ void usage(const std::string &app_name)
         "  -e, --embedding-dim arg Embedding dimension (default: 20)\n"
         "  -t, --tau arg           Time delay (default: 1)\n"
         "  -i, --iteration arg     Number of iterations (default: 10)\n"
-        "  -x, --kernel arg        Kernel type {cpu|gpu} (default: cpu)\n"
         "  -v, --verbose           Enable verbose logging (default: false)\n"
         "  -h, --help              Show this help";
 
