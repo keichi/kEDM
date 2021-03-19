@@ -68,13 +68,17 @@ jobs:
   build-linux:
     strategy:
       matrix:
-        cxx: [clang++, g++]
+        cxx: [clang++-11, g++-10]
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: true
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libhdf5-dev
     - name: Build and install Kokkos
       run: |
         git clone https://github.com/kokkos/kokkos.git
@@ -90,8 +94,6 @@ jobs:
           -DKokkos_ENABLE_OPENMP=ON ..
         make -j $(nproc)
         make install
-    - name: Install HDF5
-      run: sudo apt-get install -y libhdf5-dev
     - name: Build kEDM
       run: |
         mkdir build
