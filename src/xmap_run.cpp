@@ -133,11 +133,21 @@ void run_rho_diff(edm::Dataset ds, HighFive::File &output)
     }
 }
 
+void copy_column_names(HighFive::File &input, HighFive::File &output)
+{
+    if (!input.exist("/names")) return;
+
+    std::vector<std::string> names;
+    input.getDataSet("/names").read(names);
+    output.createDataSet("/names", names);
+}
+
 void run()
 {
+    HighFive::File input(config.input_path, HighFive::File::ReadOnly);
     HighFive::File output(config.output_path, HighFive::File::Overwrite);
 
-    const auto ds = edm::load_hdf5(config.input_path, config.dataset);
+    const auto ds = edm::load_hdf5(input.getDataSet(config.dataset));
 
     std::vector<int> optimal_E(ds.extent(1));
 
@@ -151,6 +161,8 @@ void run()
     if (config.enable_rho_diff) {
         run_rho_diff(ds, output);
     }
+
+    copy_column_names(input, output);
 }
 
 // clang-format off

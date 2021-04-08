@@ -16,11 +16,14 @@ void xmap_test_common()
     const int E_max = 20;
     const int tau = 1;
 
-    const auto ds = load_hdf5("xmap_all_to_all_test.h5", "values");
+    const HighFive::File file1("xmap_all_to_all_test.h5");
+    const auto ds_input = file1.getDataSet("values");
 
-    const HighFive::File file("xmap_all_to_all_test_validation.h5");
-    const auto ds_corrcoef = file.getDataSet("corrcoef");
-    const auto ds_edim = file.getDataSet("embedding");
+    const HighFive::File file2("xmap_all_to_all_test_validation.h5");
+    const auto ds_corrcoef = file2.getDataSet("corrcoef");
+    const auto ds_edim = file2.getDataSet("embedding");
+
+    const auto ds = load_hdf5(ds_input);
 
     std::vector<int> optimal_E(ds.extent(1));
     std::vector<int> optimal_E_valid(ds.extent(1));

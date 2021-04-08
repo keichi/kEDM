@@ -60,10 +60,8 @@ Dataset load_csv(const std::string &path)
     return Dataset(ds);
 }
 
-Dataset load_hdf5(const std::string &path, const std::string &ds_name)
+Dataset load_hdf5(const HighFive::DataSet &dataset)
 {
-    const auto file = HighFive::File(path, HighFive::File::ReadOnly);
-    const auto dataset = file.getDataSet(ds_name);
     const auto shape = dataset.getDimensions();
 
     const size_t n_rows = shape[0];

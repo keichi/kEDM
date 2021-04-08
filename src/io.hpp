@@ -3,11 +3,16 @@
 
 #include "types.hpp"
 
+namespace HighFive
+{
+class DataSet;
+}
+
 namespace edm
 {
 
 Dataset load_csv(const std::string &path);
-Dataset load_hdf5(const std::string &path, const std::string &ds_name);
+Dataset load_hdf5(const HighFive::DataSet &dataset);
 
 } // namespace edm
 
