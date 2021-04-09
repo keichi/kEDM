@@ -1,7 +1,6 @@
 #include <iostream>
 
-// #include <mkl_lapacke.h>
-#include <cusolverDn.h>
+#include <cublas_v2.h>
 
 #include "knn.hpp"
 #include "smap.hpp"
@@ -12,81 +11,99 @@
         cudaError_t error = CALL;                                              \
         assert(error == cudaSuccess);                                          \
     } while (0)
-#define CUSOLVER_CHECK(CALL)                                                   \
+#define CUBLAS_CHECK(CALL)                                                     \
     do {                                                                       \
-        cusolverStatus_t status = CALL;                                        \
-        assert(status == CUSOLVER_STATUS_SUCCESS);                             \
+        cublasStatus_t status = CALL;                                          \
+        assert(status == CUBLAS_STATUS_SUCCESS);                               \
     } while (0)
 
 namespace edm
 {
 
-void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target)
+void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
+          int E, int tau, int Tp, float theta)
 {
-    const float theta = 0.0f;
-
-    const int E = 20, tau = 1, Tp = 1;
     const int shift = (E - 1) * tau + Tp;
     const int n_library = library.size() - shift;
     const int n_target = target.size() - shift + Tp;
+    const int batch_size = 1000;
 
-    TmpDistances distances("tmp_distances", n_target, n_library);
+    TmpDistances distances("distances", n_target, n_library);
 
     calc_distances(library, target, distances, n_library, n_target, E, tau);
 
-    Kokkos::View<float **, DevSpace> A("A", n_library, E + 1);
-    Kokkos::View<float *, DevSpace> b("b", n_library), X("X", E + 1),
-        w("w", n_library);
+    Kokkos::View<float ***, DevSpace> A("A", n_library, E + 1, batch_size);
+    Kokkos::View<float **, DevSpace> b("b", n_library, batch_size);
 
-    cusolverDnHandle_t handle;
-    CUSOLVER_CHECK(cusolverDnCreate(&handle));
+    int info;
+    float **As =
+        (float **)Kokkos::kokkos_malloc<>(batch_size * sizeof(float *));
+    float **bs =
+        (float **)Kokkos::kokkos_malloc<>(batch_size * sizeof(float *));
+    int *dev_infos = (int *)Kokkos::kokkos_malloc<>(batch_size * sizeof(int));
 
-    size_t work_bytes = 0;
-    CUSOLVER_CHECK(cusolverDnSSgels_bufferSize(
-        handle, n_library, E + 1, 1, nullptr, n_library, nullptr, n_library,
-        nullptr, E + 1, nullptr, &work_bytes));
+    Kokkos::parallel_for(
+        "EDM::smap::pointers", batch_size, KOKKOS_LAMBDA(int i) {
+            As[i] = &A(0, 0, i);
+            bs[i] = &b(0, i);
+        });
 
-    float *work = nullptr;
-    CUDA_CHECK(cudaMalloc((void **)&work, work_bytes));
+    cublasHandle_t handle;
+    CUBLAS_CHECK(cublasCreate(&handle));
 
-    int *dinfo = nullptr;
-    CUDA_CHECK(cudaMalloc((void **)&dinfo, sizeof(int)));
-
-    for (int i = 0; i < n_target; i++) {
-        float d = 0.0f;
-
-        Kokkos::parallel_reduce(
-            "EDM::smap::sum", n_library,
-            KOKKOS_LAMBDA(const int j, float &sum) { sum += distances(i, j); },
-            d);
-
-        d /= n_library;
+    for (int offset = 0; offset < n_target; offset += batch_size) {
+        int this_batch_size = std::min(batch_size, n_target - offset);
 
         Kokkos::parallel_for(
-            "EDM::smap::weights", n_library, KOKKOS_LAMBDA(const int j) {
-                w(j) = exp(-theta * distances(i, j) / d);
+            "EDM::smap::preprocess",
+            Kokkos::TeamPolicy<>(this_batch_size, Kokkos::AUTO),
+            KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+                int i = member.league_rank();
+
+                float d = 0.0f;
+
+                Kokkos::parallel_reduce(
+                    Kokkos::TeamThreadRange(member, n_library),
+                    [=](int j, float &sum) { sum += distances(i + offset, j); },
+                    d);
+
+                Kokkos::single(Kokkos::PerTeam(member), [&] {
+                    d /= n_library;
+                });
+
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                        float w = exp(-theta * distances(i + offset, j) / d);
+
+                        A(j, 0, i) = w;
+                        for (int k = 0; k < E; k++) {
+                            A(j, k + 1, i) = w * library(j + k * tau);
+                        }
+                        b(j, i) = w * library(j + shift);
+                    });
             });
 
+        CUBLAS_CHECK(cublasSgelsBatched(handle, CUBLAS_OP_N, n_library, E + 1,
+                                        1, As, n_library, bs, n_library, &info,
+                                        dev_infos, this_batch_size));
+
         Kokkos::parallel_for(
-            "EDM::smap::prepare", n_library, KOKKOS_LAMBDA(const int j) {
-                A(j, 0) = w(j);
+            "EDM::smap::postprocess", this_batch_size, KOKKOS_LAMBDA(int i) {
+                float pred = b(0, i);
+
                 for (int k = 0; k < E; k++) {
-                    A(j, k + 1) = w(j) * library(j + k * tau);
+                    pred += b(k + 1, i) * library(i + k * tau);
                 }
-                b(j) = w(j) * library(j + shift);
+
+                prediction(i) = pred;
             });
-
-        int niter = 0;
-        CUSOLVER_CHECK(cusolverDnSSgels(
-            handle, n_library, E + 1, 1, A.data(), n_library, b.data(),
-            n_library, X.data(), E + 1, work, work_bytes, &niter, dinfo));
-
-        // LAPACKE_sgels(LAPACK_ROW_MAJOR, 'N', n_library, E + 1, 1, &A(0, 0),
-                      // E + 1, &b(0), 1);
     }
 
-    CUDA_CHECK(cudaFree(work));
-    CUSOLVER_CHECK(cusolverDnDestroy(handle));
+    CUBLAS_CHECK(cublasDestroy(handle));
+
+    Kokkos::kokkos_free(As);
+    Kokkos::kokkos_free(bs);
+    Kokkos::kokkos_free(dev_infos);
 }
 
 } // namespace edm

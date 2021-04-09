@@ -42,7 +42,7 @@ add_library(kedm SHARED
   src/knn.cpp
   src/smap.cpp
   src/stats.cpp)
-target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive ${CUDA_cusolver_LIBRARY})
+target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive ${CUDA_cublas_LIBRARY})
 
 add_executable(edm-xmap src/xmap_run.cpp)
 target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)

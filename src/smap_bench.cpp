@@ -3,6 +3,7 @@
 #include <Kokkos_Random.hpp>
 
 #include "smap.hpp"
+#include "timer.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +19,11 @@ int main(int argc, char *argv[])
     Kokkos::fill_random(library, rand_pool, 1.0);
     Kokkos::fill_random(target, rand_pool, 1.0);
 
-    edm::smap(prediction, library, target);
+    Kokkos::Timer timer;
+
+    edm::smap(prediction, library, target, 20, 1, 1, 1.0f);
+
+    std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;
 
     return 0;
 }
