@@ -31,14 +31,18 @@ add_subdirectory(src/thirdparty/highfive)
 # argh
 add_subdirectory(src/thirdparty/argh)
 
+# CUDA
+find_package(CUDA)
+
 add_library(kedm SHARED
   src/edim.cpp
   src/io.cpp
   src/simplex.cpp
   src/xmap.cpp
   src/knn.cpp
+  src/smap.cpp
   src/stats.cpp)
-target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
+target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive ${CUDA_cusolver_LIBRARY})
 
 add_executable(edm-xmap src/xmap_run.cpp)
 target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)
@@ -48,6 +52,9 @@ target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
 
 add_executable(lookup-bench src/lookup_bench.cpp)
 target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
+
+add_executable(smap-bench src/smap_bench.cpp)
+target_link_libraries(smap-bench PRIVATE kedm Kokkos::kokkos argh)
 
 option(USE_LIKWID "Enable LIKWID performance counters")
 if(USE_LIKWID)
