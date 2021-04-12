@@ -2,7 +2,6 @@
 
 #include <cublas_v2.h>
 
-#include "knn.hpp"
 #include "smap.hpp"
 #include "types.hpp"
 
@@ -28,10 +27,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     const int n_target = target.size() - shift + Tp;
     const int batch_size = 1000;
 
-    TmpDistances distances("distances", n_target, n_library);
-
-    calc_distances(library, target, distances, n_library, n_target, E, tau);
-
+    Kokkos::View<float **, DevSpace> d("dist", n_library, batch_size);
     Kokkos::View<float ***, DevSpace> A("A", n_library, E + 1, batch_size);
     Kokkos::View<float **, DevSpace> b("b", n_library, batch_size);
 
@@ -60,20 +56,38 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
             KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
                 int i = member.league_rank();
 
-                float d = 0.0f;
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                        float dist = 0.0f;
+                        for (int k = 0; k < E; k++) {
+                            float diff = library(offset + i + k * tau) -
+                                         target(j + k * tau);
+                            dist += diff * diff;
+                        }
+
+                        if (library.data() + offset + i == target.data() + j) {
+                            dist = FLT_MAX;
+                        }
+
+                        d(j, i) = dist;
+                    });
+
+                float d_mean = 0.0f;
 
                 Kokkos::parallel_reduce(
                     Kokkos::TeamThreadRange(member, n_library),
-                    [=](int j, float &sum) { sum += distances(i + offset, j); },
-                    d);
+                    [=](int j, float &sum) {
+                        if (d(j, i) == FLT_MAX) return;
+                        sum += d(j, i);
+                    },
+                    d_mean);
 
-                Kokkos::single(Kokkos::PerTeam(member), [&] {
-                    d /= n_library;
-                });
+                Kokkos::single(Kokkos::PerTeam(member),
+                               [&] { d_mean /= n_library; });
 
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, n_library), [=](int j) {
-                        float w = exp(-theta * distances(i + offset, j) / d);
+                        float w = exp(-theta * d(j, i) / d_mean);
 
                         A(j, 0, i) = w;
                         for (int k = 0; k < E; k++) {
@@ -95,7 +109,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                     pred += b(k + 1, i) * library(i + k * tau);
                 }
 
-                prediction(i) = pred;
+                prediction(i + offset) = pred;
             });
     }
 
