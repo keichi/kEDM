@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 project(kokkos-edm)
 
 add_compile_options(-Wall -Wextra -pedantic)
-# add_compile_options(-flax-vector-conversions)
+if(APPLE)
+  add_compile_options(-flax-vector-conversions)
+endif()
 
 # Kokkos
 find_package(Kokkos REQUIRED)

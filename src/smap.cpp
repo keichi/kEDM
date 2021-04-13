@@ -2,7 +2,11 @@
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>
 #else
+#if __APPLE__
+#include <Accelerate/Accelerate.h>
+#else
 #include <lapack.h>
+#endif
 #endif
 
 #include "smap.hpp"
