@@ -65,8 +65,8 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     int m = n_library, n = E + 1, nrhs = 1, lda = n_library, ldb = n_library;
     int work_size = 0, lwork = -1, info = 0;
 
-    LAPACK_sgels("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb,
-                 reinterpret_cast<float *>(&work_size), &lwork, &info);
+    sgels_("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb,
+           reinterpret_cast<float *>(&work_size), &lwork, &info);
 
     float *work = (float *)Kokkos::kokkos_malloc<>(work_size * sizeof(float));
 #endif
@@ -127,8 +127,8 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                                         dev_infos, this_batch_size));
         assert(info == 0);
 #else
-        LAPACK_sgels("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb, work,
-                     &work_size, &info);
+        sgels_("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb, work,
+               &work_size, &info);
         assert(info == 0);
 #endif
 

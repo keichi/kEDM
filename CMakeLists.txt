@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(kokkos-edm)
 
-add_compile_options(-Wall -Wextra -pedantic -Wno-unknown-pragmas)
+add_compile_options(-Wall -Wextra -pedantic)
+# add_compile_options(-flax-vector-conversions)
 
 # Kokkos
 find_package(Kokkos REQUIRED)
@@ -43,9 +44,9 @@ target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
-  find_package(CUDA)
+  find_package(CUDA REQUIRED)
 else()
-  find_package(LAPACK)
+  find_package(LAPACK REQUIRED)
 endif()
 
 if (Kokkos_ENABLE_CUDA)

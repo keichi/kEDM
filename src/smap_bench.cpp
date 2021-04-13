@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include <Kokkos_Random.hpp>
+// #include <Kokkos_Random.hpp>
 
 #include "smap.hpp"
 #include "stats.hpp"
