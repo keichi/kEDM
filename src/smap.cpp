@@ -1,20 +1,23 @@
-#include <iostream>
-
+#include <Kokkos_Core.hpp>
+#ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>
+#endif
 
 #include "smap.hpp"
 #include "types.hpp"
 
+#ifdef KOKKOS_ENABLE_CUDA
 #define CUDA_CHECK(CALL)                                                       \
     do {                                                                       \
         cudaError_t error = CALL;                                              \
         assert(error == cudaSuccess);                                          \
-    } while (0)
+    } while (0);
 #define CUBLAS_CHECK(CALL)                                                     \
     do {                                                                       \
         cublasStatus_t status = CALL;                                          \
         assert(status == CUBLAS_STATUS_SUCCESS);                               \
-    } while (0)
+    } while (0);
+#endif
 
 namespace edm
 {
@@ -25,11 +28,12 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     const int shift = (E - 1) * tau + Tp;
     const int n_library = library.size() - shift;
     const int n_target = target.size() - shift + Tp;
-    const int batch_size = 1000;
+    const int batch_size =
+        std::max(1ul, (1 << 30) / (n_library * (E + 1) * sizeof(float)));
 
-    Kokkos::View<float **, DevSpace> d("dist", n_library, batch_size);
-    Kokkos::View<float ***, DevSpace> A("A", n_library, E + 1, batch_size);
-    Kokkos::View<float **, DevSpace> b("b", n_library, batch_size);
+    Kokkos::View<float **, DevSpace> d("distances", n_library, batch_size);
+    Kokkos::View<float ***, DevSpace> A("design", n_library, E + 1, batch_size);
+    Kokkos::View<float **, DevSpace> b("response", n_library, batch_size);
 
     int info;
     float **As =
@@ -60,13 +64,15 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                     Kokkos::TeamThreadRange(member, n_library), [=](int j) {
                         float dist = 0.0f;
                         for (int k = 0; k < E; k++) {
-                            float diff = library(offset + i + k * tau) -
-                                         target(j + k * tau);
+                            float diff = library(j + k * tau) -
+                                         target(offset + i + k * tau);
                             dist += diff * diff;
                         }
 
-                        if (library.data() + offset + i == target.data() + j) {
+                        if (library.data() + j == target.data() + offset + i) {
                             dist = FLT_MAX;
+                        } else {
+                            dist = sqrt(dist);
                         }
 
                         d(j, i) = dist;
@@ -77,13 +83,11 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                 Kokkos::parallel_reduce(
                     Kokkos::TeamThreadRange(member, n_library),
                     [=](int j, float &sum) {
-                        if (d(j, i) == FLT_MAX) return;
-                        sum += d(j, i);
+                        sum += d(j, i) < FLT_MAX ? d(j, i) : 0.0f;
                     },
                     d_mean);
 
-                Kokkos::single(Kokkos::PerTeam(member),
-                               [&] { d_mean /= n_library; });
+                d_mean /= n_library;
 
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, n_library), [=](int j) {
@@ -97,16 +101,19 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                     });
             });
 
+#ifdef KOKKOS_ENABLE_CUDA
         CUBLAS_CHECK(cublasSgelsBatched(handle, CUBLAS_OP_N, n_library, E + 1,
                                         1, As, n_library, bs, n_library, &info,
                                         dev_infos, this_batch_size));
+        assert(info == 0);
+#endif
 
         Kokkos::parallel_for(
             "EDM::smap::postprocess", this_batch_size, KOKKOS_LAMBDA(int i) {
                 float pred = b(0, i);
 
                 for (int k = 0; k < E; k++) {
-                    pred += b(k + 1, i) * library(i + k * tau);
+                    pred += b(k + 1, i) * target(offset + i + k * tau);
                 }
 
                 prediction(i + offset) = pred;
