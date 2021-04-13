@@ -25,14 +25,11 @@ endif()
 set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
-set(HIGHFIVE_BUILD_DOCS OFF CACHE INTERNAL "")
+set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
 add_subdirectory(src/thirdparty/highfive)
 
 # argh
 add_subdirectory(src/thirdparty/argh)
-
-# CUDA
-find_package(CUDA)
 
 add_library(kedm SHARED
   src/edim.cpp
@@ -42,7 +39,20 @@ add_library(kedm SHARED
   src/knn.cpp
   src/smap.cpp
   src/stats.cpp)
-target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive ${CUDA_cublas_LIBRARY})
+target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
+
+# LAPACK
+if (Kokkos_ENABLE_CUDA)
+  find_package(CUDA)
+else()
+  find_package(LAPACK)
+endif()
+
+if (Kokkos_ENABLE_CUDA)
+  target_link_libraries(kedm PRIVATE ${CUDA_cublas_LIBRARY})
+else()
+  target_link_libraries(kedm PRIVATE ${LAPACK_LIBRARIES})
+endif()
 
 add_executable(edm-xmap src/xmap_run.cpp)
 target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)

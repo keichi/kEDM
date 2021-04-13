@@ -13,8 +13,6 @@ int main(int argc, char *argv[])
 
     Kokkos::ScopeGuard kokkos(argc, argv);
 
-    Kokkos::print_configuration(std::cout, true);
-
     edm::MutableTimeSeries library("library", L);
     edm::MutableTimeSeries target("target", L);
     edm::MutableTimeSeries prediction("prediction", L);
@@ -39,6 +37,8 @@ int main(int argc, char *argv[])
     Kokkos::deep_copy(library, library_mirror);
     Kokkos::deep_copy(target, target_mirror);
 
+    std::cout << "theta\trho\truntime" << std::endl;
+
     for (float theta = 0.0f; theta < 3.0f; theta += 0.1f) {
         Kokkos::Timer timer;
 
@@ -48,12 +48,8 @@ int main(int argc, char *argv[])
         auto shifted_target =
             Kokkos::subview(target, Kokkos::pair<int, int>(shift, L - shift));
 
-        std::cout << "theta: " << theta
-        << " rho: " << edm::corrcoef(shifted_target, prediction)
-        << std::endl;
-        // std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;
-        // std::cout << theta << "\t" << edm::corrcoef(shifted_target, prediction)
-                  // << std::endl;
+        std::cout << theta << "\t" << edm::corrcoef(shifted_target, prediction)
+                  << "\t" << timer.seconds() << std::endl;
     }
 
     return 0;
