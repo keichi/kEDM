@@ -2,7 +2,7 @@
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>
 #else
-#include <lapacke.h>
+#include <lapack.h>
 #endif
 
 #include "smap.hpp"
@@ -18,12 +18,6 @@
     do {                                                                       \
         cublasStatus_t status = CALL;                                          \
         assert(status == CUBLAS_STATUS_SUCCESS);                               \
-    } while (0);
-#else
-#define LAPACK_CHECK(CALL)                                                     \
-    do {                                                                       \
-        int status = CALL;                                                     \
-        assert(status == 0);                                                   \
     } while (0);
 #endif
 
@@ -44,9 +38,12 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     const int batch_size = 1;
 #endif
 
-    Kokkos::View<float **, DevSpace> d("distances", n_library, batch_size);
-    Kokkos::View<float ***, DevSpace> A("design", n_library, E + 1, batch_size);
-    Kokkos::View<float **, DevSpace> b("response", n_library, batch_size);
+    Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace> d(
+        "distances", n_library, batch_size);
+    Kokkos::View<float ***, Kokkos::LayoutLeft, DevSpace> A("design", n_library,
+                                                            E + 1, batch_size);
+    Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace> b(
+        "response", n_library, batch_size);
 
 #ifdef KOKKOS_ENABLE_CUDA
     int info;
@@ -64,6 +61,14 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
     cublasHandle_t handle;
     CUBLAS_CHECK(cublasCreate(&handle));
+#else
+    int m = n_library, n = E + 1, nrhs = 1, lda = n_library, ldb = n_library;
+    int work_size = 0, lwork = -1, info = 0;
+
+    LAPACK_sgels("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb,
+                 reinterpret_cast<float *>(&work_size), &lwork, &info);
+
+    float *work = (float *)Kokkos::kokkos_malloc<>(work_size * sizeof(float));
 #endif
 
     for (int offset = 0; offset < n_target; offset += batch_size) {
@@ -122,8 +127,9 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                                         dev_infos, this_batch_size));
         assert(info == 0);
 #else
-        LAPACK_CHECK(LAPACKE_sgels(LAPACK_ROW_MAJOR, 'N', n_library, E + 1, 1,
-                                   A.data(), E + 1, b.data(), 1));
+        LAPACK_sgels("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb, work,
+                     &work_size, &info);
+        assert(info == 0);
 #endif
 
         Kokkos::parallel_for(
@@ -144,6 +150,8 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     Kokkos::kokkos_free(As);
     Kokkos::kokkos_free(bs);
     Kokkos::kokkos_free(dev_infos);
+#else
+    Kokkos::kokkos_free(work);
 #endif
 }
 
