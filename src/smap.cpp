@@ -2,7 +2,7 @@
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>
 #else
-#include <mkl_lapacke.h>
+#include <lapacke.h>
 #endif
 
 #include "smap.hpp"
