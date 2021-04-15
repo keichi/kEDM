@@ -37,7 +37,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
 #ifdef KOKKOS_ENABLE_CUDA
     const int batch_size =
-        std::max(1ul, (1 << 30) / (n_library * (E + 1) * sizeof(float)));
+        std::max(1ul, (1ul << 32) / (n_library * (E + 1) * sizeof(float)));
 #else
     const int batch_size = 1;
 #endif

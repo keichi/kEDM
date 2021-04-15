@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include <argh.h>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Random.hpp>
+#include <argh.h>
 
 #include "smap.hpp"
 #include "stats.hpp"
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
     Kokkos::fence();
 
-    std::cout << timer.seconds() / iterations << " [s]" << std::endl ;
+    std::cout << timer.seconds() / iterations << " [s]" << std::endl;
 
     return 0;
 }

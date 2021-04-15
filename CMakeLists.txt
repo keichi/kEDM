@@ -95,6 +95,10 @@ target_link_libraries(knn_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
 add_executable(simplex_test test/simplex_test.cpp)
 target_link_libraries(simplex_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
 
+# S-Map
+add_executable(smap_test test/smap_test.cpp)
+target_link_libraries(smap_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
+
 # One-to-one cross mapping
 add_executable(xmap_one_to_one_test test/xmap_one_to_one_test.cpp)
 target_link_libraries(xmap_one_to_one_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
@@ -109,6 +113,7 @@ option(REGISTER_TESTS "Register unit tests" ON)
 if(REGISTER_TESTS)
 doctest_discover_tests(knn_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(simplex_test WORKING_DIRECTORY ../test/)
+doctest_discover_tests(smap_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(xmap_one_to_one_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(xmap_all_to_all_test WORKING_DIRECTORY ../test/)
 endif()
