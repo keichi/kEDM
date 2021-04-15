@@ -36,9 +36,11 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     const int n_target = target.size() - shift + Tp;
 
 #ifdef KOKKOS_ENABLE_CUDA
+    // Make sure the design matrices fit within 4GiB
     const int batch_size =
         std::max(1ul, (1ul << 32) / (n_library * (E + 1) * sizeof(float)));
 #else
+    // For now we do not use batched kernels on CPU
     const int batch_size = 1;
 #endif
 
@@ -84,6 +86,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
             KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
                 int i = member.league_rank();
 
+                // Compute Euclidean distances in state space
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, n_library), [=](int j) {
                         float dist = 0.0f;
@@ -104,6 +107,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
                 float d_mean = 0.0f;
 
+                // Compute mean distance
                 Kokkos::parallel_reduce(
                     Kokkos::TeamThreadRange(member, n_library),
                     [=](int j, float &sum) {
@@ -113,6 +117,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
                 d_mean /= n_library;
 
+                // Fill out design matrices and response vectors
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, n_library), [=](int j) {
                         float w = exp(-theta * d(j, i) / d_mean);
@@ -125,6 +130,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
                     });
             });
 
+        // Invoke least-squares solver
 #ifdef KOKKOS_ENABLE_CUDA
         CUBLAS_CHECK(cublasSgelsBatched(handle, CUBLAS_OP_N, n_library, E + 1,
                                         1, As, n_library, bs, n_library, &info,

@@ -4,6 +4,7 @@ project(kokkos-edm)
 
 add_compile_options(-Wall -Wextra -pedantic)
 if(APPLE)
+  # gcc needs this flag to compile Accelerate
   add_compile_options(-flax-vector-conversions)
 endif()
 
