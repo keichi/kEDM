@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 
 project(kokkos-edm)
 
-add_compile_options(-Wall -Wextra -pedantic -Wno-unknown-pragmas)
+add_compile_options(-Wall -Wextra -pedantic)
+if(APPLE)
+  # gcc needs this flag to compile Accelerate
+  add_compile_options(-flax-vector-conversions)
+endif()
 
 # Kokkos
 find_package(Kokkos REQUIRED)
@@ -25,7 +29,7 @@ endif()
 set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
-set(HIGHFIVE_BUILD_DOCS OFF CACHE INTERNAL "")
+set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
 add_subdirectory(src/thirdparty/highfive)
 
 # argh
@@ -37,8 +41,22 @@ add_library(kedm SHARED
   src/simplex.cpp
   src/xmap.cpp
   src/knn.cpp
+  src/smap.cpp
   src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
+
+# LAPACK
+if (Kokkos_ENABLE_CUDA)
+  find_package(CUDA REQUIRED)
+else()
+  find_package(LAPACK REQUIRED)
+endif()
+
+if (Kokkos_ENABLE_CUDA)
+  target_link_libraries(kedm PRIVATE ${CUDA_cublas_LIBRARY})
+else()
+  target_link_libraries(kedm PRIVATE ${LAPACK_LIBRARIES})
+endif()
 
 add_executable(edm-xmap src/xmap_run.cpp)
 target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)
@@ -48,6 +66,9 @@ target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
 
 add_executable(lookup-bench src/lookup_bench.cpp)
 target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
+
+add_executable(smap-bench src/smap_bench.cpp)
+target_link_libraries(smap-bench PRIVATE kedm Kokkos::kokkos argh)
 
 option(USE_LIKWID "Enable LIKWID performance counters")
 if(USE_LIKWID)
@@ -75,6 +96,10 @@ target_link_libraries(knn_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
 add_executable(simplex_test test/simplex_test.cpp)
 target_link_libraries(simplex_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
 
+# S-Map
+add_executable(smap_test test/smap_test.cpp)
+target_link_libraries(smap_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
+
 # One-to-one cross mapping
 add_executable(xmap_one_to_one_test test/xmap_one_to_one_test.cpp)
 target_link_libraries(xmap_one_to_one_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
@@ -89,6 +114,7 @@ option(REGISTER_TESTS "Register unit tests" ON)
 if(REGISTER_TESTS)
 doctest_discover_tests(knn_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(simplex_test WORKING_DIRECTORY ../test/)
+doctest_discover_tests(smap_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(xmap_one_to_one_test WORKING_DIRECTORY ../test/)
 doctest_discover_tests(xmap_all_to_all_test WORKING_DIRECTORY ../test/)
 endif()

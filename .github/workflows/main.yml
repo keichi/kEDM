@@ -78,7 +78,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libhdf5-dev
+        sudo apt-get install -y libhdf5-dev libopenblas-dev liblapacke-dev
     - name: Build and install Kokkos
       run: |
         git clone https://github.com/kokkos/kokkos.git
