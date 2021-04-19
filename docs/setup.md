@@ -7,10 +7,15 @@ kEDM requires the following tools and libraries:
 - [CMake](https://cmake.org/) 3.10 or greater
 - [Kokkos](https://github.com/kokkos/kokkos) 3.2.00 or greater
 - [HDF5](https://www.hdfgroup.org/solutions/hdf5/)
+- LAPACK (on CPU) or cuBLAS (on GPU)
 - MPI (optional)
 
-On Ubuntu, MPI (`libopenmpi-dev`) and HDF5 (`libhdf5-dev` or
-`libhdf5-openmpi-dev`) can be installed via apt.
+On Ubuntu, install the following packages via apt:
+
+- CMake: `cmake`
+- HDF5: `libhdf5-dev` or `libhdf5-openmpi-dev`
+- LAPACK: `libopenblas-dev` and `liblapacke-dev`
+- MPI: `libopenmpi-dev`
 
 ## Building Kokkos
 
@@ -25,7 +30,7 @@ $ git checkout 3.3.00
 
 Then configure Kokkos using CMake and build. Kokkos provides a large number of
 CMake options to control the backends and features to enable, which are
-detailed in the [documentation](https://github.com/kokkos/kokkos/blob/master/BUILD.md).
+detailed in its [documentation](https://github.com/kokkos/kokkos/blob/master/BUILD.md).
 Below are minimal examples for configuring Kokkos.
 
 ### Building for CPU
