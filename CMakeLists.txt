@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 project(kokkos-edm)
 
+if(SKBUILD)
+  message(STATUS "The project is built using scikit-build")
+endif()
+
 add_compile_options(-Wall -Wextra -pedantic)
 if(APPLE)
   # gcc needs this flag to compile Accelerate
@@ -30,11 +34,12 @@ set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
 set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
-add_subdirectory(src/thirdparty/highfive)
+add_subdirectory(src/thirdparty/highfive EXCLUDE_FROM_ALL)
 
 # argh
-add_subdirectory(src/thirdparty/argh)
+add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
 
+# Main library
 add_library(kedm SHARED
   src/edim.cpp
   src/io.cpp
@@ -44,6 +49,8 @@ add_library(kedm SHARED
   src/smap.cpp
   src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
+install(TARGETS kedm LIBRARY DESTINATION kedm)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/kedm")
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
@@ -79,15 +86,16 @@ if(USE_LIKWID)
 endif()
 
 # Python bindings
-add_subdirectory(src/thirdparty/pybind11)
+add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
 pybind11_add_module(_kedm src/bindings.cpp)
 target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
+install(TARGETS _kedm LIBRARY DESTINATION kedm)
 
 # Tests
 enable_testing()
 
 # doctest
-add_subdirectory(src/thirdparty/doctest)
+add_subdirectory(src/thirdparty/doctest EXCLUDE_FROM_ALL)
 include(src/thirdparty/doctest/scripts/cmake/doctest.cmake)
 
 # kNN
