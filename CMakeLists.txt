@@ -40,7 +40,7 @@ add_subdirectory(src/thirdparty/highfive EXCLUDE_FROM_ALL)
 add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
 
 # Main library
-add_library(kedm SHARED
+add_library(kedm
   src/edim.cpp
   src/io.cpp
   src/simplex.cpp
@@ -49,8 +49,7 @@ add_library(kedm SHARED
   src/smap.cpp
   src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
-install(TARGETS kedm LIBRARY DESTINATION kedm)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/kedm")
+set_target_properties(kedm PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
@@ -86,10 +85,13 @@ if(USE_LIKWID)
 endif()
 
 # Python bindings
-add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
-pybind11_add_module(_kedm src/bindings.cpp)
-target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
-install(TARGETS _kedm LIBRARY DESTINATION kedm)
+option(USE_PYTHON "Enable Python bindings")
+if(USE_PYTHON)
+  add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
+  pybind11_add_module(_kedm src/bindings.cpp)
+  target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
+  install(TARGETS _kedm LIBRARY DESTINATION kedm)
+endif()
 
 # Tests
 enable_testing()

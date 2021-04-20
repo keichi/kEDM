@@ -15,6 +15,8 @@ setup(
 
     packages=["kedm"],
 
+    cmake_args=["-DUSE_PYTHON:BOOL=ON"],
+
     url="https://github.com/keichi/kEDM",
     project_urls={
         "Documentation": "https://kedm.readthedocs.io/",

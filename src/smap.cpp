@@ -1,12 +1,6 @@
 #include <Kokkos_Core.hpp>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>
-#else
-#if __APPLE__
-#include <Accelerate/Accelerate.h>
-#else
-#include <lapack.h>
-#endif
 #endif
 
 #include "smap.hpp"
@@ -24,6 +18,12 @@
         assert(status == CUBLAS_STATUS_SUCCESS);                               \
     } while (0);
 #endif
+
+extern "C" {
+void sgels_(char const *trans, int const *m, int const *n, int const *nrhs,
+            float *A, int const *lda, float *B, int const *ldb, float *work,
+            int const *lwork, int *info);
+}
 
 namespace edm
 {
