@@ -123,7 +123,7 @@ py::array_t<float> smap(py::array_t<float> library_arr,
 
 PYBIND11_MODULE(_kedm, m)
 {
-    m.doc() = "Python bindings to kEDM";
+    m.doc() = "Python bindings for kEDM";
 
     m.def("edim", &edim,
           "Infer the optimal embedding dimension of a time series",

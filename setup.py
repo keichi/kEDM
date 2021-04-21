@@ -14,6 +14,7 @@ setup(
     author_email="keichi.t@me.com",
 
     packages=["kedm"],
+    package_dir={"kedm": "python/kedm"},
 
     cmake_args=["-DUSE_PYTHON:BOOL=ON"],
 

@@ -90,7 +90,7 @@ if(USE_PYTHON)
   add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
   pybind11_add_module(_kedm src/bindings.cpp)
   target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
-  install(TARGETS _kedm LIBRARY DESTINATION kedm)
+  install(TARGETS _kedm LIBRARY DESTINATION python/kedm)
 endif()
 
 # Tests
