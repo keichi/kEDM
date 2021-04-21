@@ -12,6 +12,14 @@ int edim(TimeSeries ts, int E_max, int tau, int Tp)
 {
     Kokkos::Profiling::pushRegion("EDM::edim");
 
+    if (E_max <= 0) {
+        throw std::invalid_argument("E_max must be greater than zero");
+    } else if (tau <= 0) {
+        throw std::invalid_argument("tau must be greater than zero");
+    } else if (Tp < 0) {
+        throw std::invalid_argument("Tp must be greater or equal to zero");
+    }
+
     std::vector<float> rho(E_max);
 
     const auto library =

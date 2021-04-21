@@ -6,7 +6,7 @@ if(SKBUILD)
   message(STATUS "The project is built using scikit-build")
 endif()
 
-add_compile_options(-Wall -Wextra -pedantic)
+add_compile_options(-Wall -Wextra)
 if(APPLE)
   # gcc needs this flag to compile Accelerate
   add_compile_options(-flax-vector-conversions)

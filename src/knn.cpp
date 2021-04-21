@@ -1,5 +1,3 @@
-#include <cassert>
-
 #include <Kokkos_Core.hpp>
 
 #ifdef LIKWID_PERFMON
@@ -196,17 +194,30 @@ void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
 {
     Kokkos::Profiling::pushRegion("EDM::knn");
 
-    assert(E > 0 && tau > 0 && Tp >= 0 && top_k > 0);
-
     const int shift = (E - 1) * tau + Tp;
     const int n_library = library.size() - shift;
     const int n_target = target.size() - shift + Tp;
 
-    assert(n_library > 0 && n_target > 0);
-    assert(tmp.extent(0) >= static_cast<size_t>(n_target) &&
-           tmp.extent(1) >= static_cast<size_t>(n_library));
-    assert(out.distances.extent(0) == static_cast<size_t>(n_target) &&
-           out.distances.extent(1) == static_cast<size_t>(top_k));
+    if (E <= 0) {
+        throw std::invalid_argument("E must be greater than zero");
+    } else if (tau <= 0) {
+        throw std::invalid_argument("tau must be greater than zero");
+    } else if (Tp < 0) {
+        throw std::invalid_argument("Tp must be greater or equal to zero");
+    } else if (top_k <= 0) {
+        throw std::invalid_argument("top_k must be greater than zero");
+    } else if (n_library <= 0) {
+        throw std::invalid_argument("library size is too small");
+    } else if (n_target <= 0) {
+        throw std::invalid_argument("target size is too small");
+    } else if (tmp.extent(0) < static_cast<size_t>(n_target) ||
+               tmp.extent(1) < static_cast<size_t>(n_library)) {
+        throw std::invalid_argument(
+            "TmpDistances must be larger or equal to (n_target, n_library)");
+    } else if (out.distances.extent(0) != static_cast<size_t>(n_target) ||
+               out.distances.extent(1) != static_cast<size_t>(top_k)) {
+        throw std::invalid_argument("LUT must have shape (n_target, top_k)");
+    }
 
     // Calculate all-to-all distances
     calc_distances(library, target, tmp, n_library, n_target, E, tau);
