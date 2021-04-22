@@ -38,10 +38,13 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering :: Mathematics"
+        "Topic :: Scientific/Engineering :: Mathematics",
     ],
 
     license="MIT",
 
-    install_requires="numpy>=1.7.0",
+    install_requires=["numpy>=1.7.0"],
+    extras_require={
+        "test": ["pytest>=6.2.0"],
+    },
 )

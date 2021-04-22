@@ -209,7 +209,8 @@ jobs:
           CIBW_BEFORE_BUILD_LINUX: scripts/prepare_wheel_build_linux.sh
           CIBW_BEFORE_BUILD_MACOS: scripts/prepare_wheel_build_macos.sh
           CIBW_ENVIRONMENT_MACOS: "CXX=g++-10"
-
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: pytest {project}/python
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
