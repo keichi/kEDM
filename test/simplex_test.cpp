@@ -110,11 +110,7 @@ TEST_CASE("Compute optimal embedding dimension") { embed_dim_test_common(); }
 
 int main(int argc, char **argv)
 {
-    Kokkos::initialize();
+    Kokkos::ScopeGuard kokkos(argc, argv);
 
-    int res = doctest::Context(argc, argv).run();
-
-    Kokkos::finalize();
-
-    return res;
+    return doctest::Context(argc, argv).run();
 }

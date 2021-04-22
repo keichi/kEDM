@@ -74,11 +74,7 @@ TEST_CASE("Compute one-to-one cross mapping for E=5")
 
 int main(int argc, char **argv)
 {
-    Kokkos::initialize();
+    Kokkos::ScopeGuard kokkos(argc, argv);
 
-    int res = doctest::Context(argc, argv).run();
-
-    Kokkos::finalize();
-
-    return res;
+    return doctest::Context(argc, argv).run();
 }
