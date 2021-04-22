@@ -29,9 +29,10 @@ setup(
                 "Dynamical Modeling (EDM) framework",
 
     long_description=readme,
+    long_description_content_type="text/markdown",
 
     classifiers=[
-        "OSI Approved :: MIT License",
+        "License :: OSI Approved :: MIT License",
         "Programming Language :: C++",
         "Programming Language :: Python",
         "Operating System :: MacOS :: MacOS X",
