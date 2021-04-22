@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 
 project(kokkos-edm)
 
-add_compile_options(-Wall -Wextra -pedantic)
+if(SKBUILD)
+  message(STATUS "The project is built using scikit-build")
+endif()
+
+add_compile_options(-Wall -Wextra)
 if(APPLE)
   # gcc needs this flag to compile Accelerate
   add_compile_options(-flax-vector-conversions)
@@ -30,12 +34,13 @@ set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
 set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
 set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
-add_subdirectory(src/thirdparty/highfive)
+add_subdirectory(src/thirdparty/highfive EXCLUDE_FROM_ALL)
 
 # argh
-add_subdirectory(src/thirdparty/argh)
+add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
 
-add_library(kedm SHARED
+# Main library
+add_library(kedm
   src/edim.cpp
   src/io.cpp
   src/simplex.cpp
@@ -44,20 +49,18 @@ add_library(kedm SHARED
   src/smap.cpp
   src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
+set_target_properties(kedm PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
   find_package(CUDA REQUIRED)
-else()
-  find_package(LAPACK REQUIRED)
-endif()
-
-if (Kokkos_ENABLE_CUDA)
   target_link_libraries(kedm PRIVATE ${CUDA_cublas_LIBRARY})
 else()
+  find_package(LAPACK REQUIRED)
   target_link_libraries(kedm PRIVATE ${LAPACK_LIBRARIES})
 endif()
 
+# Executables
 add_executable(edm-xmap src/xmap_run.cpp)
 target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)
 
@@ -81,11 +84,20 @@ if(USE_LIKWID)
   target_compile_definitions(lookup-bench PRIVATE -DLIKWID_PERFMON)
 endif()
 
+# Python bindings
+option(USE_PYTHON "Enable Python bindings")
+if(USE_PYTHON)
+  add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
+  pybind11_add_module(_kedm src/bindings.cpp)
+  target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
+  install(TARGETS _kedm LIBRARY DESTINATION python/kedm)
+endif()
+
 # Tests
 enable_testing()
 
 # doctest
-add_subdirectory(src/thirdparty/doctest)
+add_subdirectory(src/thirdparty/doctest EXCLUDE_FROM_ALL)
 include(src/thirdparty/doctest/scripts/cmake/doctest.cmake)
 
 # kNN

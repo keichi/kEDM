@@ -69,11 +69,7 @@ TEST_CASE("Compute kNN table for E=5") { test_knn_common(5); }
 
 int main(int argc, char **argv)
 {
-    Kokkos::initialize();
+    Kokkos::ScopeGuard kokkos(argc, argv);
 
-    int res = doctest::Context(argc, argv).run();
-
-    Kokkos::finalize();
-
-    return res;
+    return doctest::Context(argc, argv).run();
 }

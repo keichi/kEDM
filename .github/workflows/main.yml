@@ -68,7 +68,7 @@ jobs:
   build-linux-cpu:
     strategy:
       matrix:
-        cxx: [clang++-11, g++-10, icpc]
+        cxx: [clang++-11, g++-10]
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
@@ -79,16 +79,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libhdf5-dev libopenblas-dev liblapacke-dev
-    - name: Install Intel oneAPI HPC Toolkit
-      if: matrix.cxx == 'icpc'
-      run: |
-        wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-        sudo apt install -y intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
     - name: Build and install Kokkos
       run: |
-        [[ -d /opt/intel/oneapi ]] && . /opt/intel/oneapi/setvars.sh
         git clone https://github.com/kokkos/kokkos.git
         cd kokkos
         git checkout 3.3.00
@@ -104,7 +96,6 @@ jobs:
         make install
     - name: Build kEDM
       run: |
-        [[ -d /opt/intel/oneapi ]] && . /opt/intel/oneapi/setvars.sh
         mkdir build
         cd build
         cmake \
@@ -114,7 +105,6 @@ jobs:
         make -j $(nproc)
     - name: Run kEDM unit tests
       run: |
-        [[ -d /opt/intel/oneapi ]] && . /opt/intel/oneapi/setvars.sh
         ctest
       env:
         OMP_PROC_BIND: false
@@ -199,3 +189,28 @@ jobs:
       run: |
         git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
         git diff --exit-code
+
+  build-wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v1.10.0
+        env:
+          CIBW_BUILD: cp3*
+          CIBW_SKIP: cp35-*
+          CIBW_ARCHS: auto64
+          CIBW_BEFORE_BUILD_LINUX: scripts/prepare_wheel_build_linux.sh
+          CIBW_BEFORE_BUILD_MACOS: scripts/prepare_wheel_build_macos.sh
+          CIBW_ENVIRONMENT_MACOS: "CXX=g++-10"
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: pytest {project}/python
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl

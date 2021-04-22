@@ -10,3 +10,6 @@
 [submodule "src/thirdparty/simd"]
 	path = src/thirdparty/simd
 	url = https://github.com/kokkos/simd-math
+[submodule "src/thirdparty/pybind11"]
+	path = src/thirdparty/pybind11
+	url = https://github.com/pybind/pybind11.git

@@ -1,5 +1,3 @@
-#include <cassert>
-
 #include <Kokkos_Core.hpp>
 
 #include "simplex.hpp"
@@ -14,7 +12,10 @@ void simplex(MutableTimeSeries prediction, TimeSeries target, LUT lut)
     const auto distances = lut.distances;
     const auto indices = lut.indices;
 
-    assert(prediction.size() == distances.extent(0));
+    if (prediction.size() != distances.extent(0)) {
+        throw new std::invalid_argument(
+            "prediction size and LUT row count must be equal");
+    }
 
     Kokkos::parallel_for(
         "EDM::simplex::lookup", distances.extent(0), KOKKOS_LAMBDA(int i) {

@@ -83,6 +83,14 @@ void xmap(CrossMap result, Dataset ds, TimeSeries library,
 {
     Kokkos::Profiling::pushRegion("EDM::xmap");
 
+    if (E_max <= 0) {
+        throw std::invalid_argument("E_max must be greater than zero");
+    } else if (tau <= 0) {
+        throw std::invalid_argument("tau must be greater than zero");
+    } else if (Tp < 0) {
+        throw std::invalid_argument("Tp must be greater or equal to zero");
+    }
+
     // Compute kNN tables for all E
     for (int E = 1; E <= E_max; E++) {
         knn(library, library, luts[E - 1], tmp, E, tau, Tp, E + 1);

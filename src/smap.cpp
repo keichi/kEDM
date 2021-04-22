@@ -1,12 +1,6 @@
 #include <Kokkos_Core.hpp>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>
-#else
-#if __APPLE__
-#include <Accelerate/Accelerate.h>
-#else
-#include <lapack.h>
-#endif
 #endif
 
 #include "smap.hpp"
@@ -16,14 +10,26 @@
 #define CUDA_CHECK(CALL)                                                       \
     do {                                                                       \
         cudaError_t error = CALL;                                              \
-        assert(error == cudaSuccess);                                          \
+        if (error != cudaSuccess) {                                            \
+            throw std::runtime_error("CUDA error: " +                          \
+                                     cudaGetErrorString(error));               \
+        };                                                                     \
     } while (0);
 #define CUBLAS_CHECK(CALL)                                                     \
     do {                                                                       \
         cublasStatus_t status = CALL;                                          \
-        assert(status == CUBLAS_STATUS_SUCCESS);                               \
+        if (status != CUBLAS_STATUS_SUCCESS) {                                 \
+            throw std::runtime_error("cuBLAS error: " +                        \
+                                     std::to_string(status));                  \
+        }                                                                      \
     } while (0);
 #endif
+
+extern "C" {
+void sgels_(char const *trans, int const *m, int const *n, int const *nrhs,
+            float *A, int const *lda, float *B, int const *ldb, float *work,
+            int const *lwork, int *info);
+}
 
 namespace edm
 {
@@ -34,6 +40,18 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     const int shift = (E - 1) * tau + Tp;
     const int n_library = library.size() - shift;
     const int n_target = target.size() - shift + Tp;
+
+    if (E <= 0) {
+        throw std::invalid_argument("E must be greater than zero");
+    } else if (tau <= 0) {
+        throw std::invalid_argument("tau must be greater than zero");
+    } else if (Tp < 0) {
+        throw std::invalid_argument("Tp must be greater or equal to zero");
+    } else if (n_library <= 0) {
+        throw std::invalid_argument("library size is too small");
+    } else if (n_target <= 0) {
+        throw std::invalid_argument("target size is too small");
+    }
 
 #ifdef KOKKOS_ENABLE_CUDA
     // Make sure the design matrices fit within 4GiB
@@ -135,11 +153,19 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
         CUBLAS_CHECK(cublasSgelsBatched(handle, CUBLAS_OP_N, n_library, E + 1,
                                         1, As, n_library, bs, n_library, &info,
                                         dev_infos, this_batch_size));
-        assert(info == 0);
+
+        if (info != 0) {
+            throw std::runtime_error("cublasSgelsBatched returned error: " +
+                                     std::to_string(info));
+        }
 #else
         sgels_("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb, work,
                &work_size, &info);
-        assert(info == 0);
+
+        if (info != 0) {
+            throw std::runtime_error("sgels_ returned error: " +
+                                     std::to_string(info));
+        }
 #endif
 
         Kokkos::parallel_for(

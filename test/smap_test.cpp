@@ -32,6 +32,7 @@ TEST_CASE("Compute S-Map projections")
         const auto shifted_target =
             TimeSeries(target, Kokkos::pair<int, int>(shift, L));
 
+        // TODO Need to check why the test fails without this fence
         Kokkos::fence();
 
         CHECK(corrcoef(shifted_target, prediction) ==
