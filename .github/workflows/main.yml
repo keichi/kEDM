@@ -216,7 +216,7 @@ jobs:
   publish-wheels:
     needs: [build-wheels]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v2
         with:
