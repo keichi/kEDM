@@ -1,9 +1,21 @@
 #include <Kokkos_Core.hpp>
 
+#include "knn.hpp"
 #include "simplex.hpp"
 
 namespace edm
 {
+
+void simplex(MutableTimeSeries prediction, TimeSeries library,
+             TimeSeries target, int E, int tau, int Tp)
+{
+    TmpDistances tmp("tmp_distances", target.size(), library.size());
+    LUT lut(target.size() - (E - 1) * tau, E + 1);
+
+    knn(library, target, lut, tmp, E, tau, Tp, E + 1);
+    normalize_lut(lut);
+    simplex(prediction, library, lut);
+}
 
 void simplex(MutableTimeSeries prediction, TimeSeries target, LUT lut)
 {

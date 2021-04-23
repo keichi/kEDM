@@ -59,12 +59,7 @@ py::array_t<float> simplex(py::array_t<float> library_arr,
     Kokkos::deep_copy(library, mirror_library);
     Kokkos::deep_copy(target, mirror_target);
 
-    edm::TmpDistances tmp("tmp_distances", n_target, n_library);
-    edm::LUT lut(n_target - (E - 1) * tau, E + 1);
-
-    edm::knn(library, target, lut, tmp, E, tau, Tp, E + 1);
-    edm::normalize_lut(lut);
-    edm::simplex(prediction, library, lut);
+    edm::simplex(prediction, library, target, E, tau, Tp);
 
     Kokkos::deep_copy(mirror_prediction, prediction);
 

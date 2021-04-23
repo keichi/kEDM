@@ -6,6 +6,9 @@
 namespace edm
 {
 
+void simplex(MutableTimeSeries prediction, TimeSeries library,
+             TimeSeries target, int E, int tau, int Tp);
+
 void simplex(MutableTimeSeries prediction, TimeSeries target, LUT lut);
 
 } // namespace edm

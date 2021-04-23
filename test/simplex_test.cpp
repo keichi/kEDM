@@ -26,14 +26,9 @@ void simplex_test_common(int E)
                                                ts.size() - (E - 1) * tau));
 
     TimeSeries valid_prediction(ds2, Kokkos::ALL, 0);
-
-    TmpDistances tmp("tmp_distances", target.size(), library.size());
-    LUT lut(target.size() - (E - 1) * tau, E + 1);
-    knn(library, target, lut, tmp, E, tau, Tp, E + 1);
-    normalize_lut(lut);
-
     MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);
-    simplex(prediction, library, lut);
+
+    simplex(prediction, library, target, E, tau, Tp);
 
     const auto pred =
         Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
