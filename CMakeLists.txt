@@ -6,11 +6,15 @@ if(SKBUILD)
   message(STATUS "The project is built using scikit-build")
 endif()
 
+# Compiler flags
 add_compile_options(-Wall -Wextra)
 if(APPLE)
   # gcc needs this flag to compile Accelerate
   add_compile_options(-flax-vector-conversions)
 endif()
+
+# LTO is unsporrted by CUDA
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 # Kokkos
 find_package(Kokkos REQUIRED)
