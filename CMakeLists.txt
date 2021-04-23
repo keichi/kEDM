@@ -97,40 +97,26 @@ if(USE_PYTHON)
   install(TARGETS _kedm LIBRARY DESTINATION python/kedm)
 endif()
 
-# Tests
 enable_testing()
 
 # doctest
 add_subdirectory(src/thirdparty/doctest EXCLUDE_FROM_ALL)
 include(src/thirdparty/doctest/scripts/cmake/doctest.cmake)
 
-# kNN
-add_executable(knn_test test/knn_test.cpp)
-target_link_libraries(knn_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
+# Test executable
+add_executable(kedm_test
+  test/main.cpp
+  test/knn_test.cpp
+  test/simplex_test.cpp
+  test/smap_test.cpp
+  test/smap_test.cpp
+  test/xmap_one_to_one_test.cpp
+  test/xmap_all_to_all_test.cpp
+)
+target_link_libraries(kedm_test PRIVATE kedm Kokkos::kokkos doctest::doctest
+                      HighFive)
 
-# Simplex projection
-add_executable(simplex_test test/simplex_test.cpp)
-target_link_libraries(simplex_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
-
-# S-Map
-add_executable(smap_test test/smap_test.cpp)
-target_link_libraries(smap_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
-
-# One-to-one cross mapping
-add_executable(xmap_one_to_one_test test/xmap_one_to_one_test.cpp)
-target_link_libraries(xmap_one_to_one_test PRIVATE kedm Kokkos::kokkos doctest::doctest)
-
-# All-to-all cross mapping
-add_executable(xmap_all_to_all_test test/xmap_all_to_all_test.cpp)
-target_link_libraries(xmap_all_to_all_test PRIVATE kedm Kokkos::kokkos HighFive doctest::doctest)
-
-# Register tests
 option(REGISTER_TESTS "Register unit tests" ON)
-
 if(REGISTER_TESTS)
-doctest_discover_tests(knn_test WORKING_DIRECTORY ../test/)
-doctest_discover_tests(simplex_test WORKING_DIRECTORY ../test/)
-doctest_discover_tests(smap_test WORKING_DIRECTORY ../test/)
-doctest_discover_tests(xmap_one_to_one_test WORKING_DIRECTORY ../test/)
-doctest_discover_tests(xmap_all_to_all_test WORKING_DIRECTORY ../test/)
+  doctest_discover_tests(kedm_test WORKING_DIRECTORY ../test/ ADD_LABELS 1)
 endif()

@@ -1,4 +1,3 @@
-#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -66,10 +65,3 @@ TEST_CASE("Compute kNN table for E=4") { test_knn_common(4); }
 TEST_CASE("Compute kNN table for E=5") { test_knn_common(5); }
 
 } // namespace edm
-
-int main(int argc, char **argv)
-{
-    Kokkos::ScopeGuard kokkos(argc, argv);
-
-    return doctest::Context(argc, argv).run();
-}

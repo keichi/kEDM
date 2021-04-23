@@ -1,4 +1,3 @@
-#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -102,10 +101,3 @@ void embed_dim_test_common()
 TEST_CASE("Compute optimal embedding dimension") { embed_dim_test_common(); }
 
 } // namespace edm
-
-int main(int argc, char **argv)
-{
-    Kokkos::ScopeGuard kokkos(argc, argv);
-
-    return doctest::Context(argc, argv).run();
-}

@@ -1,4 +1,3 @@
-#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
@@ -71,10 +70,3 @@ TEST_CASE("Compute one-to-one cross mapping for E=5")
 }
 
 } // namespace edm
-
-int main(int argc, char **argv)
-{
-    Kokkos::ScopeGuard kokkos(argc, argv);
-
-    return doctest::Context(argc, argv).run();
-}

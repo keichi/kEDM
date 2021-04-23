@@ -1,4 +1,3 @@
-#define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5File.hpp>
@@ -70,10 +69,3 @@ void xmap_test_common()
 TEST_CASE("Compute all-to-all cross mappings") { xmap_test_common(); }
 
 } // namespace edm
-
-int main(int argc, char **argv)
-{
-    Kokkos::ScopeGuard kokkos(argc, argv);
-
-    return doctest::Context(argc, argv).run();
-}
