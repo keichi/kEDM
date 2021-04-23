@@ -1,6 +1,6 @@
 # kEDM
 
-[![build](https://github.com/keichi/kEDM/workflows/build/badge.svg)](https://github.com/keichi/kEDM/actions?query=workflow%3Abuild) [![Documentation Status](https://readthedocs.org/projects/kedm/badge/?version=latest)](https://kedm.readthedocs.io/en/latest/?badge=latest)
+[![build](https://github.com/keichi/kEDM/workflows/build/badge.svg)](https://github.com/keichi/kEDM/actions?query=workflow%3Abuild) [![Documentation Status](https://readthedocs.org/projects/kedm/badge/?version=latest)](https://kedm.readthedocs.io/en/latest/?badge=latest) [![PyPI version](https://badge.fury.io/py/kedm.svg)](https://badge.fury.io/py/kedm)
 
 kEDM (Kokkos-EDM) is a high-performance implementation of the [Empirical
 Dynamical Modeling (EDM)](https://sugiharalab.github.io/EDM_Documentation/)
