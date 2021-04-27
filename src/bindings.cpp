@@ -1,12 +1,16 @@
+#include <iostream>
+
 #include <Kokkos_Core.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "edim.hpp"
 #include "knn.hpp"
 #include "simplex.hpp"
 #include "smap.hpp"
 #include "types.hpp"
+#include "xmap.hpp"
 
 namespace py = pybind11;
 
@@ -33,7 +37,7 @@ py::array_t<float> simplex(py::array_t<float> library_arr,
                            int Tp)
 {
     if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
-        throw std::invalid_argument("Expected 1D arrays");
+        throw std::invalid_argument("Expected a 1D array");
     }
 
     auto n_library = library_arr.shape(0);
@@ -77,7 +81,7 @@ py::array_t<float> smap(py::array_t<float> library_arr,
                         float theta)
 {
     if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
-        throw std::invalid_argument("Expected 1D arrays");
+        throw std::invalid_argument("Expected a 1D array");
     }
 
     auto n_library = library_arr.shape(0);
@@ -116,13 +120,71 @@ py::array_t<float> smap(py::array_t<float> library_arr,
     return prediction_arr;
 }
 
+py::array_t<float> xmap(py::array_t<float> ds_arr,
+                        const std::vector<int> &edims, int tau, int Tp)
+{
+    if (ds_arr.ndim() != 2) {
+        throw std::invalid_argument("Expected a 2D array");
+    } else if (ds_arr.shape(1) != edims.size()) {
+        throw std::invalid_argument("Number of time series must match the "
+                                    "number of embedding dimensions");
+    } else if (*std::min_element(edims.begin(), edims.end()) <= 0) {
+        throw std::invalid_argument("All embedding dimensions must be larger "
+                                    "than zero");
+    }
+
+    auto ds = edm::MutableDataset("dataset", ds_arr.shape(0), ds_arr.shape(1));
+    auto mirror_ds = Kokkos::create_mirror_view(ds);
+
+    for (py::ssize_t i = 0; i < ds_arr.shape(0); i++) {
+        for (py::ssize_t j = 0; j < ds_arr.shape(1); j++) {
+            mirror_ds(i, j) = *ds_arr.data(i, j);
+        }
+    }
+
+    Kokkos::deep_copy(ds, mirror_ds);
+
+    std::vector<edm::LUT> luts;
+
+    int E_max = *std::max_element(edims.begin(), edims.end());
+    for (int E = 1; E <= E_max; E++) {
+        luts.push_back(edm::LUT(ds.extent(0) - (E - 1) * tau, E + 1));
+    }
+
+    edm::TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));
+
+    std::vector<edm::Targets> groups;
+    edm::group_ts(groups, edims, E_max);
+
+    edm::CrossMap ccm("ccm", ds.extent(1));
+    auto ccm_mirror = Kokkos::create_mirror_view(ccm);
+
+    py::array_t<float> ccm_arr({ds_arr.shape(1), ds_arr.shape(1)});
+
+    for (size_t i = 0; i < ds.extent(1); i++) {
+        edm::TimeSeries library(ds, Kokkos::ALL, i);
+
+        edm::xmap(ccm, ds, library, groups, luts, tmp, E_max, tau, Tp);
+
+        Kokkos::deep_copy(ccm_mirror, ccm);
+
+        for (py::ssize_t j = 0; j < ds_arr.shape(1); j++) {
+            *ccm_arr.mutable_data(i, j) = ccm_mirror(j);
+        }
+    }
+
+    return ccm_arr;
+}
+
+void print_kokkos_configuration() { Kokkos::print_configuration(std::cout); }
+
 PYBIND11_MODULE(_kedm, m)
 {
     m.doc() = "Python bindings for kEDM";
 
     m.def("edim", &edim,
           "Infer the optimal embedding dimension of a time series",
-          py::arg("ts"), py::arg("E_max") = 20, py::arg("tau") = 1,
+          py::arg("timeseries"), py::arg("E_max") = 20, py::arg("tau") = 1,
           py::arg("Tp") = 1);
 
     m.def("simplex", &simplex,
@@ -133,6 +195,12 @@ PYBIND11_MODULE(_kedm, m)
     m.def("smap", &smap, "Predict a time series from another using S-Map",
           py::arg("library"), py::arg("target"), py::arg("E") = 2,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
+
+    m.def("xmap", &xmap, "All-to-all cross mapping", py::arg("dataset"),
+          py::arg("edims"), py::arg("tau") = 1, py::arg("Tp") = 0);
+
+    m.def("print_kokkos_configuration", &print_kokkos_configuration,
+          "Print Kokkos configuration");
 
     m.add_object("_cleanup", py::capsule([]() { Kokkos::finalize(); }));
 
