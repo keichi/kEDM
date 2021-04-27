@@ -1,3 +1,4 @@
+import versioneer
 from skbuild import setup
 
 
@@ -8,7 +9,8 @@ with open("README.md", "r") as f:
 setup(
     name="kedm",
 
-    version="0.1.0",
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
 
     author="Keichi Takahashi",
     author_email="keichi.t@me.com",

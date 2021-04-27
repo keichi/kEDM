@@ -1,0 +1,2 @@
+include versioneer.py
+include python/kedm/_version.py
