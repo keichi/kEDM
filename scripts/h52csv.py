@@ -20,7 +20,7 @@ def main():
             path = args.input.with_name(f"{args.input.stem}_{name}.csv")
 
             print(f"Writing dataset \"{name}\" to CSV file: {path}")
-            np.savetxt(path, dset, delimiter=",")
+            np.savetxt(path, dset, fmt="%0.6f", delimiter=",")
 
 
 if __name__ == "__main__":
