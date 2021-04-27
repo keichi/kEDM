@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    tags:
+      - v*
   pull_request:
     branches:
       - master
@@ -12,6 +14,17 @@ env:
   OMP_PROC_BIND: false
 
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Run clang-format
+      run: |
+        git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
+        git diff --exit-code
+
   build-linux-gpu:
     strategy:
       matrix:
@@ -177,17 +190,6 @@ jobs:
       run: ctest
       working-directory: build
 
-  format:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-    - name: Run clang-format
-      run: |
-        git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
-        git diff --exit-code
-
   build-wheels:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -204,14 +206,29 @@ jobs:
           CIBW_BUILD: cp3*
           CIBW_SKIP: cp35-*
           CIBW_ARCHS: auto64
-          CIBW_BEFORE_BUILD_LINUX: scripts/prepare_wheel_build_linux.sh
-          CIBW_BEFORE_BUILD_MACOS: scripts/prepare_wheel_build_macos.sh
+          CIBW_BEFORE_ALL_LINUX: scripts/prepare_wheel_build_linux.sh
+          CIBW_BEFORE_ALL_MACOS: scripts/prepare_wheel_build_macos.sh
           CIBW_ENVIRONMENT_MACOS: "CXX=g++-10"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
+
+  build-wheels-gpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v1.10.0
+        env:
+          CIBW_BUILD: cp3*
+          CIBW_SKIP: cp35-*
+          CIBW_ARCHS: auto64
+          CIBW_BEFORE_ALL_LINUX: scripts/prepare_wheel_build_linux_gpu.sh
+          CIBW_ENVIRONMENT_LINUX: "PATH=$PATH:/usr/local/cuda/bin"
 
   publish-wheels:
     needs: [build-wheels]

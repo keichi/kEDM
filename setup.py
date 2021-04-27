@@ -16,7 +16,7 @@ setup(
     packages=["kedm"],
     package_dir={"kedm": "python/kedm"},
 
-    cmake_args=["-DUSE_PYTHON:BOOL=ON"],
+    cmake_args=["-DUSE_PYTHON=ON", "-DREGISTER_TESTS=OFF"],
 
     url="https://github.com/keichi/kEDM",
     project_urls={
