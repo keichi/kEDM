@@ -70,7 +70,7 @@ jobs:
         cmake \
           -DCMAKE_CXX_COMPILER=/opt/kokkos/bin/nvcc_wrapper \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DREGISTER_TESTS=OFF \
+          -DKEDM_BUILD_TESTS=OFF \
           -DHIGHFIVE_USE_BOOST=OFF \
           -DHIGHFIVE_UNIT_TESTS=OFF \
           -DHIGHFIVE_EXAMPLES=OFF \

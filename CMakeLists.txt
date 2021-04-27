@@ -22,17 +22,6 @@ find_package(Kokkos REQUIRED)
 # HDF5
 find_package(HDF5 REQUIRED)
 
-# MPI
-option(USE_MPI "Enable MPI")
-if(USE_MPI)
-  find_package(MPI)
-  if(MPI_CXX_FOUND AND HDF5_IS_PARALLEL)
-    add_executable(edm-xmap-mpi src/xmap_run_mpi.cpp)
-    target_link_libraries(edm-xmap-mpi PRIVATE kedm Kokkos::kokkos HighFive
-                          MPI::MPI_CXX)
-  endif()
-endif()
-
 # HighFive
 set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
 set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
@@ -64,21 +53,36 @@ else()
   target_link_libraries(kedm PRIVATE ${LAPACK_LIBRARIES})
 endif()
 
+# MPI
+option(KEDM_USE_MPI "Enable MPI")
+if(KEDM_USE_MPI)
+  find_package(MPI REQUIRED)
+endif()
+
 # Executables
-add_executable(edm-xmap src/xmap_run.cpp)
-target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)
+option(KEDM_BUILD_EXECUTABLES "Build executables" ON)
+if(KEDM_BUILD_EXECUTABLES)
+  add_executable(edm-xmap src/xmap_run.cpp)
+  target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)
 
-add_executable(knn-bench src/knn_bench.cpp)
-target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
+  add_executable(knn-bench src/knn_bench.cpp)
+  target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
 
-add_executable(lookup-bench src/lookup_bench.cpp)
-target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
+  add_executable(lookup-bench src/lookup_bench.cpp)
+  target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
 
-add_executable(smap-bench src/smap_bench.cpp)
-target_link_libraries(smap-bench PRIVATE kedm Kokkos::kokkos argh)
+  add_executable(smap-bench src/smap_bench.cpp)
+  target_link_libraries(smap-bench PRIVATE kedm Kokkos::kokkos argh)
 
-option(USE_LIKWID "Enable LIKWID performance counters")
-if(USE_LIKWID)
+  if(MPI_CXX_FOUND AND HDF5_IS_PARALLEL)
+    add_executable(edm-xmap-mpi src/xmap_run_mpi.cpp)
+    target_link_libraries(edm-xmap-mpi PRIVATE kedm Kokkos::kokkos HighFive
+                          MPI::MPI_CXX)
+  endif()
+endif()
+
+option(KEDM_USE_LIKWID "Enable LIKWID performance counters")
+if(KEDM_USE_LIKWID)
   find_package(likwid)
 
   target_link_libraries(knn-bench PRIVATE likwid::likwid)
@@ -89,34 +93,35 @@ if(USE_LIKWID)
 endif()
 
 # Python bindings
-option(USE_PYTHON "Enable Python bindings")
-if(USE_PYTHON)
+option(KEDM_BUILD_PYTHON "Build Python bindings")
+if(KEDM_BUILD_PYTHON)
   add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
   pybind11_add_module(_kedm src/bindings.cpp)
   target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
   install(TARGETS _kedm LIBRARY DESTINATION python/kedm)
 endif()
 
-enable_testing()
+# Unit tests
+option(KEDM_BUILD_TESTS "Build unit tests" ON)
+if(KEDM_BUILD_TESTS)
+  enable_testing()
 
-# doctest
-add_subdirectory(src/thirdparty/doctest EXCLUDE_FROM_ALL)
-include(src/thirdparty/doctest/scripts/cmake/doctest.cmake)
+  # doctest
+  add_subdirectory(src/thirdparty/doctest EXCLUDE_FROM_ALL)
+  include(src/thirdparty/doctest/scripts/cmake/doctest.cmake)
 
-# Test executable
-add_executable(kedm_test
-  test/main.cpp
-  test/knn_test.cpp
-  test/simplex_test.cpp
-  test/smap_test.cpp
-  test/smap_test.cpp
-  test/xmap_one_to_one_test.cpp
-  test/xmap_all_to_all_test.cpp
-)
-target_link_libraries(kedm_test PRIVATE kedm Kokkos::kokkos doctest::doctest
-                      HighFive)
+  # Test executable
+  add_executable(kedm-test
+    test/main.cpp
+    test/knn_test.cpp
+    test/simplex_test.cpp
+    test/smap_test.cpp
+    test/smap_test.cpp
+    test/xmap_one_to_one_test.cpp
+    test/xmap_all_to_all_test.cpp
+  )
+  target_link_libraries(kedm-test PRIVATE kedm Kokkos::kokkos doctest::doctest
+                        HighFive)
 
-option(REGISTER_TESTS "Register unit tests" ON)
-if(REGISTER_TESTS)
-  doctest_discover_tests(kedm_test WORKING_DIRECTORY ../test/ ADD_LABELS 1)
+  doctest_discover_tests(kedm-test WORKING_DIRECTORY ../test/ ADD_LABELS 1)
 endif()
