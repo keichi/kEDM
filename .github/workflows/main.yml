@@ -206,6 +206,7 @@ jobs:
           CIBW_BUILD: cp3*
           CIBW_SKIP: cp35-*
           CIBW_ARCHS: auto64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_ALL_LINUX: scripts/prepare_wheel_build_linux.sh
           CIBW_BEFORE_ALL_MACOS: scripts/prepare_wheel_build_macos.sh
           CIBW_BEFORE_BUILD_MACOS: pip install --force-reinstall git+https://github.com/matthew-brett/delocate.git@52b9185ff6ebb643392286242ea06417143dadb7
@@ -228,6 +229,7 @@ jobs:
           CIBW_BUILD: cp3*
           CIBW_SKIP: cp35-*
           CIBW_ARCHS: auto64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_ALL_LINUX: scripts/prepare_wheel_build_linux_gpu.sh
           CIBW_ENVIRONMENT_LINUX: "PATH=$PATH:/usr/local/cuda/bin"
 
