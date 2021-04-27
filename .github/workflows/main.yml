@@ -208,6 +208,7 @@ jobs:
           CIBW_ARCHS: auto64
           CIBW_BEFORE_ALL_LINUX: scripts/prepare_wheel_build_linux.sh
           CIBW_BEFORE_ALL_MACOS: scripts/prepare_wheel_build_macos.sh
+          CIBW_BEFORE_BUILD_MACOS: pip install --force-reinstall git+https://github.com/matthew-brett/delocate.git@52b9185ff6ebb643392286242ea06417143dadb7
           CIBW_ENVIRONMENT_MACOS: "CXX=g++-10"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
