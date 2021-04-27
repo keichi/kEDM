@@ -19,3 +19,16 @@ def test_xmap(pytestconfig):
                            delimiter=",")
 
     assert kedm.xmap(ds, E) == pytest.approx(rho_valid, abs=1e-5)
+
+
+def test_invalid_args():
+    with pytest.raises(ValueError, match=r"Expected a 2D array"):
+        kedm.xmap(np.random.rand(100), np.random.randint(20, size=100))
+
+    with pytest.raises(ValueError, match=r"Number of time series must match "
+                       "the number of embedding dimensions"):
+        kedm.xmap(np.random.rand(100, 100), np.random.randint(20, size=10))
+
+    with pytest.raises(ValueError, match=r"All embedding dimensions must be "
+                       "larger than zero"):
+        kedm.xmap(np.random.rand(100, 10), [1, 2, 3, 4, 5, 6, 7, 8, 9, -1])

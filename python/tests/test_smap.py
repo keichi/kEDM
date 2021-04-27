@@ -20,3 +20,23 @@ def test_smap(pytestconfig, i):
     rho = np.corrcoef(prediction[:-1], target[(E-1)*tau+Tp:])[0][1]
 
     assert rho == pytest.approx(rho_valid[i], abs=1e-2)
+
+
+def test_invalid_args():
+    library = np.random.rand(10)
+    target = np.random.rand(10)
+
+    with pytest.raises(ValueError, match=r"E must be greater than zero"):
+        kedm.smap(library, target, E=-1)
+
+    with pytest.raises(ValueError, match=r"tau must be greater than zero"):
+        kedm.smap(library, target, E=2, tau=-1)
+
+    with pytest.raises(ValueError, match=r"Tp must be greater or equal to zero"):
+        kedm.smap(library, target, E=2, tau=1, Tp=-1)
+
+    with pytest.raises(ValueError, match=r"library size is too small"):
+        kedm.smap(np.random.rand(1), target)
+
+    with pytest.raises(ValueError, match=r"target size is too small"):
+        kedm.smap(library, np.random.rand(1))
