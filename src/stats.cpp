@@ -46,4 +46,40 @@ void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
         });
 }
 
+float mae(TimeSeries x, TimeSeries y)
+{
+#ifndef KOKKOS_ENABLE_CUDA
+    using std::abs;
+    using std::min;
+#endif
+
+    int n = min(x.size(), y.size());
+    float sum;
+
+    Kokkos::parallel_reduce(
+        "EDM::stats::mae", n,
+        KOKKOS_LAMBDA(int i, float &upd) { upd += abs(x(i) - y(i)); }, sum);
+
+    return sum / n;
+}
+
+float mse(TimeSeries x, TimeSeries y)
+{
+#ifndef KOKKOS_ENABLE_CUDA
+    using std::min;
+#endif
+
+    int n = min(x.size(), y.size());
+    float sum;
+
+    Kokkos::parallel_reduce(
+        "EDM::stats::mse", n,
+        KOKKOS_LAMBDA(int i, float &upd) {
+            upd += (x(i) - y(i)) * (x(i) - y(i));
+        },
+        sum);
+
+    return sum / n;
+}
+
 } // namespace edm

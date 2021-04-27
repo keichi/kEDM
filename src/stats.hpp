@@ -69,6 +69,8 @@ typedef struct corrcoef_state {
 
 float corrcoef(TimeSeries x, TimeSeries y);
 void corrcoef(CrossMap rho, Dataset ds, TimeSeries x);
+float mae(TimeSeries x, TimeSeries y);
+float mse(TimeSeries x, TimeSeries y);
 
 } // namespace edm
 
