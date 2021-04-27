@@ -27,8 +27,8 @@ setup(
         "Bug Tracker": "https://github.com/keichi/kEDM/issues",
     },
 
-    description="kEDM is a high-performance implementation of the Empirical"
-                "Dynamical Modeling (EDM) framework",
+    description="A high-performance implementation of the Empirical Dynamic"
+                " Modeling (EDM) framework",
 
     long_description=readme,
     long_description_content_type="text/markdown",
