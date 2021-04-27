@@ -11,7 +11,7 @@ brew install hdf5
 # Install Kokkos
 git clone https://github.com/kokkos/kokkos.git
 cd kokkos
-git checkout 3.3.00
+git checkout 3.4.00
 mkdir build
 cd build
 cmake \
