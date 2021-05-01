@@ -1,6 +1,4 @@
 #include <doctest/doctest.h>
-#include <highfive/H5DataSet.hpp>
-#include <highfive/H5File.hpp>
 
 #include "../src/edim.hpp"
 #include "../src/io.hpp"
@@ -15,25 +13,22 @@ void xmap_test_common()
     const int E_max = 20;
     const int tau = 1;
 
-    const HighFive::File file1("xmap_all_to_all_test.h5");
-    const auto ds_input = file1.getDataSet("values");
+    const auto ds = load_csv("xmap_all_to_all_test_input.csv");
+    const auto ds_rho = load_csv("xmap_all_to_all_test_validation_rho.csv");
+    const auto ds_edim = load_csv("xmap_all_to_all_test_validation_e.csv");
 
-    const HighFive::File file2("xmap_all_to_all_test_validation.h5");
-    const auto ds_corrcoef = file2.getDataSet("corrcoef");
-    const auto ds_edim = file2.getDataSet("embedding");
-
-    const auto ds = load_hdf5(ds_input);
+    const auto rho_valid_mirror =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), ds_rho);
+    const auto edim_valid_mirror =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), ds_edim);
 
     std::vector<int> optimal_E(ds.extent(1));
-    std::vector<int> optimal_E_valid(ds.extent(1));
-
-    ds_edim.read(optimal_E_valid);
 
     for (size_t i = 0; i < ds.extent(1); i++) {
         TimeSeries ts(ds, Kokkos::ALL, i);
         optimal_E[i] = edim(ts, E_max, 1, 1);
 
-        CHECK(optimal_E[i] == optimal_E_valid[i]);
+        CHECK(optimal_E[i] == edim_valid_mirror(i, 0));
     }
 
     std::vector<LUT> luts;
@@ -56,12 +51,10 @@ void xmap_test_common()
 
         xmap(rho, ds, library, groups, luts, tmp, E_max, 1, 0);
 
-        ds_corrcoef.select({i, 0}, {1, ds.extent(1)}).read(rho_valid);
-
         auto rho_mirror = Kokkos::create_mirror_view_and_copy(HostSpace(), rho);
 
         for (size_t j = 0; j < ds.extent(1); j++) {
-            CHECK(rho_mirror[j] == doctest::Approx(rho_valid[j]));
+            CHECK(rho_mirror(j) == doctest::Approx(rho_valid_mirror(i, j)));
         }
     }
 }

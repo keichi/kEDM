@@ -19,16 +19,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 # Kokkos
 add_subdirectory(src/thirdparty/kokkos EXCLUDE_FROM_ALL)
 
-# HDF5
-find_package(HDF5 REQUIRED)
-
-# HighFive
-set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
-set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
-set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
-set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
-add_subdirectory(src/thirdparty/highfive EXCLUDE_FROM_ALL)
-
 # argh
 add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
 
@@ -41,7 +31,7 @@ add_library(kedm
   src/knn.cpp
   src/smap.cpp
   src/stats.cpp)
-target_link_libraries(kedm PRIVATE Kokkos::kokkos HighFive)
+target_link_libraries(kedm PRIVATE Kokkos::kokkos)
 set_target_properties(kedm PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # LAPACK
@@ -62,8 +52,22 @@ endif()
 # Executables
 option(KEDM_BUILD_EXECUTABLES "Build executables" ON)
 if(KEDM_BUILD_EXECUTABLES)
+  # HDF5
+  find_package(HDF5 REQUIRED)
+
+  # HighFive
+  set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
+  set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
+  set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
+  set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
+  add_subdirectory(src/thirdparty/highfive EXCLUDE_FROM_ALL)
+
+  target_link_libraries(kedm PRIVATE HighFive)
+  target_compile_definitions(kedm PRIVATE -DHAVE_HDF5)
+
   add_executable(edm-xmap src/xmap_run.cpp)
   target_link_libraries(edm-xmap PRIVATE kedm Kokkos::kokkos argh HighFive)
+  target_compile_definitions(edm-xmap PRIVATE -DHAVE_HDF5)
 
   add_executable(knn-bench src/knn_bench.cpp)
   target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
@@ -78,6 +82,7 @@ if(KEDM_BUILD_EXECUTABLES)
     add_executable(edm-xmap-mpi src/xmap_run_mpi.cpp)
     target_link_libraries(edm-xmap-mpi PRIVATE kedm Kokkos::kokkos HighFive
                           MPI::MPI_CXX)
+    target_compile_definitions(edm-xmap-mpi PRIVATE -DHAVE_HDF5)
   endif()
 endif()
 
@@ -120,8 +125,7 @@ if(KEDM_BUILD_TESTS)
     test/xmap_one_to_one_test.cpp
     test/xmap_all_to_all_test.cpp
   )
-  target_link_libraries(kedm-test PRIVATE kedm Kokkos::kokkos doctest::doctest
-                        HighFive)
+  target_link_libraries(kedm-test PRIVATE kedm Kokkos::kokkos doctest::doctest)
 
   doctest_discover_tests(kedm-test WORKING_DIRECTORY ../test/ ADD_LABELS 1)
 endif()

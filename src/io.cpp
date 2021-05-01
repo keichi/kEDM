@@ -1,8 +1,10 @@
 #include <fstream>
 #include <vector>
 
+#ifdef HAVE_HDF5
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5File.hpp>
+#endif
 
 #include "io.hpp"
 
@@ -60,6 +62,7 @@ Dataset load_csv(const std::string &path)
     return Dataset(ds);
 }
 
+#ifdef HAVE_HDF5
 Dataset load_hdf5(const HighFive::DataSet &dataset)
 {
     const auto shape = dataset.getDimensions();
@@ -89,5 +92,6 @@ Dataset load_hdf5(const HighFive::DataSet &dataset)
 
     return Dataset(ds);
 }
+#endif
 
 } // namespace edm
