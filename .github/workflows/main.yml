@@ -146,22 +146,6 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
-  build-wheels-gpu:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
-      - name: Build wheels
-        uses: joerick/cibuildwheel@v1.10.0
-        env:
-          CIBW_BUILD: cp3*
-          CIBW_SKIP: cp35-*
-          CIBW_ARCHS: auto64
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          CIBW_BEFORE_ALL_LINUX: scripts/prepare_wheel_build_linux_gpu.sh
-          CIBW_ENVIRONMENT_LINUX: "PATH=$PATH:/usr/local/cuda/bin"
-
   publish-wheels:
     needs: [build-wheels]
     runs-on: ubuntu-latest
