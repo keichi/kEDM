@@ -82,7 +82,9 @@ int main(int argc, char *argv[])
 
     LIKWID_MARKER_INIT;
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
     {
         LIKWID_MARKER_THREADINIT;
 
@@ -97,7 +99,9 @@ int main(int argc, char *argv[])
 
         timer_distances.start();
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
         {
             LIKWID_MARKER_START("calc_distances");
         }
@@ -107,7 +111,9 @@ int main(int argc, char *argv[])
 
         Kokkos::fence();
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
         {
             LIKWID_MARKER_STOP("calc_distances");
         }
@@ -116,7 +122,9 @@ int main(int argc, char *argv[])
 
         timer_sorting.start();
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
         {
             LIKWID_MARKER_START("partial_sort");
         }
@@ -126,7 +134,9 @@ int main(int argc, char *argv[])
 
         Kokkos::fence();
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
         {
             LIKWID_MARKER_STOP("partial_sort");
         }

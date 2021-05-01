@@ -17,7 +17,7 @@ endif()
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 # Kokkos
-find_package(Kokkos REQUIRED)
+add_subdirectory(src/thirdparty/kokkos EXCLUDE_FROM_ALL)
 
 # HDF5
 find_package(HDF5 REQUIRED)
