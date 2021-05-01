@@ -93,7 +93,9 @@ int main(int argc, char *argv[])
 
     LIKWID_MARKER_INIT;
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
     {
         LIKWID_MARKER_THREADINIT;
 
@@ -107,7 +109,9 @@ int main(int argc, char *argv[])
 
         timer_lookup.start();
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
         {
             LIKWID_MARKER_START("lookup");
         }
@@ -116,7 +120,9 @@ int main(int argc, char *argv[])
 
         Kokkos::fence();
 
+#ifdef _OPENMP
 #pragma omp parallel
+#endif
         {
             LIKWID_MARKER_STOP("lookup");
         }
