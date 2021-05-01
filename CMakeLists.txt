@@ -15,8 +15,19 @@ endif()
 
 # LTO is unsporrted by CUDA
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Kokkos
+option(KEDM_ENABLE_CPU "Enable CPU (OpenMP) backend" ON)
+if(KEDM_ENABLE_CPU)
+  set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "")
+  set(Kokkos_ENABLE_AGGRESSIVE_VECTORIZATION ON CACHE BOOL "")
+endif()
+option(KEDM_ENABLE_GPU "Enable GPU (CUDA) backend" OFF)
+if(KEDM_ENABLE_GPU)
+  set(Kokkos_ENABLE_CUDA ON CACHE BOOL "")
+  set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "")
+endif()
 add_subdirectory(src/thirdparty/kokkos EXCLUDE_FROM_ALL)
 
 # argh
@@ -32,7 +43,6 @@ add_library(kedm
   src/smap.cpp
   src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos)
-set_target_properties(kedm PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
@@ -44,14 +54,14 @@ else()
 endif()
 
 # MPI
-option(KEDM_USE_MPI "Enable MPI")
-if(KEDM_USE_MPI)
+option(KEDM_ENABLE_MPI "Enable MPI")
+if(KEDM_ENABLE_MPI)
   find_package(MPI REQUIRED)
 endif()
 
 # Executables
-option(KEDM_BUILD_EXECUTABLES "Build executables" ON)
-if(KEDM_BUILD_EXECUTABLES)
+option(KEDM_ENABLE_EXECUTABLES "Build executables" ON)
+if(KEDM_ENABLE_EXECUTABLES)
   # HDF5
   find_package(HDF5 REQUIRED)
 
@@ -86,8 +96,8 @@ if(KEDM_BUILD_EXECUTABLES)
   endif()
 endif()
 
-option(KEDM_USE_LIKWID "Enable LIKWID performance counters")
-if(KEDM_USE_LIKWID)
+option(KEDM_ENABLE_LIKWID "Enable LIKWID performance counters")
+if(KEDM_ENABLE_LIKWID)
   find_package(likwid)
 
   target_link_libraries(knn-bench PRIVATE likwid::likwid)
@@ -98,17 +108,18 @@ if(KEDM_USE_LIKWID)
 endif()
 
 # Python bindings
-option(KEDM_BUILD_PYTHON "Build Python bindings")
-if(KEDM_BUILD_PYTHON)
+option(KEDM_ENABLE_PYTHON "Build Python bindings")
+if(KEDM_ENABLE_PYTHON)
   add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
+
   pybind11_add_module(_kedm src/bindings.cpp)
   target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
   install(TARGETS _kedm LIBRARY DESTINATION python/kedm)
 endif()
 
 # Unit tests
-option(KEDM_BUILD_TESTS "Build unit tests" ON)
-if(KEDM_BUILD_TESTS)
+option(KEDM_ENABLE_TESTS "Build unit tests" ON)
+if(KEDM_ENABLE_TESTS)
   enable_testing()
 
   # doctest
@@ -129,3 +140,16 @@ if(KEDM_BUILD_TESTS)
 
   doctest_discover_tests(kedm-test WORKING_DIRECTORY ../test/ ADD_LABELS 1)
 endif()
+
+message(STATUS "kEDM build configuration:")
+message(STATUS "  C++ Compiler:     ${CMAKE_CXX_COMPILER_ID} "
+                                   "${CMAKE_CXX_COMPILER_VERSION} "
+                                   "${CMAKE_CXX_COMPILER_WRAPPER}")
+message(STATUS "                    ${CMAKE_CXX_COMPILER}")
+message(STATUS "  CPU backend:      ${KEDM_ENABLE_CPU}")
+message(STATUS "  GPU backend:      ${KEDM_ENABLE_GPU}")
+message(STATUS "  Executables:      ${KEDM_ENABLE_EXECUTABLES}")
+message(STATUS "  Python bindings:  ${KEDM_ENABLE_PYTHON}")
+message(STATUS "  MPI:              ${KEDM_ENABLE_MPI}")
+message(STATUS "  Unit tests:       ${KEDM_ENABLE_TESTS}")
+message(STATUS "  LIKWID:           ${KEDM_ENABLE_LIKWID}")

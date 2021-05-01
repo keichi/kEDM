@@ -48,12 +48,10 @@ jobs:
         mkdir build
         cd build
         cmake \
-          -DCMAKE_CXX_COMPILER=$(pwd)/../src/thirdparty/kokkos/bin/nvcc_wrapper \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DKokkos_ENABLE_CUDA=ON \
-          -DKokkos_ENABLE_CUDA_LAMBDA=ON \
-          -DKokkos_ARCH_VOLTA70=ON \
-          -DKEDM_BUILD_TESTS=OFF ..
+          -DKEDM_ENABLE_GPU=ON \
+          -DKEDM_ENABLE_TESTS=OFF \
+          -DKokkos_ARCH_VOLTA70=ON ..
         make -j $(nproc)
       env:
         NVCC_WRAPPER_DEFAULT_COMPILER: ${{ matrix.cxx }}
@@ -77,9 +75,9 @@ jobs:
         mkdir build
         cd build
         cmake \
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-          -DKokkos_ENABLE_OPENMP=ON \
           -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(nproc)
     - name: Run kEDM unit tests
@@ -107,12 +105,12 @@ jobs:
         mkdir build
         cd build
         cmake \
+          -DCMAKE_BUILD_TYPE=Debug \
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
           -DCMAKE_CXX_FLAGS="-I/usr/local/include" \
           -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" \
           -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib" \
-          -DKokkos_ENABLE_OPENMP=ON \
-          -DCMAKE_BUILD_TYPE=Debug \
+          -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
     - name: Run kEDM unit tests

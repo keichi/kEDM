@@ -18,11 +18,10 @@ setup(
     packages=["kedm"],
     package_dir={"kedm": "python/kedm"},
 
-    cmake_args=["-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
-                "-DKEDM_BUILD_PYTHON=ON",
-                "-DKEDM_BUILD_TESTS=OFF",
-                "-DKEDM_BUILD_EXECUTABLES=OFF",
-                "-DKokkos_ENABLE_OPENMP=ON"],
+    cmake_args=["-DKEDM_ENABLE_PYTHON=ON",
+                "-DKEDM_ENABLE_TESTS=OFF",
+                "-DKEDM_ENABLE_EXECUTABLES=OFF",
+                "-DKEDM_ENABLE_CPU=ON"],
 
     url="https://github.com/keichi/kEDM",
     project_urls={
