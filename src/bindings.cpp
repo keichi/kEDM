@@ -256,7 +256,23 @@ std::string get_kokkos_config()
 
 PYBIND11_MODULE(_kedm, m)
 {
-    m.doc() = "Python bindings for kEDM";
+    m.doc() = R"pbdoc(
+        Python bindings for kEDM
+        ------------------------
+
+        .. currentmodule:: _kedm
+
+        .. autosummary::
+           :toctree: _generate
+
+           edim
+           simplex
+           simplex_eval
+           smap
+           smap_eval
+           xmap
+           get_kokkos_config
+    )pbdoc";
 
     m.def("edim", &edim,
           "Infer the optimal embedding dimension of a time series",
