@@ -275,35 +275,112 @@ PYBIND11_MODULE(_kedm, m)
     )pbdoc";
 
     m.def("edim", &edim,
-          "Infer the optimal embedding dimension of a time series",
+          R"doc(
+          Infer the optimal embedding dimension of a time series.
+
+          Args:
+            timeseries: Time series
+            E_max: Maximum embedding dimension (E is varied from 1 to E_max)
+            tau: Time delay
+            Tp: Prediction interval
+          Returns:
+            Optimal embedding dimension of the time series
+          )doc",
           py::arg("timeseries"), py::arg("E_max") = 20, py::arg("tau") = 1,
           py::arg("Tp") = 1);
 
     m.def("simplex", &simplex,
-          "Predict a time series from another using Simplex projection",
-          py::arg("library"), py::arg("target"), py::arg("E") = 2,
+          R"doc(
+          Predict a time series from another using Simplex projection.
+
+          Args:
+            library: Library time series
+            target: Target time series
+            E: Embedding dimension
+            tau: Time delay
+            Tp: Prediction interval
+          Returns:
+            Predicted time series
+          )doc",
+          py::arg("library"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1);
 
     m.def("simplex_eval", &simplex_eval,
-          "Predict a time series from another using Simplex projection and "
-          "quantify its predictive skill",
-          py::arg("library"), py::arg("target"), py::arg("E") = 2,
+          R"doc(
+          Predict a time series from another using Simplex projection and quantify its predictive skill.
+
+          Args:
+            library: Library time series
+            target: Target time series
+            E: Embedding dimension
+            tau: Time delay
+            Tp: Prediction interval
+          Returns:
+            Pearson's correlation coefficient between the predicted and actual
+            time series
+          )doc",
+          py::arg("library"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1);
 
-    m.def("smap", &smap, "Predict a time series from another using S-Map",
+    m.def("smap", &smap,
+          R"doc(
+          Predict a time series from another using S-Map.
+
+          Args:
+            library: Library time series
+            target: Target time series
+            E: Embedding dimension
+            tau: Time delay
+            Tp: Prediction interval
+            theta: Neighbor localization exponent
+          Returns:
+            Predicted time series
+          )doc",
           py::arg("library"), py::arg("target"), py::arg("E") = 2,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
     m.def("smap_eval", &smap_eval,
-          "Predict a time series from another using S-Map and quantify its "
-          "predictive skill",
+          R"doc(
+          Predict a time series from another using S-Map and quantify its predictive skill.
+
+          Args:
+            library: Library time series
+            target: Target time series
+            E: Embedding dimension
+            tau: Time delay
+            Tp: Prediction interval
+            theta: Neighbor localization exponent
+          Returns:
+            Pearson's correlation coefficient between predicted and actual
+            time series
+          )doc",
           py::arg("library"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
-    m.def("xmap", &xmap, "All-to-all cross mapping", py::arg("dataset"),
-          py::arg("edims"), py::arg("tau") = 1, py::arg("Tp") = 0);
+    m.def("xmap", &xmap,
+          R"doc(
+          Infer the strength of causal interaction between multiple time
+          series.
 
-    m.def("get_kokkos_config", &get_kokkos_config, "Get Kokkos configuration");
+          Args:
+            dataset: A 2D array where columns conrrespond to individual time series
+            edims: Embedding dimension for each time series (can be computed using ``kedm.edim``)
+            tau: Time delay
+            Tp: Prediction interval
+          Returns:
+            A 2D array where each element represents the interaction strength
+            between two time series.
+          )doc",
+          py::arg("dataset"), py::arg("edims"), py::arg("tau") = 1,
+          py::arg("Tp") = 0);
+
+    m.def("get_kokkos_config", &get_kokkos_config,
+          R"doc(
+          Get configuration of Kokkos that kEDM was built with.
+
+          Returns:
+            Kokkos configuration
+          )doc");
 
     m.add_object("_cleanup", py::capsule([]() { Kokkos::finalize(); }));
 

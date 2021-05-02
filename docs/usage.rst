@@ -1,5 +1,5 @@
-Usage
-#####
+kEDM Applications
+#################
 
 Convergent Cross Mapping (CCM)
 ==============================

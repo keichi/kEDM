@@ -18,8 +18,8 @@ reference implementation `cppEDM <https://github.com/SugiharaLab/cppEDM>`_
    :caption: Contents:
 
    setup
+   python
    usage
-   kedm
 
 
 Indices and tables

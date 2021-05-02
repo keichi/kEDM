@@ -1,6 +1,6 @@
-import versioneer
 from skbuild import setup
 
+import versioneer
 
 with open("README.md", "r") as f:
     readme = f.read()

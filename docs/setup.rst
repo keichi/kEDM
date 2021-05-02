@@ -1,128 +1,90 @@
-Setting up
-##########
+Installation
+############
+
+Installing via pip
+------------------
 
 Requirements
 ============
 
-kEDM requires the following tools and libraries:
+- Python >= 3.6
+- pip >= 19.3
 
-- `CMake <https://cmake.org/>`_ 3.10 or greater
-- `Kokkos <https://github.com/kokkos/kokkos>`_ 3.2.00 or greater
-- `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_
+.. code-block:: bash
+
+    $ pip install kedm
+
+Installing from source
+----------------------
+
+Requirements
+============
+
+When building kEDM from source, following tools and libraries are required:
+
+- `CMake <https://cmake.org/>`_ >= 3.16
 - LAPACK (on CPU) or cuBLAS (on GPU)
+- `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_ (optional)
 - MPI (optional)
 
 On Ubuntu, install the following packages via apt:
 
 - CMake: ``cmake``
-- HDF5: ``libhdf5-dev`` or ``libhdf5-openmpi-dev``
 - LAPACK: ``libopenblas-dev`` and ``liblapacke-dev``
+- HDF5: ``libhdf5-dev`` or ``libhdf5-openmpi-dev``
 - MPI: ``libopenmpi-dev``
 
-## Building Kokkos
 
-Clone Kokkos using git. kEDM is tested with Kokkos 3.3.00 but might work with
-other versions of Kokkos as well.
-
-.. code-block:: bash
-
-    $ git clone https://github.com/kokkos/kokkos.git
-    $ cd kokkos
-    $ git checkout 3.3.00
-
-Then configure Kokkos using CMake and build. Kokkos provides a large number of
-CMake options to control the backends and features to enable, which are
-detailed in its `documentation <https://github.com/kokkos/kokkos/blob/master/BUILD.md>`_.
-Below are minimal examples for configuring Kokkos.
-
-Building for CPU
-----------------
-
-Change `-DCMAKE_CXX_COMPILER=<path/to/compiler>` to specify the C++ compiler
-to use. `-DKokkos_ARCH_ZEN2=ON` should match with your CPU's micro
-architecture.
-
-.. code-block:: bash
-
-    $ mkdir build-openmp
-    $ cd build-openmp
-    $ cmake \
-      -DCMAKE_CXX_COMPILER=g++ \
-      -DCMAKE_INSTALL_PREFIX=$HOME/kokkos-openmp \
-      -DBUILD_SHARED_LIBS=ON \
-      -DKokkos_ENABLE_SERIAL=ON \
-      -DKokkos_ENABLE_OPENMP=ON \
-      -DKokkos_ENABLE_AGGRESSIVE_VECTORIZATION=ON \
-      -DKokkos_ARCH_=ON ..
-    $ make install
-
-Building for GPU
-----------------
-
-Change ``-DKokkos_ARCH_VOLTA70=ON`` to match with your GPU's compute capability.
-For example,
-
-- NVIDIA A100: ``-DKokkos_ARCH_AMPERE80``
-- NVIDIA V100: ``-DKokkos_ARCH_VOLTA70``
-- GeForce RTX 3090: ``-DKokkos_ARCH_AMPERE86``
-- GeForce RTX 2080: ``-DKokkos_ARCH_TURING75``
-
-.. code-block:: bash
-
-    $ mkdir build-cuda
-    $ cd build-cuda
-    $ cmake \
-      -DCMAKE_CXX_COMPILER=$(pwd)/../bin/nvcc_wrapper \
-      -DCMAKE_INSTALL_PREFIX=$HOME/kokkos-cuda \
-      -DBUILD_SHARED_LIBS=ON \
-      -DKokkos_ENABLE_SERIAL=ON \
-      -DKokkos_ENABLE_OPENMP=ON \
-      -DKokkos_ENABLE_CUDA=ON \
-      -DKokkos_ENABLE_CUDA_LAMBDA=ON \
-      -DKokkos_ARCH_VOLTA70=ON ..
-    $ make install
-
-Building kEDM
+Building
 =============
 
-Clone kEDM using git. Note that the ``--recursive`` flag is required because
-some third-party libraries are bundled as submodules.
+Clone kEDM from GitHub using git. Note that the ``--recursive`` flag is
+required because third-party libraries are bundled as submodules.
 
 .. code-block:: bash
 
     $ git clone --recursive https://github.com/keichi/kEDM.git
     $ cd kEDM
+    $ mkdir build
+    $ cd build
 
 Then configure and build using CMake.
 
-Building for CPU
-----------------
+============================= ============================================== ========
+CMake flags                    Effect                                         Default
+----------------------------- ---------------------------------------------- --------
+``-DKEDM_ENABLE_CPU``          Enable CPU backend                              ``ON``
+``-DKEDM_ENABLE_GPU``          Enable GPU backend                              ``OFF``
+``-DKEDM_ENABLE_EXECUTABLES``  Build executables (e.g. ``edm-xmap``)           ``OFF``
+``-DKEDM_ENABLE_PYTHON``       Build Python bindings                           ``OFF``
+``-DKEDM_ENABLE_MPI``          Build MPI executables (e.g. ``edm-xmap-mpi``)   ``OFF``
+``-DKEDM_ENABLE_TESTS``        Build unit tests                                ``ON``
+``-DKEDM_ENABLE_LIKWID``       Enable LIKWID performance counters              ``OFF``
+============================= ============================================== ========
 
-Change ``-DCMAKE_CXX_COMPILER=<path/to/compiler>`` to specify the C++ compiler
-to use.
+Tips
+====
 
-.. code-block:: bash
+- If ``-DKEDM_ENABLE_GPU=ON``, Kokkos tries to automatically detect the compute
+  capability of your GPU. If this fails, you can add ``-DKokkos_ARCH_<arch>`` to
+  manually set the target compute capability. For example, here are the flags
+  for latest GPUs:
 
-    $ mkdir build-openmp
-    $ cd build-openmp
-    $ cmake \
-      -DCMAKE_CXX_COMPILER=g++ \
-      -DKokkos_DIR=$HOME/kokkos-openmp/lib/cmake/Kokkos \
-      -DHIGHFIVE_USE_BOOST=OFF ..
-    $ make
+  - NVIDIA A100: ``-DKokkos_ARCH_AMPERE80``
+  - NVIDIA V100: ``-DKokkos_ARCH_VOLTA70``
+  - GeForce RTX 3090: ``-DKokkos_ARCH_AMPERE86``
+  - GeForce RTX 2080: ``-DKokkos_ARCH_TURING75``
 
-Building for GPU
-----------------
+- Similarly, see `here <https://github.com/kokkos/kokkos/blob/master/cmake/kokkos_arch.cmake>`_ for details.
 
-.. code-block:: bash
+  - Intel Sky Lake: ``-DKokkos_ARCH_SKX``
+  - AMD Zen2: ``-DKokkos_ARCH_ZEN2``
 
-    $ mkdir build-cuda
-    $ cd build-cuda
-    $ cmake
-        -DCMAKE_CXX_COMPILER=$HOME/kokkos-cuda/bin/nvcc_wrapper \
-        -DKokkos_DIR=$HOME/kokkos-cuda/lib/cmake/Kokkos \
-        -DHIGHFIVE_USE_BOOST=OFF ..
-    $ make
+- Kokkos provides a large number of CMake options to control the backends and
+  features to enable, which are detailed in its
+  `documentation <https://github.com/kokkos/kokkos/blob/master/BUILD.md>`_.
+  Below are minimal examples for configuring Kokkos.
+
 
 Testing kEDM
 ============
