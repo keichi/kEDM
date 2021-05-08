@@ -13,6 +13,9 @@ if(APPLE)
   add_compile_options(-flax-vector-conversions)
 endif()
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+
 # LTO is unsporrted by CUDA
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
