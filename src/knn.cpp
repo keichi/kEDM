@@ -47,8 +47,7 @@ void calc_distances(TimeSeries library, TimeSeries target,
 
             // Vectorized loop
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member,
-                                        distances.extent(1) / simd_t::size()),
+                Kokkos::TeamThreadRange(member, n_library / simd_t::size()),
                 [=](int j) {
                     simd_t dist = simd_t(0.0f);
 
@@ -66,10 +65,9 @@ void calc_distances(TimeSeries library, TimeSeries target,
 
             // Remainder loop
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member,
-                                        distances.extent(1) / simd_t::size() *
-                                            simd_t::size(),
-                                        distances.extent(1)),
+                Kokkos::TeamThreadRange(
+                    member, n_library / simd_t::size() * simd_t::size(),
+                    n_library),
                 [=](int j) {
                     float dist = 0.0f;
 
