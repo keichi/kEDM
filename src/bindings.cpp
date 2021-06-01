@@ -68,7 +68,7 @@ py::array_t<float> simplex(py::array_t<float> library_arr,
 
     Kokkos::deep_copy(mirror_prediction, prediction);
 
-    py::array_t<float> prediction_arr({n_prediction});
+    py::array_t<float> prediction_arr(n_prediction);
 
     for (auto i = 0; i < n_prediction; i++) {
         *prediction_arr.mutable_data(i) = mirror_prediction(i);
@@ -77,7 +77,7 @@ py::array_t<float> simplex(py::array_t<float> library_arr,
     return prediction_arr;
 }
 
-float simplex_eval(py::array_t<float> library_arr,
+float eval_simplex(py::array_t<float> library_arr,
                    py::array_t<float> target_arr, int E, int tau, int Tp)
 {
     if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
@@ -147,7 +147,7 @@ py::array_t<float> smap(py::array_t<float> library_arr,
 
     Kokkos::deep_copy(mirror_prediction, prediction);
 
-    py::array_t<float> prediction_arr({n_prediction});
+    py::array_t<float> prediction_arr(n_prediction);
 
     for (auto i = 0; i < n_prediction; i++) {
         *prediction_arr.mutable_data(i) = mirror_prediction(i);
@@ -156,7 +156,7 @@ py::array_t<float> smap(py::array_t<float> library_arr,
     return prediction_arr;
 }
 
-float smap_eval(py::array_t<float> library_arr, py::array_t<float> target_arr,
+float eval_smap(py::array_t<float> library_arr, py::array_t<float> target_arr,
                 int E, int tau, int Tp, float theta)
 {
     if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
@@ -267,9 +267,9 @@ PYBIND11_MODULE(_kedm, m)
 
            edim
            simplex
-           simplex_eval
+           eval_simplex
            smap
-           smap_eval
+           eval_smap
            xmap
            get_kokkos_config
     )pbdoc";
@@ -305,7 +305,7 @@ PYBIND11_MODULE(_kedm, m)
           py::arg("library"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1);
 
-    m.def("simplex_eval", &simplex_eval,
+    m.def("eval_simplex", &eval_simplex,
           R"doc(
           Predict a time series from another using Simplex projection and quantify its predictive skill.
 
@@ -339,7 +339,7 @@ PYBIND11_MODULE(_kedm, m)
           py::arg("library"), py::arg("target"), py::arg("E") = 2,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
-    m.def("smap_eval", &smap_eval,
+    m.def("eval_smap", &eval_smap,
           R"doc(
           Predict a time series from another using S-Map and quantify its predictive skill.
 
