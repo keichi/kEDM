@@ -2,6 +2,7 @@ import kedm
 import numpy as np
 import pytest
 
+
 @pytest.mark.parametrize("E", range(2, 6))
 def test_simplex(pytestconfig, E):
     tau, Tp = 1, 1
@@ -35,7 +36,11 @@ def test_simplex_rho(pytestconfig, E):
     rho = np.corrcoef(prediction[:-1], target[(E-1)*tau+Tp:])[0][1]
     rho_valid = valid[E-1]
 
-    assert rho == pytest.approx(rho_valid)
+    assert rho == pytest.approx(rho_valid, abs=1e-6)
+
+    rho = kedm.eval_simplex(library, target, E, tau, Tp)
+
+    assert rho == pytest.approx(rho_valid, abs=1e-6)
 
 
 def test_invalid_args():

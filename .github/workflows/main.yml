@@ -69,7 +69,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libhdf5-dev libopenblas-dev liblapacke-dev
+        sudo apt-get install -y libhdf5-dev libopenblas-dev liblapacke-dev libomp-11-dev
     - name: Build kEDM
       run: |
         mkdir build

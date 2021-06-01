@@ -21,6 +21,10 @@ def test_smap(pytestconfig, i):
 
     assert rho == pytest.approx(rho_valid[i], abs=1e-2)
 
+    rho = kedm.eval_smap(library, target, E, tau, Tp, theta)
+
+    assert rho == pytest.approx(rho_valid[i], abs=1e-2)
+
 
 def test_invalid_args():
     library = np.random.rand(10)
