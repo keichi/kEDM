@@ -12,13 +12,13 @@ void calc_distances(TimeSeries library, TimeSeries target,
                     TmpDistances distances, int n_library, int n_target, int E,
                     int tau);
 
-void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
-                  int top_k, int shift);
+void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
+                  int n_target, int top_k, int shift);
 
-void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
-         int E, int tau, int Tp, int top_k);
+void knn(TimeSeries library, TimeSeries target, SimplexLUT out,
+         TmpDistances tmp, int E, int tau, int Tp, int top_k);
 
-void normalize_lut(LUT lut);
+void normalize_lut(SimplexLUT lut);
 
 } // namespace edm
 

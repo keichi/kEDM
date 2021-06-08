@@ -30,7 +30,7 @@ int edim(TimeSeries ts, int E_max, int tau, int Tp)
     TmpDistances tmp("tmp_distances", ts.size(), ts.size());
 
     for (int E = 1; E <= E_max; E++) {
-        LUT lut(target.size() - (E - 1) * tau, E + 1);
+        SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);
 
         knn(library, target, lut, tmp, E, tau, Tp, E + 1);
         normalize_lut(lut);

@@ -30,11 +30,11 @@ using ScratchDistances =
 using ScratchIndices =
     Kokkos::View<int **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 
-struct LUT {
+struct SimplexLUT {
     Distances distances;
     Indices indices;
 
-    LUT(int n_rows, int n_columns)
+    SimplexLUT(int n_rows, int n_columns)
     {
         distances = Distances("distances", n_rows, n_columns);
         indices = Indices("indices", n_rows, n_columns);

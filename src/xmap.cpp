@@ -7,7 +7,7 @@
 namespace edm
 {
 
-void _xmap(CrossMap result, Dataset ds, LUT lut, Targets targets, int E,
+void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
            int tau, int Tp)
 {
     const auto distances = lut.distances;
@@ -78,7 +78,7 @@ void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
 }
 
 void xmap(CrossMap result, Dataset ds, TimeSeries library,
-          const std::vector<Targets> &groups, std::vector<LUT> &luts,
+          const std::vector<Targets> &groups, std::vector<SimplexLUT> &luts,
           TmpDistances tmp, int E_max, int tau, int Tp)
 {
     Kokkos::Profiling::pushRegion("EDM::xmap");

@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     Kokkos::fill_random(target, rand_pool, 1.0);
 
     edm::TmpDistances tmp("tmp_distances", L, L);
-    edm::LUT lut_out(L - (E - 1) * tau, E + 1);
+    edm::SimplexLUT lut_out(L - (E - 1) * tau, E + 1);
 
     Kokkos::Timer timer;
     Timer timer_distances;

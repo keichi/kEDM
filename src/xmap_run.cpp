@@ -50,10 +50,11 @@ void run_convergent_cross_mapping(edm::Dataset ds,
                                   const std::vector<int> &optimal_E,
                                   HighFive::File &output)
 {
-    std::vector<edm::LUT> luts;
+    std::vector<edm::SimplexLUT> luts;
 
     for (int E = 1; E <= config.E_max; E++) {
-        luts.push_back(edm::LUT(ds.extent(0) - (E - 1) * config.tau, E + 1));
+        luts.push_back(
+            edm::SimplexLUT(ds.extent(0) - (E - 1) * config.tau, E + 1));
     }
 
     edm::TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));

@@ -31,11 +31,11 @@ void xmap_test_common()
         CHECK(optimal_E[i] == edim_valid_mirror(i, 0));
     }
 
-    std::vector<LUT> luts;
+    std::vector<SimplexLUT> luts;
 
     // Allocate kNN tables
     for (int E = 1; E <= E_max; E++) {
-        luts.push_back(LUT(ds.extent(0) - (E - 1) * tau, E + 1));
+        luts.push_back(SimplexLUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
     TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));

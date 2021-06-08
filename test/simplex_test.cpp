@@ -72,7 +72,7 @@ void embed_dim_test_common()
         TimeSeries library(ts, std::make_pair(0, 100));
         TimeSeries target(ts, std::make_pair(200 - (E - 1) * tau, 500));
 
-        LUT lut(target.size() - (E - 1) * tau, E + 1);
+        SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);
         knn(library, target, lut, tmp, E, tau, Tp, E + 1);
         normalize_lut(lut);
 

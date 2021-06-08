@@ -17,7 +17,7 @@ void test_knn_common(int E)
     TimeSeries ts(ds, Kokkos::ALL, 0);
 
     TmpDistances tmp("tmp_distances", ts.size(), ts.size());
-    LUT lut(ts.size() - (E - 1) * tau, top_k);
+    SimplexLUT lut(ts.size() - (E - 1) * tau, top_k);
     knn(ts, ts, lut, tmp, E, tau, Tp, top_k);
 
     Dataset d_validation =

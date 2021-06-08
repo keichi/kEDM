@@ -215,11 +215,11 @@ py::array_t<float> xmap(py::array_t<float> ds_arr,
 
     Kokkos::deep_copy(ds, mirror_ds);
 
-    std::vector<edm::LUT> luts;
+    std::vector<edm::SimplexLUT> luts;
 
     int E_max = *std::max_element(edims.begin(), edims.end());
     for (int E = 1; E <= E_max; E++) {
-        luts.push_back(edm::LUT(ds.extent(0) - (E - 1) * tau, E + 1));
+        luts.push_back(edm::SimplexLUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
     edm::TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));

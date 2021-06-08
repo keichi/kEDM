@@ -89,8 +89,8 @@ void calc_distances(TimeSeries library, TimeSeries target,
         });
 }
 
-void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
-                  int top_k, int shift)
+void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
+                  int n_target, int top_k, int shift)
 {
 #ifdef KOKKOS_ENABLE_CUDA
     const int team_size = 32;
@@ -187,8 +187,8 @@ void partial_sort(TmpDistances distances, LUT out, int n_library, int n_target,
         });
 }
 
-void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
-         int E, int tau, int Tp, int top_k)
+void knn(TimeSeries library, TimeSeries target, SimplexLUT out,
+         TmpDistances tmp, int E, int tau, int Tp, int top_k)
 {
     Kokkos::Profiling::pushRegion("EDM::knn");
 
@@ -226,7 +226,7 @@ void knn(TimeSeries library, TimeSeries target, LUT out, TmpDistances tmp,
     Kokkos::Profiling::popRegion();
 }
 
-void normalize_lut(LUT lut)
+void normalize_lut(SimplexLUT lut)
 {
     Kokkos::Profiling::pushRegion("EDM::normalize_lut");
 

@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     edm::TimeSeries target(dataset, Kokkos::ALL, 0);
 
     edm::TmpDistances tmp("tmp_distances", L, L);
-    edm::LUT lut(L - (E - 1) * tau, E + 1);
+    edm::SimplexLUT lut(L - (E - 1) * tau, E + 1);
 
     edm::CrossMap ccm("ccm", N);
     edm::Targets targets("targets", N);

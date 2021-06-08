@@ -30,7 +30,7 @@ void cross_mapping_test_common(int E)
         ds1, std::make_pair<size_t, size_t>(0, ds1.extent(0) - (E - 1)), 4);
     const auto valid_prediction = TimeSeries(ds2, Kokkos::ALL, 0);
 
-    LUT lut(target.size() - (E - 1) * tau, E + 1);
+    SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);
     knn(library, library, lut, tmp, E, tau, Tp, E + 1);
     normalize_lut(lut);
 
