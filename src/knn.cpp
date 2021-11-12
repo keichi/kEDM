@@ -93,7 +93,8 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
                   int n_target, int top_k, int shift)
 {
 #ifdef KOKKOS_ENABLE_CUDA
-    const int team_size = 32;
+    // Make sure a thread sees at least top_k elements
+    const int team_size = std::min(32, std::max(n_library / top_k, 1));
 #else
     const int team_size = 1;
     using std::min;
@@ -204,7 +205,7 @@ void knn(TimeSeries library, TimeSeries target, SimplexLUT out,
         throw std::invalid_argument("Tp must be greater or equal to zero");
     } else if (top_k <= 0) {
         throw std::invalid_argument("top_k must be greater than zero");
-    } else if (n_library <= 0) {
+    } else if (n_library <= 0 || n_library < top_k) {
         throw std::invalid_argument("library size is too small");
     } else if (n_target <= 0) {
         throw std::invalid_argument("target size is too small");
