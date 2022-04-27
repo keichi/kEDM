@@ -3,13 +3,13 @@
 	url = https://github.com/onqtam/doctest.git
 [submodule "src/thirdparty/highfive"]
 	path = src/thirdparty/highfive
-	url = https://github.com/keichi/HighFive.git
+	url = https://github.com/BlueBrain/HighFive.git
 [submodule "src/thirdparty/argh"]
 	path = src/thirdparty/argh
 	url = https://github.com/adishavit/argh.git
 [submodule "src/thirdparty/simd"]
 	path = src/thirdparty/simd
-	url = https://github.com/kokkos/simd-math
+	url = https://github.com/keichi/simd-math
 [submodule "src/thirdparty/pybind11"]
 	path = src/thirdparty/pybind11
 	url = https://github.com/pybind/pybind11.git

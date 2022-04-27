@@ -28,16 +28,16 @@ jobs:
   build-linux-gpu:
     strategy:
       matrix:
-        cxx: [clang++, g++]
+        cxx: [g++-9]
       fail-fast: false
     runs-on: ubuntu-latest
     container:
-      image: nvidia/cuda:11.3.0-devel
+      image: nvidia/cuda:11.6.2-devel-ubuntu20.04
     steps:
     - name: Install dependencies
       run: |
         apt-get update
-        apt-get install -y clang cmake git libhdf5-dev
+        apt-get install -y cmake git libhdf5-dev
       env:
         DEBIAN_FRONTEND: noninteractive
     - uses: actions/checkout@v2
@@ -128,11 +128,9 @@ jobs:
         with:
           submodules: true
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.0.1
+        uses: joerick/cibuildwheel@v2.4.0
         env:
-          CIBW_ARCHS: auto64
-          CIBW_SKIP: pp*
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx_x86_64
           CIBW_BEFORE_ALL_LINUX: yum install -y openblas-devel
           CIBW_ENVIRONMENT_MACOS: "CXX=g++-10"
           CIBW_TEST_REQUIRES: pytest
