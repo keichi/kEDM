@@ -28,7 +28,7 @@ jobs:
   build-linux-gpu:
     strategy:
       matrix:
-        cxx: [clang++-12, g++-9]
+        cxx: [g++-9]
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -37,7 +37,7 @@ jobs:
     - name: Install dependencies
       run: |
         apt-get update
-        apt-get install -y clang-12 cmake git libhdf5-dev
+        apt-get install -y cmake git libhdf5-dev
       env:
         DEBIAN_FRONTEND: noninteractive
     - uses: actions/checkout@v2
