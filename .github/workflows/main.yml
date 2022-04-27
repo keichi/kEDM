@@ -28,16 +28,16 @@ jobs:
   build-linux-gpu:
     strategy:
       matrix:
-        cxx: [clang++, g++]
+        cxx: [clang++-12, g++-9]
       fail-fast: false
     runs-on: ubuntu-latest
     container:
-      image: nvidia/cuda:11.3.0-devel
+      image: nvidia/cuda:11.6.2-devel-ubuntu20.04
     steps:
     - name: Install dependencies
       run: |
         apt-get update
-        apt-get install -y clang cmake git libhdf5-dev
+        apt-get install -y clang-12 cmake git libhdf5-dev
       env:
         DEBIAN_FRONTEND: noninteractive
     - uses: actions/checkout@v2
