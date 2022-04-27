@@ -30,7 +30,7 @@ When building kEDM from source, following tools and libraries are required:
 On Ubuntu, install the following packages via apt:
 
 - CMake: ``cmake``
-- LAPACK: ``libopenblas-dev`` and ``liblapacke-dev``
+- LAPACK: ``libopenblas-openmp-dev`` and ``liblapacke-dev``
 - HDF5: ``libhdf5-dev`` or ``libhdf5-openmpi-dev``
 - MPI: ``libopenmpi-dev``
 
