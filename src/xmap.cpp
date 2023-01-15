@@ -57,7 +57,7 @@ void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
         Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            const int j = targets(member.league_rank());
+            int j = targets(member.league_rank());
 
             ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
 

@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
             LIKWID_MARKER_START("lookup");
         }
 
-        // edm::_xmap(ccm, input, lut, targets, E, tau, Tp);
         edm::lookup(output, input, lut, targets, E);
 
         Kokkos::fence();

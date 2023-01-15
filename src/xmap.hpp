@@ -11,7 +11,7 @@ namespace edm
 void lookup(MutableDataset result, Dataset ds, SimplexLUT lut, Targets targets,
             int E);
 
-void _xmap(CrossMap result, Dataset ds, LUT lut, Targets targets, int E,
+void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
            int tau, int Tp);
 
 void group_ts(std::vector<Targets> &groups, const std::vector<int> &edims,
