@@ -8,6 +8,9 @@
 namespace edm
 {
 
+void lookup(MutableDataset result, Dataset ds, SimplexLUT lut, Targets targets,
+            int E);
+
 void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
            int tau, int Tp);
 

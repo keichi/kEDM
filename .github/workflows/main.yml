@@ -17,7 +17,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Run clang-format
@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     container:
-      image: nvidia/cuda:11.6.2-devel-ubuntu20.04
+      image: nvidia/cuda:11.8.0-devel-ubuntu20.04
     steps:
     - name: Install dependencies
       run: |
@@ -40,7 +40,7 @@ jobs:
         apt-get install -y cmake git libhdf5-dev
       env:
         DEBIAN_FRONTEND: noninteractive
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Build kEDM
@@ -51,7 +51,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=Debug \
           -DKEDM_ENABLE_GPU=ON \
           -DKEDM_ENABLE_TESTS=OFF \
-          -DKokkos_ARCH_VOLTA70=ON ..
+          -DKokkos_ARCH_AMPERE80=ON ..
         make -j $(nproc)
       env:
         NVCC_WRAPPER_DEFAULT_COMPILER: ${{ matrix.cxx }}
@@ -59,17 +59,17 @@ jobs:
   build-linux-cpu:
     strategy:
       matrix:
-        cxx: [clang++-11, g++-10]
+        cxx: [clang++-14, g++-12]
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libhdf5-dev libopenblas-openmp-dev liblapacke-dev libomp-11-dev
+        sudo apt-get install -y libhdf5-dev libopenblas-openmp-dev liblapacke-dev libomp-14-dev
     - name: Build kEDM
       run: |
         mkdir build
@@ -87,17 +87,17 @@ jobs:
   build-macos-cpu:
     strategy:
       matrix:
-        cxx: [clang++, g++-10]
+        cxx: [clang++, g++-11]
       fail-fast: false
-    runs-on: macOS-latest
+    runs-on: macOS-11
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Install libomp
+    - name: Add clang install dir to PATH
       if: matrix.cxx == 'clang++'
       run: |
-        brew install libomp
+        echo "$(brew --prefix llvm@14)/bin" >> $GITHUB_PATH
     - name: Install HDF5
       run: brew install hdf5
     - name: Build kEDM
@@ -107,9 +107,6 @@ jobs:
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-          -DCMAKE_CXX_FLAGS="-I/usr/local/include" \
-          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" \
-          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib" \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -121,10 +118,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-22.04, macOS-11]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - name: Build wheels
@@ -132,10 +129,10 @@ jobs:
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx_x86_64
           CIBW_BEFORE_ALL_LINUX: "yum install -y openblas-devel && ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so"
-          CIBW_ENVIRONMENT_MACOS: "CXX=g++-10"
+          CIBW_ENVIRONMENT_MACOS: "CXX=g++-11"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
 
@@ -144,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: artifact
           path: dist
