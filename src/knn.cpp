@@ -82,14 +82,14 @@ void calc_distances(TimeSeries library, TimeSeries target,
 
             // Remainder loop
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(
-                    member, 
+                Kokkos::TeamThreadRange(member,
 #ifdef USE_SIMD_PRIMITIVES
-                    n_library / simd_t::size() * simd_t::size(),
+                                        n_library / simd_t::size() *
+                                            simd_t::size(),
 #else
-                    0,
+                                        0,
 #endif
-                    n_library),
+                                        n_library),
                 [=](int j) {
                     float dist = 0.0f;
 
