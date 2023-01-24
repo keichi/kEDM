@@ -110,6 +110,11 @@ if(KEDM_ENABLE_LIKWID)
   target_compile_definitions(lookup-bench PRIVATE -DLIKWID_PERFMON)
 endif()
 
+option(KEDM_ENABLE_SCRATCH_MEMORY "Enable scratch memory" ON)
+if(KEDM_ENABLE_SCRATCH_MEMORY)
+  target_compile_definitions(kedm PRIVATE -DUSE_SCRATCH_MEMORY)
+endif()
+
 # Python bindings
 option(KEDM_ENABLE_PYTHON "Build Python bindings")
 if(KEDM_ENABLE_PYTHON)
@@ -156,3 +161,4 @@ message(STATUS "  Python bindings:  ${KEDM_ENABLE_PYTHON}")
 message(STATUS "  MPI:              ${KEDM_ENABLE_MPI}")
 message(STATUS "  Unit tests:       ${KEDM_ENABLE_TESTS}")
 message(STATUS "  LIKWID:           ${KEDM_ENABLE_LIKWID}")
+message(STATUS "  Scratch memory:   ${KEDM_ENABLE_SCRATCH_MEMORY}")

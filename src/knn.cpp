@@ -27,21 +27,29 @@ void calc_distances(TimeSeries library, TimeSeries target,
 {
     using simd_t = simd::simd<float, simd::simd_abi::native>;
 
+#ifdef USE_SCRATCH_MEMORY
     const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
+#endif
 
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
+#ifdef USE_SCRATCH_MEMORY
         Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+#else
+        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+#endif
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int i = member.league_rank();
 
+#ifdef USE_SCRATCH_MEMORY
             // Load subset of target time series to team scratch
             ScratchTimeSeries scratch_target(member.team_scratch(0), E);
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, E),
                 [=](int e) { scratch_target(e) = target(i + e * tau); });
+#endif
 
             member.team_barrier();
 
@@ -52,10 +60,17 @@ void calc_distances(TimeSeries library, TimeSeries target,
                     simd_t dist = simd_t(0.0f);
 
                     for (int e = 0; e < E; e++) {
+#ifdef USE_SCRATCH_MEMORY
                         simd_t diff =
                             simd_t(scratch_target(e)) -
                             simd_t(&library(j * simd_t::size() + e * tau),
                                    simd::element_aligned_tag());
+#else
+                        simd_t diff =
+                            simd_t(target(i + e * tau)) -
+                            simd_t(&library(j * simd_t::size() + e * tau),
+                                   simd::element_aligned_tag());
+#endif
                         dist += diff * diff;
                     }
 
@@ -72,7 +87,11 @@ void calc_distances(TimeSeries library, TimeSeries target,
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
+#ifdef USE_SCRATCH_MEMORY
                         float diff = scratch_target(e) - library(j + e * tau);
+#else
+                        float diff = target(i + e * tau) - library(j + e * tau);
+#endif
                         dist += diff * diff;
                     }
 

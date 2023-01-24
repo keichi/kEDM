@@ -13,19 +13,27 @@ void lookup(MutableDataset result, Dataset ds, SimplexLUT lut, Targets targets,
     const auto distances = lut.distances;
     const auto indices = lut.indices;
 
+#ifdef USE_SCRATCH_MEMORY
     size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
+#endif
 
     Kokkos::parallel_for(
         "EDM::xmap::lookup",
+#ifdef USE_SCRATCH_MEMORY
         Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+#else
+        Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO),
+#endif
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int j = targets(member.league_rank());
 
+#ifdef USE_SCRATCH_MEMORY
             ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, ds.extent(0)),
                                  [=](int i) { scratch(i) = ds(i, j); });
+#endif
 
             member.team_barrier();
 
@@ -36,7 +44,11 @@ void lookup(MutableDataset result, Dataset ds, SimplexLUT lut, Targets targets,
 
 #pragma unroll
                     for (int e = 0; e < E + 1; e++) {
+#ifdef USE_SCRATCH_MEMORY
                         pred += scratch(indices(i, e)) * distances(i, e);
+#else
+                        pred += ds(indices(i, e), j) * distances(i, e);
+#endif
                     }
 
                     result(i, j) = pred;
@@ -50,19 +62,27 @@ void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
     const auto distances = lut.distances;
     const auto indices = lut.indices;
 
+#ifdef USE_SCRATCH_MEMORY
     size_t scratch_size = ScratchTimeSeries::shmem_size(ds.extent(0));
+#endif
 
     Kokkos::parallel_for(
         "EDM::xmap::lookup",
+#ifdef USE_SCRATCH_MEMORY
         Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+#else
+        Kokkos::TeamPolicy<>(targets.size(), Kokkos::AUTO),
+#endif
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int j = targets(member.league_rank());
 
+#ifdef USE_SCRATCH_MEMORY
             ScratchTimeSeries scratch(member.team_scratch(0), ds.extent(0));
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, ds.extent(0)),
                                  [=](int i) { scratch(i) = ds(i, j); });
+#endif
 
             member.team_barrier();
 
@@ -74,10 +94,18 @@ void _xmap(CrossMap result, Dataset ds, SimplexLUT lut, Targets targets, int E,
                     float pred = 0.0f;
 
                     for (int e = 0; e < E + 1; e++) {
+#ifdef USE_SCRATCH_MEMORY
                         pred += scratch(indices(i, e)) * distances(i, e);
+#else
+                        pred += ds(indices(i, e), j) * distances(i, e);
+#endif
                     }
 
+#ifdef USE_SCRATCH_MEMORY
                     float actual = scratch((E - 1) * tau + Tp + i);
+#else
+                    float actual = ds((E - 1) * tau + Tp + i, j);
+#endif
 
                     upd += CorrcoefState(pred, actual);
                 },
