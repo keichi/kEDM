@@ -110,9 +110,14 @@ if(KEDM_ENABLE_LIKWID)
   target_compile_definitions(lookup-bench PRIVATE -DLIKWID_PERFMON)
 endif()
 
-option(KEDM_ENABLE_SCRATCH_MEMORY "Enable scratch memory" ON)
+option(KEDM_ENABLE_SCRATCH_MEMORY "Use Kokkos scratch memory" ON)
 if(KEDM_ENABLE_SCRATCH_MEMORY)
   target_compile_definitions(kedm PRIVATE -DUSE_SCRATCH_MEMORY)
+endif()
+
+option(KEDM_ENABLE_SIMD_PRIMITIVES "Use Kokkos SIMD primitives" ON)
+if(KEDM_ENABLE_SIMD_PRIMITIVES)
+  target_compile_definitions(kedm PRIVATE -DUSE_SIMD_PRIMITIVES)
 endif()
 
 # Python bindings
@@ -162,3 +167,4 @@ message(STATUS "  MPI:              ${KEDM_ENABLE_MPI}")
 message(STATUS "  Unit tests:       ${KEDM_ENABLE_TESTS}")
 message(STATUS "  LIKWID:           ${KEDM_ENABLE_LIKWID}")
 message(STATUS "  Scratch memory:   ${KEDM_ENABLE_SCRATCH_MEMORY}")
+message(STATUS "  SIMD primitives:  ${KEDM_ENABLE_SIMD_PRIMITIVES}")
