@@ -94,19 +94,34 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Add clang install dir to PATH
-      if: matrix.cxx == 'clang++'
-      run: |
-        echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
     - name: Install HDF5
       run: brew install hdf5
+    - name: Install libomp
+      if: matrix.cxx == 'clang++'
+      run: |
+        scripts/install_libomp.sh
     - name: Build kEDM
+      if: matrix.cxx == 'g++-11'
       run: |
         mkdir build
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
           -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DKEDM_ENABLE_CPU=ON \
+          ..
+        make -j $(sysctl -n hw.physicalcpu_max)
+    - name: Build kEDM
+      if: matrix.cxx == 'clang++'
+      run: |
+        mkdir build
+        cd build
+        cmake \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_CXX_FLAGS="-I/usr/local/include -Xpreprocessor -fopenmp" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -lomp" \
+          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -lomp" \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -127,11 +142,18 @@ jobs:
       - name: Build wheels
         uses: joerick/cibuildwheel@v2.12.0
         env:
-          CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx_x86_64
-          CIBW_BEFORE_ALL_LINUX: "yum install -y openblas-devel && ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so"
-          CIBW_ENVIRONMENT_MACOS: "CXX=g++-11"
+          CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_BEFORE_ALL_LINUX: >
+            yum install -y openblas-devel &&
+            ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
+          CIBW_BEFORE_ALL_MACOS: "scripts/install_libomp.sh"
+          CIBW_ENVIRONMENT_MACOS: >
+            CXXFLAGS="-I/usr/local/include -Xpreprocessor -fopenmp"
+            LDFLAGS="-L/usr/local/lib -rpath /usr/local/lib -lomp"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
+          CIBW_TEST_SKIP: "*_arm64"
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
