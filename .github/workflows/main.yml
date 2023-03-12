@@ -100,7 +100,7 @@ jobs:
       if: matrix.cxx == 'clang++'
       run: |
         scripts/install_libomp.sh
-    - name: Build kEDM
+    - name: Build kEDM (gcc)
       if: matrix.cxx == 'g++-11'
       run: |
         mkdir build
@@ -111,7 +111,7 @@ jobs:
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
-    - name: Build kEDM
+    - name: Build kEDM (clang)
       if: matrix.cxx == 'clang++'
       run: |
         mkdir build

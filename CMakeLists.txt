@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(kokkos-edm)
+project(kokkos-edm CXX)
 
 if(SKBUILD)
   message(STATUS "The project is built using scikit-build")
