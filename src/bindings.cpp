@@ -99,7 +99,7 @@ py::array_t<float> simplex(py::array_t<float> library_arr,
             }
         }
 
-        for (auto i = 0; i < n_library; i++) {
+        for (auto i = 0; i < n_target; i++) {
             for (auto j = 0; j < n_vars; j++) {
                 mirror_target(i, j) = *target_arr.data(i, j);
             }
