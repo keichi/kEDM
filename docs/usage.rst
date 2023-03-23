@@ -1,4 +1,4 @@
-kEDM Applications
+kEDM Utilities
 #################
 
 Convergent Cross Mapping (CCM)

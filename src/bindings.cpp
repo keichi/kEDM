@@ -351,6 +351,9 @@ PYBIND11_MODULE(_kedm, m)
             Tp: Prediction interval
           Returns:
             Predicted time series
+          Note:
+            If both library and target are 2D arrays, multivariate prediction
+            is performed.
           )doc",
           py::arg("library"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1);

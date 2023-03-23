@@ -360,6 +360,15 @@ void knn(Dataset library, Dataset target, SimplexLUT out, TmpDistances tmp,
     // Sort the distance matrix
     partial_sort(tmp, out, n_library, n_target, top_k, shift);
 
+#ifdef DEBUG
+    for (int i = 0; i < out.indices.extent(0); i++) {
+        for (int j = 0; j < out.indices.extent(1); j++) {
+            std::cout << out.indices(i, j) << " ";
+        }
+        std::cout << std::endl;
+    }
+#endif
+
     Kokkos::Profiling::popRegion();
 }
 
