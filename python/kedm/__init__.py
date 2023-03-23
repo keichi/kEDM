@@ -9,9 +9,9 @@ Python bindings for kEDM
 
    edim
    simplex
-   simplex_eval
+   eval_simplex
    smap
-   smap_eval
+   eval_smap
    xmap
    get_kokkos_config
 """

@@ -20,7 +20,7 @@ import sphinx_rtd_theme
 # -- Project information -----------------------------------------------------
 
 project = 'kEDM'
-copyright = '2021, Keichi Takahashi'
+copyright = '2021-2023, Keichi Takahashi'
 author = 'Keichi Takahashi'
 
 
