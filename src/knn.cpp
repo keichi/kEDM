@@ -115,6 +115,74 @@ void calc_distances(TimeSeries library, TimeSeries target,
         });
 }
 
+void calc_distances(Dataset library, Dataset target, TmpDistances distances,
+                    int n_library, int n_target, int E, int tau)
+{
+    using simd_t = simd::simd<float, simd::simd_abi::native>;
+
+    Kokkos::parallel_for(
+        "EDM::knn::calc_distances",
+        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            const int i = member.league_rank();
+
+#ifdef USE_SIMD_PRIMITIVES
+            // Vectorized loop
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_library / simd_t::size()),
+                [=](int j) {
+                    simd_t dist = simd_t(0.0f);
+
+                    for (int e = 0; e < E; e++) {
+                        for (size_t k = 0; k < library.extent(1); k++) {
+                            simd_t diff =
+                                simd_t(target(i + e * tau, k)) -
+                                simd_t(
+                                    &library(j * simd_t::size() + e * tau, k),
+                                    simd::element_aligned_tag());
+                            dist += diff * diff;
+                        }
+                    }
+
+                    dist.copy_to(&distances(i, j * simd_t::size()),
+                                 simd::element_aligned_tag());
+                });
+#endif
+
+            // Remainder loop
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member,
+#ifdef USE_SIMD_PRIMITIVES
+                                        n_library / simd_t::size() *
+                                            simd_t::size(),
+#else
+                                        0,
+#endif
+                                        n_library),
+                [=](int j) {
+                    float dist = 0.0f;
+
+                    for (int e = 0; e < E; e++) {
+                        for (size_t k = 0; k < library.extent(1); k++) {
+                            float diff = target(i + e * tau, k) -
+                                         library(j + e * tau, k);
+                            dist += diff * diff;
+                        }
+                    }
+
+                    distances(i, j) = dist;
+                });
+
+            // Ignore degenerate neighbors
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                    if (target.data() + i == library.data() + j) {
+                        distances(i, j) = FLT_MAX;
+                    }
+                });
+        });
+}
+
 void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
                   int n_target, int top_k, int shift)
 {
@@ -220,8 +288,8 @@ void knn(TimeSeries library, TimeSeries target, SimplexLUT out,
     Kokkos::Profiling::pushRegion("EDM::knn");
 
     const int shift = (E - 1) * tau + Tp;
-    const int n_library = library.size() - shift;
-    const int n_target = target.size() - shift + Tp;
+    const int n_library = library.extent(0) - shift;
+    const int n_target = target.extent(0) - shift + Tp;
 
     if (E <= 0) {
         throw std::invalid_argument("E must be greater than zero");
@@ -249,6 +317,57 @@ void knn(TimeSeries library, TimeSeries target, SimplexLUT out,
 
     // Sort the distance matrix
     partial_sort(tmp, out, n_library, n_target, top_k, shift);
+
+    Kokkos::Profiling::popRegion();
+}
+
+void knn(Dataset library, Dataset target, SimplexLUT out, TmpDistances tmp,
+         int E, int tau, int Tp, int top_k)
+{
+    Kokkos::Profiling::pushRegion("EDM::knn");
+
+    const int shift = (E - 1) * tau + Tp;
+    const int n_library = library.extent(0) - shift;
+    const int n_target = target.extent(0) - shift + Tp;
+
+    if (E <= 0) {
+        throw std::invalid_argument("E must be greater than zero");
+    } else if (tau <= 0) {
+        throw std::invalid_argument("tau must be greater than zero");
+    } else if (Tp < 0) {
+        throw std::invalid_argument("Tp must be greater or equal to zero");
+    } else if (top_k <= 0) {
+        throw std::invalid_argument("top_k must be greater than zero");
+    } else if (n_library <= 0 || n_library < top_k) {
+        throw std::invalid_argument("library size is too small");
+    } else if (n_target <= 0) {
+        throw std::invalid_argument("target size is too small");
+    } else if (tmp.extent(0) < static_cast<size_t>(n_target) ||
+               tmp.extent(1) < static_cast<size_t>(n_library)) {
+        throw std::invalid_argument(
+            "TmpDistances must be larger or equal to (n_target, n_library)");
+    } else if (out.distances.extent(0) != static_cast<size_t>(n_target) ||
+               out.distances.extent(1) != static_cast<size_t>(top_k)) {
+        throw std::invalid_argument("LUT must have shape (n_target, top_k)");
+    } else if (library.extent(1) != target.extent(1)) {
+        throw std::invalid_argument(
+            "library and target must have same number of time series");
+    }
+
+    // Calculate all-to-all distances
+    calc_distances(library, target, tmp, n_library, n_target, E, tau);
+
+    // Sort the distance matrix
+    partial_sort(tmp, out, n_library, n_target, top_k, shift);
+
+#ifdef DEBUG
+    for (int i = 0; i < out.indices.extent(0); i++) {
+        for (int j = 0; j < out.indices.extent(1); j++) {
+            std::cout << out.indices(i, j) << " ";
+        }
+        std::cout << std::endl;
+    }
+#endif
 
     Kokkos::Profiling::popRegion();
 }

@@ -1,5 +1,3 @@
-#include <sstream>
-
 #include <Kokkos_Core.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -37,44 +35,96 @@ py::array_t<float> simplex(py::array_t<float> library_arr,
                            py::array_t<float> target_arr, int E, int tau,
                            int Tp)
 {
-    if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
-        throw std::invalid_argument("Expected a 1D array");
+    if (library_arr.ndim() != target_arr.ndim()) {
+        throw std::invalid_argument(
+            "library and target must have same dimensionality");
     }
 
     const auto n_library = library_arr.shape(0);
     const auto n_target = target_arr.shape(0);
     const auto n_prediction = n_target - (E - 1) * tau;
 
-    auto library = edm::MutableTimeSeries("library", n_library);
-    auto target = edm::MutableTimeSeries("target", n_target);
-    auto prediction = edm::MutableTimeSeries("prediction", n_prediction);
+    if (library_arr.ndim() == 1) {
+        // Univariate prediction
 
-    auto mirror_library = Kokkos::create_mirror_view(library);
-    auto mirror_target = Kokkos::create_mirror_view(target);
-    auto mirror_prediction = Kokkos::create_mirror_view(prediction);
+        auto library = edm::MutableTimeSeries("library", n_library);
+        auto target = edm::MutableTimeSeries("target", n_target);
+        auto prediction = edm::MutableTimeSeries("prediction", n_prediction);
 
-    for (auto i = 0; i < n_library; i++) {
-        mirror_library(i) = *library_arr.data(i);
+        auto mirror_library = Kokkos::create_mirror_view(library);
+        auto mirror_target = Kokkos::create_mirror_view(target);
+        auto mirror_prediction = Kokkos::create_mirror_view(prediction);
+
+        // TODO Parallelize copy
+        for (auto i = 0; i < n_library; i++) {
+            mirror_library(i) = *library_arr.data(i);
+        }
+
+        for (auto i = 0; i < n_target; i++) {
+            mirror_target(i) = *target_arr.data(i);
+        }
+
+        Kokkos::deep_copy(library, mirror_library);
+        Kokkos::deep_copy(target, mirror_target);
+
+        edm::simplex(prediction, library, target, E, tau, Tp);
+
+        Kokkos::deep_copy(mirror_prediction, prediction);
+
+        py::array_t<float> prediction_arr(n_prediction);
+
+        for (auto i = 0; i < n_prediction; i++) {
+            *prediction_arr.mutable_data(i) = mirror_prediction(i);
+        }
+
+        return prediction_arr;
+    } else if (library_arr.ndim() == 2) {
+        // Multivariate prediction
+
+        const auto n_vars = library_arr.shape(1);
+
+        auto library = edm::MutableDataset("library", n_library, n_vars);
+        auto target = edm::MutableDataset("target", n_target, n_vars);
+        auto prediction =
+            edm::MutableDataset("prediction", n_prediction, n_vars);
+
+        auto mirror_library = Kokkos::create_mirror_view(library);
+        auto mirror_target = Kokkos::create_mirror_view(target);
+        auto mirror_prediction = Kokkos::create_mirror_view(prediction);
+
+        // TODO Parallelize copy
+        for (auto i = 0; i < n_library; i++) {
+            for (auto j = 0; j < n_vars; j++) {
+                mirror_library(i, j) = *library_arr.data(i, j);
+            }
+        }
+
+        for (auto i = 0; i < n_target; i++) {
+            for (auto j = 0; j < n_vars; j++) {
+                mirror_target(i, j) = *target_arr.data(i, j);
+            }
+        }
+
+        Kokkos::deep_copy(library, mirror_library);
+        Kokkos::deep_copy(target, mirror_target);
+
+        edm::simplex(prediction, library, target, E, tau, Tp);
+
+        Kokkos::deep_copy(mirror_prediction, prediction);
+
+        py::array_t<float> prediction_arr({n_prediction, n_vars});
+
+        for (auto i = 0; i < n_prediction; i++) {
+            for (auto j = 0; j < n_vars; j++) {
+                *prediction_arr.mutable_data(i, j) = mirror_prediction(i, j);
+            }
+        }
+
+        return prediction_arr;
+    } else {
+        throw std::invalid_argument(
+            "library and target must be 1D or 2D arrays");
     }
-
-    for (auto i = 0; i < n_target; i++) {
-        mirror_target(i) = *target_arr.data(i);
-    }
-
-    Kokkos::deep_copy(library, mirror_library);
-    Kokkos::deep_copy(target, mirror_target);
-
-    edm::simplex(prediction, library, target, E, tau, Tp);
-
-    Kokkos::deep_copy(mirror_prediction, prediction);
-
-    py::array_t<float> prediction_arr(n_prediction);
-
-    for (auto i = 0; i < n_prediction; i++) {
-        *prediction_arr.mutable_data(i) = mirror_prediction(i);
-    }
-
-    return prediction_arr;
 }
 
 float eval_simplex(py::array_t<float> library_arr,
@@ -301,6 +351,9 @@ PYBIND11_MODULE(_kedm, m)
             Tp: Prediction interval
           Returns:
             Predicted time series
+          Note:
+            If both library and target are 2D arrays, multivariate prediction
+            is performed.
           )doc",
           py::arg("library"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1);

@@ -47,6 +47,59 @@ TEST_CASE("Compute simplex projection for E=4") { simplex_test_common(4); }
 
 TEST_CASE("Compute simplex projection for E=5") { simplex_test_common(5); }
 
+// Test data is generated using pyEDM 1.14.0.0 as follows:
+//
+// df = pd.read_csv("test/block_3sp.csv")
+// S = EDM.Simplex(dataFrame = df,
+//                 lib = "1 99", pred = "100 198", E = 3, Tp = 1,
+//                 tau = -1, columns = "x_t y_t z_t", target = "x_t")
+// S["Predictions"].dropna().to_csv("block_3sp_validation.csv", index=False)
+TEST_CASE("Compute multivariate simplex projection for E=3")
+{
+    const int E = 3;
+    const int tau = 1;
+    const int Tp = 1;
+
+    const Dataset ds1 = load_csv("block_3sp.csv");
+    const Dataset ds2 = load_csv("block_3sp_validation.csv");
+
+    const MutableDataset library("library", 99, 3);
+    const MutableDataset target("target", 101, 3);
+
+    Kokkos::deep_copy(
+        Kokkos::subview(library, Kokkos::ALL, 0),
+        Kokkos::subview(ds1, std::make_pair<size_t, size_t>(0, 99), 1));
+    Kokkos::deep_copy(
+        Kokkos::subview(library, Kokkos::ALL, 1),
+        Kokkos::subview(ds1, std::make_pair<size_t, size_t>(0, 99), 4));
+    Kokkos::deep_copy(
+        Kokkos::subview(library, Kokkos::ALL, 2),
+        Kokkos::subview(ds1, std::make_pair<size_t, size_t>(0, 99), 7));
+
+    Kokkos::deep_copy(
+        Kokkos::subview(target, Kokkos::ALL, 0),
+        Kokkos::subview(ds1, std::make_pair<size_t, size_t>(97, 198), 1));
+    Kokkos::deep_copy(
+        Kokkos::subview(target, Kokkos::ALL, 1),
+        Kokkos::subview(ds1, std::make_pair<size_t, size_t>(97, 198), 4));
+    Kokkos::deep_copy(
+        Kokkos::subview(target, Kokkos::ALL, 2),
+        Kokkos::subview(ds1, std::make_pair<size_t, size_t>(97, 198), 7));
+
+    const MutableDataset prediction("prediction", 99, 3);
+
+    simplex(prediction, library, target, E, tau, Tp);
+
+    const auto pred = Kokkos::create_mirror_view_and_copy(
+        HostSpace(), Kokkos::subview(prediction, Kokkos::ALL, 0));
+    const auto valid = Kokkos::create_mirror_view_and_copy(
+        HostSpace(), Kokkos::subview(ds2, Kokkos::ALL, 0));
+
+    for (size_t i = 0; i < pred.size(); i++) {
+        CHECK(pred(i) == doctest::Approx(valid(i)));
+    }
+}
+
 // Test data is generated using pyEDM with the following parameters:
 // pyEDM.EmbedDimension(dataFrame=pyEDM.sampleData["TentMap"], lib="1 100",
 //                      pred="201 500", columns="TentMap", target="TentMap",
