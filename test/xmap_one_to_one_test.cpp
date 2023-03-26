@@ -35,7 +35,7 @@ void cross_mapping_test_common(int E)
     normalize_lut(lut);
 
     MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);
-    simplex(prediction, target, lut);
+    lookup(prediction, target, lut);
 
     const auto pred =
         Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);

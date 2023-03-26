@@ -135,7 +135,7 @@ void embed_dim_test_common()
             target,
             std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
-        simplex(prediction, library, lut);
+        lookup(prediction, library, lut);
 
         rho[E - 1] = corrcoef(prediction, shifted_target);
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);

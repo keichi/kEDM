@@ -14,10 +14,10 @@ void simplex(MutableTimeSeries prediction, TimeSeries library,
 
     knn(library, target, lut, tmp, E, tau, Tp, E + 1);
     normalize_lut(lut);
-    simplex(prediction, library, lut);
+    lookup(prediction, library, lut);
 }
 
-void simplex(MutableTimeSeries prediction, TimeSeries target, SimplexLUT lut)
+void lookup(MutableTimeSeries prediction, TimeSeries target, SimplexLUT lut)
 {
     Kokkos::Profiling::pushRegion("EDM::simplex");
 
@@ -51,10 +51,10 @@ void simplex(MutableDataset prediction, Dataset library, Dataset target, int E,
 
     knn(library, target, lut, tmp, E, tau, Tp, E + 1);
     normalize_lut(lut);
-    simplex(prediction, library, lut);
+    lookup(prediction, library, lut);
 }
 
-void simplex(MutableDataset prediction, Dataset target, SimplexLUT lut)
+void lookup(MutableDataset prediction, Dataset target, SimplexLUT lut)
 {
     Kokkos::Profiling::pushRegion("EDM::simplex");
 
