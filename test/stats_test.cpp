@@ -6,7 +6,8 @@
 namespace edm
 {
 
-TEST_CASE("Compute Pearson's correlation coefficient, MAE and MSE") {
+TEST_CASE("Compute Pearson's correlation coefficient, MAE and MSE")
+{
     const int N = 1000;
 
     MutableTimeSeries x("x", N), y("y", N);
