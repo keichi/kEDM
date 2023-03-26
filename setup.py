@@ -13,7 +13,7 @@ setup(
     cmdclass=versioneer.get_cmdclass(),
 
     author="Keichi Takahashi",
-    author_email="keichi.t@me.com",
+    author_email="hello@keichi.dev",
 
     packages=["kedm"],
     package_dir={"kedm": "python/kedm"},
@@ -21,7 +21,8 @@ setup(
     cmake_args=["-DKEDM_ENABLE_PYTHON=ON",
                 "-DKEDM_ENABLE_TESTS=OFF",
                 "-DKEDM_ENABLE_EXECUTABLES=OFF",
-                "-DKEDM_ENABLE_CPU=ON"],
+                "-DKEDM_ENABLE_CPU=ON"
+                ],
 
     url="https://github.com/keichi/kEDM",
     project_urls={

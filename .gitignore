@@ -196,3 +196,5 @@ cython_debug/
 # scikit-build
 _skbuild
 
+# sphinx
+docs/output/

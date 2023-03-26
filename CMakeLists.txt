@@ -145,7 +145,7 @@ if(KEDM_ENABLE_TESTS)
     test/knn_test.cpp
     test/simplex_test.cpp
     test/smap_test.cpp
-    test/smap_test.cpp
+    test/stats_test.cpp
     test/xmap_one_to_one_test.cpp
     test/xmap_all_to_all_test.cpp
   )
