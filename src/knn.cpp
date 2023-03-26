@@ -108,7 +108,7 @@ void calc_distances(TimeSeries library, TimeSeries target,
             // Ignore degenerate neighbors
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_library), [=](int j) {
-                    if (target.data() + i == library.data() + j) {
+                    if (distances(i, j) == 0.0f) {
                         distances(i, j) = FLT_MAX;
                     }
                 });
@@ -176,7 +176,7 @@ void calc_distances(Dataset library, Dataset target, TmpDistances distances,
             // Ignore degenerate neighbors
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_library), [=](int j) {
-                    if (target.data() + i == library.data() + j) {
+                    if (distances(i, j) == 0.0f) {
                         distances(i, j) = FLT_MAX;
                     }
                 });
