@@ -120,16 +120,10 @@ void embed_dim_test_common()
     std::vector<float> rho(E_max);
     std::vector<float> rho_valid(E_max);
 
-    TmpDistances tmp("tmp_distances", 400, 100);
-
     for (auto E = 1; E <= E_max; E++) {
         TimeSeries ts(ds1, Kokkos::ALL, 1);
         TimeSeries library(ts, std::make_pair(0, 100));
         TimeSeries target(ts, std::make_pair(200 - (E - 1) * tau, 500));
-
-        SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);
-        knn(library, target, lut, tmp, E, tau, Tp, E + 1);
-        normalize_lut(lut);
 
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
@@ -137,7 +131,7 @@ void embed_dim_test_common()
             target,
             std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
-        lookup(prediction, library, lut);
+        simplex(prediction, library, target, library, E, tau, Tp);
 
         rho[E - 1] = corrcoef(prediction, shifted_target);
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);
