@@ -371,8 +371,9 @@ PYBIND11_MODULE(_kedm, m)
           Returns:
             Predicted time series
           Note:
-            If both lib and pred are 2D arrays, multivariate prediction
-            is performed.
+            If both lib and pred are 2D arrays, *mixed multivariate embedding*
+            is peformed, where each time series is embedded into an
+            E-dimensional state space.
           )doc",
           py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1);
