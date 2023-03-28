@@ -13,20 +13,58 @@
 
 namespace py = pybind11;
 
+void copy(edm::MutableTimeSeries dst, py::array_t<float> src)
+{
+    auto dst_mirror = Kokkos::create_mirror_view(dst);
+    auto src_proxy = src.unchecked<1>();
+
+    Kokkos::parallel_for(
+        "edm::bindings::copy",
+        Kokkos::RangePolicy<>(edm::HostSpace(), 0, dst.extent(0)),
+        KOKKOS_LAMBDA(int i) { dst(i) = src_proxy(i); });
+
+    Kokkos::deep_copy(dst, dst_mirror);
+}
+
+void copy(edm::MutableDataset dst, py::array_t<float> src)
+{
+    auto dst_mirror = Kokkos::create_mirror_view(dst);
+    auto src_proxy = src.unchecked<2>();
+
+    Kokkos::parallel_for(
+        "edm::bindings::copy",
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>(edm::HostSpace(), {0, 0},
+                                               {dst.extent(0), dst.extent(1)}),
+        KOKKOS_LAMBDA(int i, int j) { dst_mirror(i, j) = src_proxy(i, j); });
+
+    Kokkos::deep_copy(dst, dst_mirror);
+}
+
+void copy(py::array_t<float> dst, edm::TimeSeries src)
+{
+    auto dst_proxy = dst.mutable_unchecked<1>();
+    auto src_mirror =
+        Kokkos::create_mirror_view_and_copy(edm::HostSpace(), src);
+
+    Kokkos::parallel_for(
+        "edm::bindings::copy",
+        Kokkos::RangePolicy<>(edm::HostSpace(), 0, src_mirror.extent(0)),
+        KOKKOS_LAMBDA(int i) {
+            const_cast<float &>(dst_proxy(i)) = src_mirror(i);
+        });
+
+    Kokkos::fence();
+}
+
 int edim(py::array_t<float> ts_arr, int E_max, int tau, int Tp)
 {
     if (ts_arr.ndim() != 1) {
         throw std::invalid_argument("Expected a 1D array");
     }
 
-    auto ts = edm::MutableTimeSeries("ts", ts_arr.shape(0));
-    auto mirror_ts = Kokkos::create_mirror_view(ts);
+    edm::MutableTimeSeries ts("ts", ts_arr.shape(0));
 
-    for (auto i = 0; i < ts_arr.shape(0); i++) {
-        mirror_ts(i) = *ts_arr.data(i);
-    }
-
-    Kokkos::deep_copy(ts, mirror_ts);
+    copy(ts, ts_arr);
 
     return edm::edim(ts, E_max, tau, Tp);
 }
@@ -51,40 +89,20 @@ py::array_t<float> simplex(py::array_t<float> lib_arr,
     if (lib_arr.ndim() == 1) {
         // Univariate prediction
 
-        auto lib = edm::MutableTimeSeries("lib", n_lib);
-        auto pred = edm::MutableTimeSeries("pred", n_pred);
-        auto target = edm::MutableTimeSeries("target", n_target);
-        auto result = edm::MutableTimeSeries("result", n_result);
+        edm::MutableTimeSeries lib("lib", n_lib);
+        edm::MutableTimeSeries pred("pred", n_pred);
+        edm::MutableTimeSeries target("target", n_target);
+        edm::MutableTimeSeries result("result", n_result);
 
-        auto mirror_lib = Kokkos::create_mirror_view(lib);
-        auto mirror_pred = Kokkos::create_mirror_view(pred);
-        auto mirror_target = Kokkos::create_mirror_view(target);
-        auto mirror_result = Kokkos::create_mirror_view(result);
-
-        // TODO Parallelize copy
-        for (auto i = 0; i < n_lib; i++) {
-            mirror_lib(i) = *lib_arr.data(i);
-        }
-        for (auto i = 0; i < n_pred; i++) {
-            mirror_pred(i) = *pred_arr.data(i);
-        }
-        for (auto i = 0; i < n_target; i++) {
-            mirror_target(i) = *target_arr.data(i);
-        }
-
-        Kokkos::deep_copy(lib, mirror_lib);
-        Kokkos::deep_copy(pred, mirror_pred);
-        Kokkos::deep_copy(target, mirror_target);
+        copy(lib, lib_arr);
+        copy(pred, pred_arr);
+        copy(target, target_arr);
 
         edm::simplex(result, lib, pred, target, E, tau, Tp);
 
-        Kokkos::deep_copy(mirror_result, result);
-
         py::array_t<float> result_arr(n_result);
 
-        for (auto i = 0; i < n_result; i++) {
-            *result_arr.mutable_data(i) = mirror_result(i);
-        }
+        copy(result_arr, result);
 
         return result_arr;
     } else if (lib_arr.ndim() == 2) {
@@ -92,44 +110,20 @@ py::array_t<float> simplex(py::array_t<float> lib_arr,
 
         const auto n_vars = lib_arr.shape(1);
 
-        auto lib = edm::MutableDataset("lib", n_lib, n_vars);
-        auto pred = edm::MutableDataset("pred", n_pred, n_vars);
-        auto target = edm::MutableTimeSeries("target", n_target);
-        auto result = edm::MutableTimeSeries("result", n_result);
+        edm::MutableDataset lib("lib", n_lib, n_vars);
+        edm::MutableDataset pred("pred", n_pred, n_vars);
+        edm::MutableTimeSeries target("target", n_target);
+        edm::MutableTimeSeries result("result", n_result);
 
-        auto mirror_lib = Kokkos::create_mirror_view(lib);
-        auto mirror_pred = Kokkos::create_mirror_view(pred);
-        auto mirror_target = Kokkos::create_mirror_view(target);
-        auto mirror_result = Kokkos::create_mirror_view(result);
-
-        // TODO Parallelize copy
-        for (auto i = 0; i < n_lib; i++) {
-            for (auto j = 0; j < n_vars; j++) {
-                mirror_lib(i, j) = *lib_arr.data(i, j);
-            }
-        }
-        for (auto i = 0; i < n_pred; i++) {
-            for (auto j = 0; j < n_vars; j++) {
-                mirror_pred(i, j) = *pred_arr.data(i, j);
-            }
-        }
-        for (auto i = 0; i < n_target; i++) {
-            mirror_target(i) = *target_arr.data(i);
-        }
-
-        Kokkos::deep_copy(lib, mirror_lib);
-        Kokkos::deep_copy(pred, mirror_pred);
-        Kokkos::deep_copy(target, mirror_target);
+        copy(lib, lib_arr);
+        copy(pred, pred_arr);
+        copy(target, target_arr);
 
         edm::simplex(result, lib, pred, target, E, tau, Tp);
 
-        Kokkos::deep_copy(mirror_result, result);
-
         py::array_t<float> result_arr(n_result);
 
-        for (auto i = 0; i < n_result; i++) {
-            *result_arr.mutable_data(i) = mirror_result(i);
-        }
+        copy(result_arr, result);
 
         return result_arr;
     } else {
@@ -149,30 +143,14 @@ float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     const auto n_target = target_arr.shape(0);
     const auto n_result = n_pred - (E - 1) * tau;
 
-    auto lib = edm::MutableTimeSeries("lib", n_lib);
-    auto pred = edm::MutableTimeSeries("pred", n_pred);
-    auto target = edm::MutableTimeSeries("target", n_target);
-    auto result = edm::MutableTimeSeries("result", n_result);
+    edm::MutableTimeSeries lib("lib", n_lib);
+    edm::MutableTimeSeries pred("pred", n_pred);
+    edm::MutableTimeSeries target("target", n_target);
+    edm::MutableTimeSeries result("result", n_result);
 
-    auto mirror_lib = Kokkos::create_mirror_view(lib);
-    auto mirror_pred = Kokkos::create_mirror_view(pred);
-    auto mirror_target = Kokkos::create_mirror_view(target);
-    auto mirror_result = Kokkos::create_mirror_view(result);
-
-    // TODO Parallelize copy
-    for (auto i = 0; i < n_lib; i++) {
-        mirror_lib(i) = *lib_arr.data(i);
-    }
-    for (auto i = 0; i < n_pred; i++) {
-        mirror_pred(i) = *pred_arr.data(i);
-    }
-    for (auto i = 0; i < n_target; i++) {
-        mirror_target(i) = *target_arr.data(i);
-    }
-
-    Kokkos::deep_copy(lib, mirror_lib);
-    Kokkos::deep_copy(pred, mirror_pred);
-    Kokkos::deep_copy(target, mirror_target);
+    copy(lib, lib_arr);
+    copy(pred, pred_arr);
+    copy(target, target_arr);
 
     edm::simplex(result, lib, pred, target, E, tau, Tp);
 
@@ -193,40 +171,20 @@ py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     const auto n_target = target_arr.shape(0);
     const auto n_result = n_pred - (E - 1) * tau;
 
-    auto lib = edm::MutableTimeSeries("lib", n_lib);
-    auto pred = edm::MutableTimeSeries("pred", n_pred);
-    auto target = edm::MutableTimeSeries("target", n_target);
-    auto result = edm::MutableTimeSeries("result", n_result);
+    edm::MutableTimeSeries lib("lib", n_lib);
+    edm::MutableTimeSeries pred("pred", n_pred);
+    edm::MutableTimeSeries target("target", n_target);
+    edm::MutableTimeSeries result("result", n_result);
 
-    auto mirror_lib = Kokkos::create_mirror_view(lib);
-    auto mirror_pred = Kokkos::create_mirror_view(pred);
-    auto mirror_target = Kokkos::create_mirror_view(target);
-    auto mirror_result = Kokkos::create_mirror_view(result);
-
-    // TODO Parallelize copy
-    for (auto i = 0; i < n_lib; i++) {
-        mirror_lib(i) = *lib_arr.data(i);
-    }
-    for (auto i = 0; i < n_pred; i++) {
-        mirror_pred(i) = *pred_arr.data(i);
-    }
-    for (auto i = 0; i < n_target; i++) {
-        mirror_target(i) = *target_arr.data(i);
-    }
-
-    Kokkos::deep_copy(lib, mirror_lib);
-    Kokkos::deep_copy(pred, mirror_pred);
-    Kokkos::deep_copy(target, mirror_target);
+    copy(lib, lib_arr);
+    copy(pred, pred_arr);
+    copy(target, target_arr);
 
     edm::smap(result, lib, pred, target, E, tau, Tp, theta);
 
-    Kokkos::deep_copy(mirror_result, result);
-
     py::array_t<float> result_arr(n_result);
 
-    for (auto i = 0; i < n_result; i++) {
-        *result_arr.mutable_data(i) = mirror_result(i);
-    }
+    copy(result_arr, result);
 
     return result_arr;
 }
@@ -244,30 +202,14 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     const auto n_target = target_arr.shape(0);
     const auto n_result = n_pred - (E - 1) * tau;
 
-    auto lib = edm::MutableTimeSeries("lib", n_lib);
-    auto pred = edm::MutableTimeSeries("pred", n_pred);
-    auto target = edm::MutableTimeSeries("target", n_target);
-    auto result = edm::MutableTimeSeries("result", n_result);
+    edm::MutableTimeSeries lib("lib", n_lib);
+    edm::MutableTimeSeries pred("pred", n_pred);
+    edm::MutableTimeSeries target("target", n_target);
+    edm::MutableTimeSeries result("result", n_result);
 
-    auto mirror_lib = Kokkos::create_mirror_view(lib);
-    auto mirror_pred = Kokkos::create_mirror_view(pred);
-    auto mirror_target = Kokkos::create_mirror_view(target);
-    auto mirror_result = Kokkos::create_mirror_view(result);
-
-    // TODO Parallelize copy
-    for (auto i = 0; i < n_lib; i++) {
-        mirror_lib(i) = *lib_arr.data(i);
-    }
-    for (auto i = 0; i < n_pred; i++) {
-        mirror_pred(i) = *pred_arr.data(i);
-    }
-    for (auto i = 0; i < n_target; i++) {
-        mirror_target(i) = *target_arr.data(i);
-    }
-
-    Kokkos::deep_copy(lib, mirror_lib);
-    Kokkos::deep_copy(pred, mirror_pred);
-    Kokkos::deep_copy(target, mirror_target);
+    copy(lib, lib_arr);
+    copy(pred, pred_arr);
+    copy(target, target_arr);
 
     edm::smap(result, lib, pred, target, E, tau, Tp, theta);
 
