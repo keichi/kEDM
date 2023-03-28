@@ -9,8 +9,31 @@ namespace edm
 void simplex(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
              TimeSeries target, int E, int tau, int Tp)
 {
+    int n_partial = (E - 1) * tau;
+
+    if (lib.extent(0) != target.extent(0)) {
+        throw std::invalid_argument("lib size and target size must be equal");
+    }
+
     TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));
-    SimplexLUT lut(pred.extent(0) - (E - 1) * tau, E + 1);
+    SimplexLUT lut(pred.extent(0) - n_partial, E + 1);
+
+    knn(lib, pred, lut, tmp, E, tau, Tp, E + 1);
+    normalize_lut(lut);
+    lookup(result, target, lut);
+}
+
+void simplex(MutableTimeSeries result, Dataset lib, Dataset pred,
+             TimeSeries target, int E, int tau, int Tp)
+{
+    int n_partial = (E - 1) * tau;
+
+    if (lib.extent(0) != target.extent(0)) {
+        throw std::invalid_argument("lib size and target size must be equal");
+    }
+
+    TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));
+    SimplexLUT lut(pred.extent(0) - n_partial, E + 1);
 
     knn(lib, pred, lut, tmp, E, tau, Tp, E + 1);
     normalize_lut(lut);
@@ -36,17 +59,6 @@ void lookup(MutableTimeSeries result, TimeSeries target, SimplexLUT lut)
         });
 
     Kokkos::Profiling::popRegion();
-}
-
-void simplex(MutableTimeSeries result, Dataset lib, Dataset pred,
-             TimeSeries target, int E, int tau, int Tp)
-{
-    TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));
-    SimplexLUT lut(pred.extent(0) - (E - 1) * tau, E + 1);
-
-    knn(lib, pred, lut, tmp, E, tau, Tp, E + 1);
-    normalize_lut(lut);
-    lookup(result, target, lut);
 }
 
 } // namespace edm
