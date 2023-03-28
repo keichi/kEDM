@@ -58,7 +58,7 @@ void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
 #ifdef KOKKOS_ENABLE_CUDA
     // Make sure the design matrices fit within 4GiB
     const int batch_size =
-        std::max(1ul, (1ul << 32) / (n_library * (E + 1) * sizeof(float)));
+        std::max(1ul, (1ul << 32) / (n_lib * (E + 1) * sizeof(float)));
 #else
     // For now we do not use batched kernels on CPU
     const int batch_size = 1;
