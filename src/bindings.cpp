@@ -180,83 +180,99 @@ float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     return edm::corrcoef(Kokkos::subview(pred, range), result);
 }
 
-py::array_t<float> smap(py::array_t<float> library_arr,
+py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
                         py::array_t<float> target_arr, int E, int tau, int Tp,
                         float theta)
 {
-    if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
+    if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1) {
         throw std::invalid_argument("Expected a 1D array");
     }
 
-    const auto n_library = library_arr.shape(0);
+    const auto n_lib = lib_arr.shape(0);
+    const auto n_pred = pred_arr.shape(0);
     const auto n_target = target_arr.shape(0);
-    const auto n_prediction = n_target - (E - 1) * tau;
+    const auto n_result = n_pred - (E - 1) * tau;
 
-    auto library = edm::MutableTimeSeries("library", n_library);
+    auto lib = edm::MutableTimeSeries("lib", n_lib);
+    auto pred = edm::MutableTimeSeries("pred", n_pred);
     auto target = edm::MutableTimeSeries("target", n_target);
-    auto prediction = edm::MutableTimeSeries("prediction", n_prediction);
+    auto result = edm::MutableTimeSeries("result", n_result);
 
-    auto mirror_library = Kokkos::create_mirror_view(library);
+    auto mirror_lib = Kokkos::create_mirror_view(lib);
+    auto mirror_pred = Kokkos::create_mirror_view(pred);
     auto mirror_target = Kokkos::create_mirror_view(target);
-    auto mirror_prediction = Kokkos::create_mirror_view(prediction);
+    auto mirror_result = Kokkos::create_mirror_view(result);
 
-    for (auto i = 0; i < n_library; i++) {
-        mirror_library(i) = *library_arr.data(i);
+    // TODO Parallelize copy
+    for (auto i = 0; i < n_lib; i++) {
+        mirror_lib(i) = *lib_arr.data(i);
     }
-
+    for (auto i = 0; i < n_pred; i++) {
+        mirror_pred(i) = *pred_arr.data(i);
+    }
     for (auto i = 0; i < n_target; i++) {
         mirror_target(i) = *target_arr.data(i);
     }
 
-    Kokkos::deep_copy(library, mirror_library);
+    Kokkos::deep_copy(lib, mirror_lib);
+    Kokkos::deep_copy(pred, mirror_pred);
     Kokkos::deep_copy(target, mirror_target);
 
-    edm::smap(prediction, library, target, E, tau, Tp, theta);
+    edm::smap(result, lib, pred, target, E, tau, Tp, theta);
 
-    Kokkos::deep_copy(mirror_prediction, prediction);
+    Kokkos::deep_copy(mirror_result, result);
 
-    py::array_t<float> prediction_arr(n_prediction);
+    py::array_t<float> result_arr(n_result);
 
-    for (auto i = 0; i < n_prediction; i++) {
-        *prediction_arr.mutable_data(i) = mirror_prediction(i);
+    for (auto i = 0; i < n_result; i++) {
+        *result_arr.mutable_data(i) = mirror_result(i);
     }
 
-    return prediction_arr;
+    return result_arr;
 }
 
-float eval_smap(py::array_t<float> library_arr, py::array_t<float> target_arr,
-                int E, int tau, int Tp, float theta)
+float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
+                py::array_t<float> target_arr, int E, int tau, int Tp,
+                float theta)
 {
-    if (library_arr.ndim() != 1 || target_arr.ndim() != 1) {
-        throw std::invalid_argument("Expected a 1D array");
+    if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1 || target_arr.ndim() != 1) {
+        throw std::invalid_argument("lib, pred and target must be 1D arrays");
     }
 
-    const auto n_library = library_arr.shape(0);
+    const auto n_lib = lib_arr.shape(0);
+    const auto n_pred = pred_arr.shape(0);
     const auto n_target = target_arr.shape(0);
-    const auto n_prediction = n_target - (E - 1) * tau;
+    const auto n_result = n_pred - (E - 1) * tau;
 
-    auto library = edm::MutableTimeSeries("library", n_library);
+    auto lib = edm::MutableTimeSeries("lib", n_lib);
+    auto pred = edm::MutableTimeSeries("pred", n_pred);
     auto target = edm::MutableTimeSeries("target", n_target);
-    auto prediction = edm::MutableTimeSeries("prediction", n_prediction);
+    auto result = edm::MutableTimeSeries("result", n_result);
 
-    auto mirror_library = Kokkos::create_mirror_view(library);
+    auto mirror_lib = Kokkos::create_mirror_view(lib);
+    auto mirror_pred = Kokkos::create_mirror_view(pred);
     auto mirror_target = Kokkos::create_mirror_view(target);
+    auto mirror_result = Kokkos::create_mirror_view(result);
 
-    for (auto i = 0; i < n_library; i++) {
-        mirror_library(i) = *library_arr.data(i);
+    // TODO Parallelize copy
+    for (auto i = 0; i < n_lib; i++) {
+        mirror_lib(i) = *lib_arr.data(i);
     }
-
+    for (auto i = 0; i < n_pred; i++) {
+        mirror_pred(i) = *pred_arr.data(i);
+    }
     for (auto i = 0; i < n_target; i++) {
         mirror_target(i) = *target_arr.data(i);
     }
 
-    Kokkos::deep_copy(library, mirror_library);
+    Kokkos::deep_copy(lib, mirror_lib);
+    Kokkos::deep_copy(pred, mirror_pred);
     Kokkos::deep_copy(target, mirror_target);
 
-    edm::smap(prediction, library, target, E, tau, Tp, theta);
+    edm::smap(result, lib, pred, target, E, tau, Tp, theta);
 
-    const auto range = std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
-    return edm::corrcoef(Kokkos::subview(target, range), prediction);
+    const auto range = std::make_pair((E - 1) * tau + Tp, pred.extent_int(0));
+    return edm::corrcoef(Kokkos::subview(pred, range), result);
 }
 
 py::array_t<float> xmap(py::array_t<float> ds_arr,
@@ -400,7 +416,8 @@ PYBIND11_MODULE(_kedm, m)
           Predict a time series from another using S-Map.
 
           Args:
-            library: Library time series
+            lib: Library time series
+            pred: Prediction time series
             target: Target time series
             E: Embedding dimension
             tau: Time delay
@@ -409,7 +426,7 @@ PYBIND11_MODULE(_kedm, m)
           Returns:
             Predicted time series
           )doc",
-          py::arg("library"), py::arg("target"), py::arg("E") = 2,
+          py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
     m.def("eval_smap", &eval_smap,
@@ -417,7 +434,8 @@ PYBIND11_MODULE(_kedm, m)
           Predict a time series from another using S-Map and quantify its predictive skill.
 
           Args:
-            library: Library time series
+            lib: Library time series
+            pred: Prediction time series
             target: Target time series
             E: Embedding dimension
             tau: Time delay
@@ -427,7 +445,7 @@ PYBIND11_MODULE(_kedm, m)
             Pearson's correlation coefficient between predicted and actual
             time series
           )doc",
-          py::arg("library"), py::arg("target"), py::arg("E") = 1,
+          py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
     m.def("xmap", &xmap,

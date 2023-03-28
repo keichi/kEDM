@@ -6,8 +6,8 @@
 namespace edm
 {
 
-void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
-          int E, int tau, int Tp, float theta);
+void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
+          TimeSeries target, int E, int tau, int Tp, float theta);
 
 } // namespace edm
 
