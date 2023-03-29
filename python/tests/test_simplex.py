@@ -15,7 +15,7 @@ def test_simplex(pytestconfig, E):
     lib = ts[:len(ts)//2]
     pred = ts[len(ts)//2-(E-1)*tau:len(ts)-(E-1)*tau]
 
-    prediction = kedm.simplex(lib, pred, lib, E, tau, Tp)
+    prediction = kedm.simplex(lib, pred, E=E, tau=tau, Tp=Tp)
 
     assert prediction == pytest.approx(valid, abs=1e-2)
 
@@ -32,7 +32,7 @@ def test_multivariate_simplex(pytestconfig):
     lib = data[:99, [1, 4, 7]]
     pred = data[97:198, [1, 4, 7]]
 
-    prediction = kedm.simplex(lib, pred, lib[:, 0], E, tau, Tp)
+    prediction = kedm.simplex(lib, pred, target=lib[:, 0], E=E, tau=tau, Tp=Tp)
 
     assert prediction == pytest.approx(valid, abs=1e-6)
 
@@ -48,14 +48,14 @@ def test_simplex_rho(pytestconfig, E):
 
     lib = ts[0:100]
     pred = ts[200 - (E - 1) * tau:500]
-    prediction = kedm.simplex(lib, pred, lib, E, tau, Tp)
+    prediction = kedm.simplex(lib, pred, E=E, tau=tau, Tp=Tp)
 
     rho = np.corrcoef(prediction[:-1], pred[(E-1)*tau+Tp:])[0][1]
     rho_valid = valid[E-1]
 
     assert rho == pytest.approx(rho_valid, abs=1e-6)
 
-    rho = kedm.eval_simplex(lib, pred, lib, E, tau, Tp)
+    rho = kedm.eval_simplex(lib, pred, E=E, tau=tau, Tp=Tp)
 
     assert rho == pytest.approx(rho_valid, abs=1e-6)
 
@@ -65,25 +65,24 @@ def test_invalid_args():
     pred = np.random.rand(10)
 
     with pytest.raises(ValueError, match=r"E must be greater than zero"):
-        kedm.simplex(lib, pred, lib, E=-1)
+        kedm.simplex(lib, pred, E=-1)
 
     with pytest.raises(ValueError, match=r"tau must be greater than zero"):
-        kedm.simplex(lib, pred, lib, E=2, tau=-1)
+        kedm.simplex(lib, pred, E=2, tau=-1)
 
     with pytest.raises(ValueError, match=r"Tp must be greater or equal to zero"):
-        kedm.simplex(lib, pred, lib, E=2, tau=1, Tp=-1)
+        kedm.simplex(lib, pred, E=2, tau=1, Tp=-1)
 
     with pytest.raises(ValueError, match=r"lib size is too small"):
-        kedm.simplex(np.random.rand(1), pred, np.random.rand(1))
+        kedm.simplex(np.random.rand(2), pred, E=3)
 
     with pytest.raises(ValueError, match=r"pred size is too small"):
-        kedm.simplex(lib, np.random.rand(1), lib, E=2)
+        kedm.simplex(lib, np.random.rand(2), E=3)
 
     with pytest.raises(ValueError, match=r"lib and pred must have same"
                                          r" dimensionality"):
-        kedm.simplex(np.random.rand(10), np.random.rand(10, 2), lib)
+        kedm.simplex(np.random.rand(10), np.random.rand(10, 2))
 
     with pytest.raises(ValueError, match=r"lib and pred must be 1D or 2D"
                                          r" arrays"):
-        kedm.simplex(np.random.rand(10, 2, 3), np.random.rand(10, 3, 4),
-                     lib)
+        kedm.simplex(np.random.rand(10, 2, 3), np.random.rand(10, 3, 4))

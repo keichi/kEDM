@@ -15,13 +15,15 @@ def test_smap(pytestconfig, i):
     lib = ts[:100]
     pred = ts[100:200]
 
-    prediction = kedm.smap(lib, pred, pred, E, tau, Tp, theta)
+    prediction = kedm.smap(lib, pred, target=pred, E=E, tau=tau, Tp=Tp,
+                           theta=theta)
 
     rho = np.corrcoef(prediction[:-1], pred[(E-1)*tau+Tp:])[0][1]
 
     assert rho == pytest.approx(rho_valid[i], abs=1e-2)
 
-    rho = kedm.eval_smap(lib, pred, pred, E, tau, Tp, theta)
+    rho = kedm.eval_smap(lib, pred, target=pred, E=E, tau=tau, Tp=Tp,
+                         theta=theta)
 
     assert rho == pytest.approx(rho_valid[i], abs=1e-2)
 
@@ -31,16 +33,16 @@ def test_invalid_args():
     pred = np.random.rand(10)
 
     with pytest.raises(ValueError, match=r"E must be greater than zero"):
-        kedm.smap(lib, pred, lib, E=-1)
+        kedm.smap(lib, pred, E=-1)
 
     with pytest.raises(ValueError, match=r"tau must be greater than zero"):
-        kedm.smap(lib, pred, lib, E=2, tau=-1)
+        kedm.smap(lib, pred, E=2, tau=-1)
 
     with pytest.raises(ValueError, match=r"Tp must be greater or equal to zero"):
-        kedm.smap(lib, pred, lib, E=2, tau=1, Tp=-1)
+        kedm.smap(lib, pred, E=2, tau=1, Tp=-1)
 
     with pytest.raises(ValueError, match=r"lib size is too small"):
-        kedm.smap(np.random.rand(1), pred, lib, E=2)
+        kedm.smap(np.random.rand(1), pred, E=2)
 
     with pytest.raises(ValueError, match=r"pred size is too small"):
-        kedm.smap(lib, np.random.rand(1), lib, E=2)
+        kedm.smap(lib, np.random.rand(1), E=2)

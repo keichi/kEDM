@@ -85,8 +85,10 @@ py::array_t<float> simplex(py::array_t<float> lib_arr,
     if (lib_arr.ndim() != pred_arr.ndim()) {
         throw std::invalid_argument(
             "lib and pred must have same dimensionality");
-    } else if (target_arr.ndim() != 1) {
+    } else if (target_arr.ndim() > 1) {
         throw std::invalid_argument("target must be a 1D array");
+    } else if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -142,8 +144,12 @@ py::array_t<float> simplex(py::array_t<float> lib_arr,
 float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
                    py::array_t<float> target_arr, int E, int tau, int Tp)
 {
-    if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1 || target_arr.ndim() != 1) {
-        throw std::invalid_argument("lib, pred and target must be 1D arrays");
+    if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1) {
+        throw std::invalid_argument("lib and pred must be 1D arrays");
+    } else if (target_arr.ndim() > 1) {
+        throw std::invalid_argument("target must be a 1D array");
+    } else if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -171,7 +177,11 @@ py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
                         float theta)
 {
     if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1) {
-        throw std::invalid_argument("Expected a 1D array");
+        throw std::invalid_argument("lib and pred must be 1D arrays");
+    } else if (target_arr.ndim() > 1) {
+        throw std::invalid_argument("target must be a 1D array");
+    } else if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -201,8 +211,12 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
                 py::array_t<float> target_arr, int E, int tau, int Tp,
                 float theta)
 {
-    if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1 || target_arr.ndim() != 1) {
-        throw std::invalid_argument("lib, pred and target must be 1D arrays");
+    if (lib_arr.ndim() != 1 || pred_arr.ndim() != 1) {
+        throw std::invalid_argument("lib and pred must be 1D arrays");
+    } else if (target_arr.ndim() > 1) {
+        throw std::invalid_argument("target must be a 1D array");
+    } else if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -341,8 +355,9 @@ PYBIND11_MODULE(_kedm, m)
             is peformed, where each time series is embedded into an
             E-dimensional state space.
           )doc",
-          py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
-          py::arg("tau") = 1, py::arg("Tp") = 1);
+          py::arg("lib"), py::arg("pred"), py::kw_only(),
+          py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
+          py::arg("Tp") = 1);
 
     m.def("eval_simplex", &eval_simplex,
           R"doc(
@@ -358,8 +373,9 @@ PYBIND11_MODULE(_kedm, m)
           Returns:
             Pearson's correlation coefficient between observation and prediction
           )doc",
-          py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
-          py::arg("tau") = 1, py::arg("Tp") = 1);
+          py::arg("lib"), py::arg("pred"), py::kw_only(),
+          py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
+          py::arg("Tp") = 1);
 
     m.def("smap", &smap,
           R"doc(
@@ -376,8 +392,9 @@ PYBIND11_MODULE(_kedm, m)
           Returns:
             Prediction result
           )doc",
-          py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
-          py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
+          py::arg("lib"), py::arg("pred"), py::kw_only(),
+          py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
+          py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
     m.def("eval_smap", &eval_smap,
           R"doc(
@@ -394,8 +411,9 @@ PYBIND11_MODULE(_kedm, m)
           Returns:
             Pearson's correlation coefficient between observation and prediction
           )doc",
-          py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
-          py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
+          py::arg("lib"), py::arg("pred"), py::kw_only(),
+          py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
+          py::arg("Tp") = 1, py::arg("theta") = 1.0f);
 
     m.def("xmap", &xmap,
           R"doc(
