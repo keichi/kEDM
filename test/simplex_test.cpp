@@ -27,7 +27,7 @@ void simplex_test_common(int E)
     TimeSeries valid_prediction(ds2, Kokkos::ALL, 0);
     MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);
 
-    simplex(prediction, library, target, E, tau, Tp);
+    simplex(prediction, library, target, library, E, tau, Tp);
 
     const auto pred =
         Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);
@@ -63,40 +63,42 @@ TEST_CASE("Compute multivariate simplex projection for E=3")
     const Dataset ds1 = load_csv("block_3sp.csv");
     const Dataset ds2 = load_csv("block_3sp_validation.csv");
 
-    const MutableDataset library("library", 99, 3);
-    const MutableDataset target("target", 101, 3);
+    const MutableDataset lib("lib", 99, 3);
+    const MutableDataset pred("pred", 101, 3);
+    const MutableTimeSeries target("target", 99);
 
     Kokkos::deep_copy(
-        Kokkos::subview(library, Kokkos::ALL, 0),
+        Kokkos::subview(lib, Kokkos::ALL, 0),
         Kokkos::subview(ds1, std::make_pair<size_t, size_t>(0, 99), 1));
     Kokkos::deep_copy(
-        Kokkos::subview(library, Kokkos::ALL, 1),
+        Kokkos::subview(lib, Kokkos::ALL, 1),
         Kokkos::subview(ds1, std::make_pair<size_t, size_t>(0, 99), 4));
     Kokkos::deep_copy(
-        Kokkos::subview(library, Kokkos::ALL, 2),
+        Kokkos::subview(lib, Kokkos::ALL, 2),
         Kokkos::subview(ds1, std::make_pair<size_t, size_t>(0, 99), 7));
 
     Kokkos::deep_copy(
-        Kokkos::subview(target, Kokkos::ALL, 0),
+        Kokkos::subview(pred, Kokkos::ALL, 0),
         Kokkos::subview(ds1, std::make_pair<size_t, size_t>(97, 198), 1));
     Kokkos::deep_copy(
-        Kokkos::subview(target, Kokkos::ALL, 1),
+        Kokkos::subview(pred, Kokkos::ALL, 1),
         Kokkos::subview(ds1, std::make_pair<size_t, size_t>(97, 198), 4));
     Kokkos::deep_copy(
-        Kokkos::subview(target, Kokkos::ALL, 2),
+        Kokkos::subview(pred, Kokkos::ALL, 2),
         Kokkos::subview(ds1, std::make_pair<size_t, size_t>(97, 198), 7));
 
-    const MutableDataset prediction("prediction", 99, 3);
+    Kokkos::deep_copy(target, Kokkos::subview(lib, Kokkos::ALL, 0));
 
-    simplex(prediction, library, target, E, tau, Tp);
+    const MutableTimeSeries result("result", 99);
 
-    const auto pred = Kokkos::create_mirror_view_and_copy(
-        HostSpace(), Kokkos::subview(prediction, Kokkos::ALL, 0));
+    simplex(result, lib, pred, target, E, tau, Tp);
+
+    const auto r = Kokkos::create_mirror_view_and_copy(HostSpace(), result);
     const auto valid = Kokkos::create_mirror_view_and_copy(
         HostSpace(), Kokkos::subview(ds2, Kokkos::ALL, 0));
 
-    for (size_t i = 0; i < pred.size(); i++) {
-        CHECK(pred(i) == doctest::Approx(valid(i)));
+    for (size_t i = 0; i < r.size(); i++) {
+        CHECK(r(i) == doctest::Approx(valid(i)));
     }
 }
 
@@ -118,16 +120,10 @@ void embed_dim_test_common()
     std::vector<float> rho(E_max);
     std::vector<float> rho_valid(E_max);
 
-    TmpDistances tmp("tmp_distances", 400, 100);
-
     for (auto E = 1; E <= E_max; E++) {
         TimeSeries ts(ds1, Kokkos::ALL, 1);
         TimeSeries library(ts, std::make_pair(0, 100));
         TimeSeries target(ts, std::make_pair(200 - (E - 1) * tau, 500));
-
-        SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);
-        knn(library, target, lut, tmp, E, tau, Tp, E + 1);
-        normalize_lut(lut);
 
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
@@ -135,7 +131,7 @@ void embed_dim_test_common()
             target,
             std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
-        lookup(prediction, library, lut);
+        simplex(prediction, library, target, library, E, tau, Tp);
 
         rho[E - 1] = corrcoef(prediction, shifted_target);
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);

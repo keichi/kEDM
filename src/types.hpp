@@ -8,7 +8,7 @@ namespace edm
 
 using DevSpace = Kokkos::DefaultExecutionSpace::memory_space;
 using DevScratchSpace = Kokkos::DefaultExecutionSpace::scratch_memory_space;
-using HostSpace = Kokkos::HostSpace;
+using HostSpace = Kokkos::DefaultHostExecutionSpace;
 
 using Dataset = Kokkos::View<const float **, Kokkos::LayoutLeft, DevSpace>;
 using MutableDataset = Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace>;

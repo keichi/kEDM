@@ -12,35 +12,37 @@ def test_smap(pytestconfig, i):
     rho_valid = np.loadtxt(pytestconfig.rootdir / "test/logistic_map_validation.csv",
                            delimiter=",", skiprows=1, usecols=1)
 
-    library = ts[:100]
-    target = ts[100:200]
+    lib = ts[:100]
+    pred = ts[100:200]
 
-    prediction = kedm.smap(library, target, E, tau, Tp, theta)
+    prediction = kedm.smap(lib, pred, target=pred, E=E, tau=tau, Tp=Tp,
+                           theta=theta)
 
-    rho = np.corrcoef(prediction[:-1], target[(E-1)*tau+Tp:])[0][1]
+    rho = np.corrcoef(prediction[:-1], pred[(E-1)*tau+Tp:])[0][1]
 
     assert rho == pytest.approx(rho_valid[i], abs=1e-2)
 
-    rho = kedm.eval_smap(library, target, E, tau, Tp, theta)
+    rho = kedm.eval_smap(lib, pred, target=pred, E=E, tau=tau, Tp=Tp,
+                         theta=theta)
 
     assert rho == pytest.approx(rho_valid[i], abs=1e-2)
 
 
 def test_invalid_args():
-    library = np.random.rand(10)
-    target = np.random.rand(10)
+    lib = np.random.rand(10)
+    pred = np.random.rand(10)
 
     with pytest.raises(ValueError, match=r"E must be greater than zero"):
-        kedm.smap(library, target, E=-1)
+        kedm.smap(lib, pred, E=-1)
 
     with pytest.raises(ValueError, match=r"tau must be greater than zero"):
-        kedm.smap(library, target, E=2, tau=-1)
+        kedm.smap(lib, pred, E=2, tau=-1)
 
     with pytest.raises(ValueError, match=r"Tp must be greater or equal to zero"):
-        kedm.smap(library, target, E=2, tau=1, Tp=-1)
+        kedm.smap(lib, pred, E=2, tau=1, Tp=-1)
 
-    with pytest.raises(ValueError, match=r"library size is too small"):
-        kedm.smap(np.random.rand(1), target)
+    with pytest.raises(ValueError, match=r"lib size is too small"):
+        kedm.smap(np.random.rand(1), pred, E=2)
 
-    with pytest.raises(ValueError, match=r"target size is too small"):
-        kedm.smap(library, np.random.rand(1))
+    with pytest.raises(ValueError, match=r"pred size is too small"):
+        kedm.smap(lib, np.random.rand(1), E=2)

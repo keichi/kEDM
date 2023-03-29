@@ -1,7 +1,6 @@
 #include <doctest/doctest.h>
 
 #include "../src/io.hpp"
-#include "../src/knn.hpp"
 #include "../src/simplex.hpp"
 #include "../src/types.hpp"
 
@@ -22,20 +21,14 @@ void cross_mapping_test_common(int E)
     Dataset ds2 =
         load_csv("anchovy_sst_validation_E" + std::to_string(E) + ".csv");
 
-    TmpDistances tmp("tmp_distances", ds1.extent(0), ds1.extent(0));
-
     const auto library = TimeSeries(
         ds1, std::make_pair<size_t, size_t>(0, ds1.extent(0) - (E - 1)), 1);
     const auto target = TimeSeries(
         ds1, std::make_pair<size_t, size_t>(0, ds1.extent(0) - (E - 1)), 4);
     const auto valid_prediction = TimeSeries(ds2, Kokkos::ALL, 0);
 
-    SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);
-    knn(library, library, lut, tmp, E, tau, Tp, E + 1);
-    normalize_lut(lut);
-
     MutableTimeSeries prediction("prediction", target.size() - (E - 1) * tau);
-    lookup(prediction, target, lut);
+    simplex(prediction, library, library, target, E, tau, Tp);
 
     const auto pred =
         Kokkos::create_mirror_view_and_copy(HostSpace(), prediction);

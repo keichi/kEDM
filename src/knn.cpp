@@ -21,9 +21,8 @@
 namespace edm
 {
 
-void calc_distances(TimeSeries library, TimeSeries target,
-                    TmpDistances distances, int n_library, int n_target, int E,
-                    int tau)
+void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
+                    int n_lib, int n_pred, int E, int tau)
 {
     using simd_t = simd::simd<float, simd::simd_abi::native>;
 
@@ -34,21 +33,21 @@ void calc_distances(TimeSeries library, TimeSeries target,
     Kokkos::parallel_for(
         "EDM::knn::calc_distances",
 #ifdef USE_SCRATCH_MEMORY
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO)
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
 #else
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
 #endif
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int i = member.league_rank();
 
 #ifdef USE_SCRATCH_MEMORY
-            // Load subset of target time series to team scratch
-            ScratchTimeSeries scratch_target(member.team_scratch(0), E);
+            // Load subset of pred time series to team scratch
+            ScratchTimeSeries scratch_pred(member.team_scratch(0), E);
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, E),
-                [=](int e) { scratch_target(e) = target(i + e * tau); });
+                [=](int e) { scratch_pred(e) = pred(i + e * tau); });
 #endif
 
             member.team_barrier();
@@ -56,21 +55,19 @@ void calc_distances(TimeSeries library, TimeSeries target,
 #ifdef USE_SIMD_PRIMITIVES
             // Vectorized loop
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library / simd_t::size()),
+                Kokkos::TeamThreadRange(member, n_lib / simd_t::size()),
                 [=](int j) {
                     simd_t dist = simd_t(0.0f);
 
                     for (int e = 0; e < E; e++) {
 #ifdef USE_SCRATCH_MEMORY
-                        simd_t diff =
-                            simd_t(scratch_target(e)) -
-                            simd_t(&library(j * simd_t::size() + e * tau),
-                                   simd::element_aligned_tag());
+                        simd_t diff = simd_t(scratch_pred(e)) -
+                                      simd_t(&lib(j * simd_t::size() + e * tau),
+                                             simd::element_aligned_tag());
 #else
-                        simd_t diff =
-                            simd_t(target(i + e * tau)) -
-                            simd_t(&library(j * simd_t::size() + e * tau),
-                                   simd::element_aligned_tag());
+                        simd_t diff = simd_t(pred(i + e * tau)) -
+                                      simd_t(&lib(j * simd_t::size() + e * tau),
+                                             simd::element_aligned_tag());
 #endif
                         dist += diff * diff;
                     }
@@ -84,20 +81,19 @@ void calc_distances(TimeSeries library, TimeSeries target,
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member,
 #ifdef USE_SIMD_PRIMITIVES
-                                        n_library / simd_t::size() *
-                                            simd_t::size(),
+                                        n_lib / simd_t::size() * simd_t::size(),
 #else
                                         0,
 #endif
-                                        n_library),
+                                        n_lib),
                 [=](int j) {
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
 #ifdef USE_SCRATCH_MEMORY
-                        float diff = scratch_target(e) - library(j + e * tau);
+                        float diff = scratch_pred(e) - lib(j + e * tau);
 #else
-                        float diff = target(i + e * tau) - library(j + e * tau);
+                        float diff = pred(i + e * tau) - lib(j + e * tau);
 #endif
                         dist += diff * diff;
                     }
@@ -106,7 +102,7 @@ void calc_distances(TimeSeries library, TimeSeries target,
                 });
 
             // Ignore degenerate neighbors
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_library),
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
                                  [=](int j) {
                                      if (distances(i, j) == 0.0f) {
                                          distances(i, j) = FLT_MAX;
@@ -115,31 +111,29 @@ void calc_distances(TimeSeries library, TimeSeries target,
         });
 }
 
-void calc_distances(Dataset library, Dataset target, TmpDistances distances,
-                    int n_library, int n_target, int E, int tau)
+void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
+                    int n_lib, int n_pred, int E, int tau)
 {
     using simd_t = simd::simd<float, simd::simd_abi::native>;
 
     Kokkos::parallel_for(
-        "EDM::knn::calc_distances",
-        Kokkos::TeamPolicy<>(n_target, Kokkos::AUTO),
+        "EDM::knn::calc_distances", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int i = member.league_rank();
 
 #ifdef USE_SIMD_PRIMITIVES
             // Vectorized loop
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library / simd_t::size()),
+                Kokkos::TeamThreadRange(member, n_lib / simd_t::size()),
                 [=](int j) {
                     simd_t dist = simd_t(0.0f);
 
                     for (int e = 0; e < E; e++) {
-                        for (size_t k = 0; k < library.extent(1); k++) {
+                        for (size_t k = 0; k < lib.extent(1); k++) {
                             simd_t diff =
-                                simd_t(target(i + e * tau, k)) -
-                                simd_t(
-                                    &library(j * simd_t::size() + e * tau, k),
-                                    simd::element_aligned_tag());
+                                simd_t(pred(i + e * tau, k)) -
+                                simd_t(&lib(j * simd_t::size() + e * tau, k),
+                                       simd::element_aligned_tag());
                             dist += diff * diff;
                         }
                     }
@@ -153,19 +147,18 @@ void calc_distances(Dataset library, Dataset target, TmpDistances distances,
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member,
 #ifdef USE_SIMD_PRIMITIVES
-                                        n_library / simd_t::size() *
-                                            simd_t::size(),
+                                        n_lib / simd_t::size() * simd_t::size(),
 #else
                                         0,
 #endif
-                                        n_library),
+                                        n_lib),
                 [=](int j) {
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
-                        for (size_t k = 0; k < library.extent(1); k++) {
-                            float diff = target(i + e * tau, k) -
-                                         library(j + e * tau, k);
+                        for (size_t k = 0; k < lib.extent(1); k++) {
+                            float diff =
+                                pred(i + e * tau, k) - lib(j + e * tau, k);
                             dist += diff * diff;
                         }
                     }
@@ -174,7 +167,7 @@ void calc_distances(Dataset library, Dataset target, TmpDistances distances,
                 });
 
             // Ignore degenerate neighbors
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_library),
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
                                  [=](int j) {
                                      if (distances(i, j) == 0.0f) {
                                          distances(i, j) = FLT_MAX;
@@ -183,12 +176,12 @@ void calc_distances(Dataset library, Dataset target, TmpDistances distances,
         });
 }
 
-void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
-                  int n_target, int top_k, int shift)
+void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
+                  int top_k, int shift)
 {
 #ifdef KOKKOS_ENABLE_CUDA
     // Make sure a thread sees at least top_k elements
-    const int team_size = std::min(32, std::max(n_library / top_k, 1));
+    const int team_size = std::min(32, std::max(n_lib / top_k, 1));
 #else
     const int team_size = 1;
     using std::min;
@@ -203,7 +196,7 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
     // Partially sort each row
     Kokkos::parallel_for(
         "EDM::knn::partial_sort",
-        Kokkos::TeamPolicy<>(n_target, team_size)
+        Kokkos::TeamPolicy<>(n_pred, team_size)
             .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             // Scratch views to hold the top-k elements
@@ -225,7 +218,7 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
             member.team_barrier();
 
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
                     const float cur_dist = distances(i, j);
 
                     // Skip elements larger than the current k-th smallest
@@ -282,53 +275,14 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_library,
         });
 }
 
-void knn(TimeSeries library, TimeSeries target, SimplexLUT out,
-         TmpDistances tmp, int E, int tau, int Tp, int top_k)
-{
-    Kokkos::Profiling::pushRegion("EDM::knn");
-
-    const int shift = (E - 1) * tau + Tp;
-    const int n_library = library.extent(0) - shift;
-    const int n_target = target.extent(0) - shift + Tp;
-
-    if (E <= 0) {
-        throw std::invalid_argument("E must be greater than zero");
-    } else if (tau <= 0) {
-        throw std::invalid_argument("tau must be greater than zero");
-    } else if (Tp < 0) {
-        throw std::invalid_argument("Tp must be greater or equal to zero");
-    } else if (top_k <= 0) {
-        throw std::invalid_argument("top_k must be greater than zero");
-    } else if (n_library <= 0 || n_library < top_k) {
-        throw std::invalid_argument("library size is too small");
-    } else if (n_target <= 0) {
-        throw std::invalid_argument("target size is too small");
-    } else if (tmp.extent(0) < static_cast<size_t>(n_target) ||
-               tmp.extent(1) < static_cast<size_t>(n_library)) {
-        throw std::invalid_argument(
-            "TmpDistances must be larger or equal to (n_target, n_library)");
-    } else if (out.distances.extent(0) != static_cast<size_t>(n_target) ||
-               out.distances.extent(1) != static_cast<size_t>(top_k)) {
-        throw std::invalid_argument("LUT must have shape (n_target, top_k)");
-    }
-
-    // Calculate all-to-all distances
-    calc_distances(library, target, tmp, n_library, n_target, E, tau);
-
-    // Sort the distance matrix
-    partial_sort(tmp, out, n_library, n_target, top_k, shift);
-
-    Kokkos::Profiling::popRegion();
-}
-
-void knn(Dataset library, Dataset target, SimplexLUT out, TmpDistances tmp,
+void knn(TimeSeries lib, TimeSeries pred, SimplexLUT out, TmpDistances tmp,
          int E, int tau, int Tp, int top_k)
 {
     Kokkos::Profiling::pushRegion("EDM::knn");
 
-    const int shift = (E - 1) * tau + Tp;
-    const int n_library = library.extent(0) - shift;
-    const int n_target = target.extent(0) - shift + Tp;
+    const int n_partial = (E - 1) * tau;
+    const int n_lib = lib.extent(0) - n_partial - Tp;
+    const int n_pred = pred.extent(0) - n_partial;
 
     if (E <= 0) {
         throw std::invalid_argument("E must be greater than zero");
@@ -338,36 +292,64 @@ void knn(Dataset library, Dataset target, SimplexLUT out, TmpDistances tmp,
         throw std::invalid_argument("Tp must be greater or equal to zero");
     } else if (top_k <= 0) {
         throw std::invalid_argument("top_k must be greater than zero");
-    } else if (n_library <= 0 || n_library < top_k) {
-        throw std::invalid_argument("library size is too small");
-    } else if (n_target <= 0) {
-        throw std::invalid_argument("target size is too small");
-    } else if (tmp.extent(0) < static_cast<size_t>(n_target) ||
-               tmp.extent(1) < static_cast<size_t>(n_library)) {
+    } else if (n_lib <= 0 || n_lib < top_k) {
+        throw std::invalid_argument("lib size is too small");
+    } else if (n_pred <= 0) {
+        throw std::invalid_argument("pred size is too small");
+    } else if (tmp.extent_int(0) < n_pred || tmp.extent_int(1) < n_lib) {
         throw std::invalid_argument(
-            "TmpDistances must be larger or equal to (n_target, n_library)");
-    } else if (out.distances.extent(0) != static_cast<size_t>(n_target) ||
-               out.distances.extent(1) != static_cast<size_t>(top_k)) {
-        throw std::invalid_argument("LUT must have shape (n_target, top_k)");
-    } else if (library.extent(1) != target.extent(1)) {
-        throw std::invalid_argument(
-            "library and target must have same number of time series");
+            "TmpDistances must be larger or equal to (n_pred, n_lib)");
+    } else if (out.distances.extent_int(0) != n_pred ||
+               out.distances.extent_int(1) != top_k) {
+        throw std::invalid_argument("LUT must have shape (n_pred, top_k)");
     }
 
     // Calculate all-to-all distances
-    calc_distances(library, target, tmp, n_library, n_target, E, tau);
+    calc_distances(lib, pred, tmp, n_lib, n_pred, E, tau);
 
     // Sort the distance matrix
-    partial_sort(tmp, out, n_library, n_target, top_k, shift);
+    partial_sort(tmp, out, n_lib, n_pred, top_k, n_partial + Tp);
 
-#ifdef DEBUG
-    for (int i = 0; i < out.indices.extent(0); i++) {
-        for (int j = 0; j < out.indices.extent(1); j++) {
-            std::cout << out.indices(i, j) << " ";
-        }
-        std::cout << std::endl;
+    Kokkos::Profiling::popRegion();
+}
+
+void knn(Dataset lib, Dataset pred, SimplexLUT out, TmpDistances tmp, int E,
+         int tau, int Tp, int top_k)
+{
+    Kokkos::Profiling::pushRegion("EDM::knn");
+
+    const int n_partial = (E - 1) * tau;
+    const int n_lib = lib.extent(0) - n_partial - Tp;
+    const int n_pred = pred.extent(0) - n_partial;
+
+    if (E <= 0) {
+        throw std::invalid_argument("E must be greater than zero");
+    } else if (tau <= 0) {
+        throw std::invalid_argument("tau must be greater than zero");
+    } else if (Tp < 0) {
+        throw std::invalid_argument("Tp must be greater or equal to zero");
+    } else if (top_k <= 0) {
+        throw std::invalid_argument("top_k must be greater than zero");
+    } else if (n_lib <= 0 || n_lib < top_k) {
+        throw std::invalid_argument("lib size is too small");
+    } else if (n_pred <= 0) {
+        throw std::invalid_argument("pred size is too small");
+    } else if (tmp.extent_int(0) < n_pred || tmp.extent_int(1) < n_lib) {
+        throw std::invalid_argument(
+            "TmpDistances must be larger or equal to (n_pred, n_lib)");
+    } else if (out.distances.extent_int(0) != n_pred ||
+               out.distances.extent_int(1) != top_k) {
+        throw std::invalid_argument("LUT must have shape (n_pred, top_k)");
+    } else if (lib.extent(1) != pred.extent(1)) {
+        throw std::invalid_argument(
+            "lib and pred must have same number of time series");
     }
-#endif
+
+    // Calculate all-to-all distances
+    calc_distances(lib, pred, tmp, n_lib, n_pred, E, tau);
+
+    // Sort the distance matrix
+    partial_sort(tmp, out, n_lib, n_pred, top_k, n_partial + Tp);
 
     Kokkos::Profiling::popRegion();
 }

@@ -34,12 +34,12 @@ void sgels_(char const *trans, int const *m, int const *n, int const *nrhs,
 namespace edm
 {
 
-void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
-          int E, int tau, int Tp, float theta)
+void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
+          TimeSeries target, int E, int tau, int Tp, float theta)
 {
-    const int shift = (E - 1) * tau + Tp;
-    const int n_library = library.size() - shift;
-    const int n_target = target.size() - shift + Tp;
+    const int n_partial = (E - 1) * tau;
+    const int n_lib = lib.extent(0) - n_partial - Tp;
+    const int n_pred = pred.extent(0) - n_partial;
 
     if (E <= 0) {
         throw std::invalid_argument("E must be greater than zero");
@@ -47,27 +47,29 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
         throw std::invalid_argument("tau must be greater than zero");
     } else if (Tp < 0) {
         throw std::invalid_argument("Tp must be greater or equal to zero");
-    } else if (n_library <= 0) {
-        throw std::invalid_argument("library size is too small");
-    } else if (n_target <= 0) {
-        throw std::invalid_argument("target size is too small");
+    } else if (n_lib <= 0) {
+        throw std::invalid_argument("lib size is too small");
+    } else if (n_pred <= 0) {
+        throw std::invalid_argument("pred size is too small");
+    } else if (lib.extent(0) != target.extent(0)) {
+        throw std::invalid_argument("lib size and target size must be equal");
     }
 
 #ifdef KOKKOS_ENABLE_CUDA
     // Make sure the design matrices fit within 4GiB
     const int batch_size =
-        std::max(1ul, (1ul << 32) / (n_library * (E + 1) * sizeof(float)));
+        std::max(1ul, (1ul << 32) / (n_lib * (E + 1) * sizeof(float)));
 #else
     // For now we do not use batched kernels on CPU
     const int batch_size = 1;
 #endif
 
-    Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace> d(
-        "distances", n_library, batch_size);
-    Kokkos::View<float ***, Kokkos::LayoutLeft, DevSpace> A("design", n_library,
+    Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace> d("distances", n_lib,
+                                                           batch_size);
+    Kokkos::View<float ***, Kokkos::LayoutLeft, DevSpace> A("design", n_lib,
                                                             E + 1, batch_size);
-    Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace> b(
-        "response", n_library, batch_size);
+    Kokkos::View<float **, Kokkos::LayoutLeft, DevSpace> b("response", n_lib,
+                                                           batch_size);
 
 #ifdef KOKKOS_ENABLE_CUDA
     int info;
@@ -86,7 +88,7 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     cublasHandle_t handle;
     CUBLAS_CHECK(cublasCreate(&handle));
 #else
-    int m = n_library, n = E + 1, nrhs = 1, lda = n_library, ldb = n_library;
+    int m = n_lib, n = E + 1, nrhs = 1, lda = n_lib, ldb = n_lib;
     int work_size = 0, lwork = -1, info = 0;
 
     sgels_("N", &m, &n, &nrhs, A.data(), &lda, b.data(), &ldb,
@@ -95,8 +97,8 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
     float *work = (float *)Kokkos::kokkos_malloc<>(work_size * sizeof(float));
 #endif
 
-    for (int offset = 0; offset < n_target; offset += batch_size) {
-        int this_batch_size = std::min(batch_size, n_target - offset);
+    for (int offset = 0; offset < n_pred; offset += batch_size) {
+        int this_batch_size = std::min(batch_size, n_pred - offset);
 
         Kokkos::parallel_for(
             "EDM::smap::preprocess",
@@ -106,15 +108,15 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
                 // Compute Euclidean distances in state space
                 Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
                         float dist = 0.0f;
                         for (int k = 0; k < E; k++) {
-                            float diff = library(j + k * tau) -
-                                         target(offset + i + k * tau);
+                            float diff =
+                                lib(j + k * tau) - pred(offset + i + k * tau);
                             dist += diff * diff;
                         }
 
-                        if (library.data() + j == target.data() + offset + i) {
+                        if (lib.data() + j == pred.data() + offset + i) {
                             dist = FLT_MAX;
                         } else {
                             dist = sqrt(dist);
@@ -127,32 +129,32 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
                 // Compute mean distance
                 Kokkos::parallel_reduce(
-                    Kokkos::TeamThreadRange(member, n_library),
+                    Kokkos::TeamThreadRange(member, n_lib),
                     [=](int j, float &sum) {
                         sum += d(j, i) < FLT_MAX ? d(j, i) : 0.0f;
                     },
                     d_mean);
 
-                d_mean /= n_library;
+                d_mean /= n_lib;
 
                 // Fill out design matrices and response vectors
                 Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
                         float w = exp(-theta * d(j, i) / d_mean);
 
                         A(j, 0, i) = w;
                         for (int k = 0; k < E; k++) {
-                            A(j, k + 1, i) = w * library(j + k * tau);
+                            A(j, k + 1, i) = w * lib(j + k * tau);
                         }
-                        b(j, i) = w * library(j + shift);
+                        b(j, i) = w * lib(j + n_partial + Tp);
                     });
             });
 
         // Invoke least-squares solver
 #ifdef KOKKOS_ENABLE_CUDA
-        CUBLAS_CHECK(cublasSgelsBatched(handle, CUBLAS_OP_N, n_library, E + 1,
-                                        1, As, n_library, bs, n_library, &info,
-                                        dev_infos, this_batch_size));
+        CUBLAS_CHECK(cublasSgelsBatched(handle, CUBLAS_OP_N, n_lib, E + 1, 1,
+                                        As, n_lib, bs, n_lib, &info, dev_infos,
+                                        this_batch_size));
 
         if (info != 0) {
             throw std::runtime_error("cublasSgelsBatched returned error: " +
@@ -170,13 +172,13 @@ void smap(MutableTimeSeries prediction, TimeSeries library, TimeSeries target,
 
         Kokkos::parallel_for(
             "EDM::smap::postprocess", this_batch_size, KOKKOS_LAMBDA(int i) {
-                float pred = b(0, i);
+                float p = b(0, i);
 
                 for (int k = 0; k < E; k++) {
-                    pred += b(k + 1, i) * target(offset + i + k * tau);
+                    p += b(k + 1, i) * target(offset + i + k * tau);
                 }
 
-                prediction(i + offset) = pred;
+                result(i + offset) = p;
             });
     }
 

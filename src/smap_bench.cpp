@@ -55,32 +55,31 @@ int main(int argc, char *argv[])
 
     Kokkos::ScopeGuard kokkos(argc, argv);
 
-    edm::MutableTimeSeries library("library", L);
-    edm::MutableTimeSeries target("target", L);
-    edm::MutableTimeSeries prediction("prediction", L);
+    edm::MutableTimeSeries lib("lib", L);
+    edm::MutableTimeSeries pred("pred", L);
+    edm::MutableTimeSeries result("result", L);
 
-    auto library_mirror = Kokkos::create_mirror_view(library);
-    auto target_mirror = Kokkos::create_mirror_view(target);
+    auto lib_mirror = Kokkos::create_mirror_view(lib);
+    auto pred_mirror = Kokkos::create_mirror_view(pred);
 
-    library_mirror(0) = 0.23456f;
-    target_mirror(0) = 0.34567f;
+    lib_mirror(0) = 0.23456f;
+    pred_mirror(0) = 0.34567f;
 
     for (int i = 1; i < L; i++) {
-        library_mirror(i) =
-            4.0f * library_mirror(i - 1) * (1.0f - library_mirror(i - 1));
-        target_mirror(i) =
-            4.0f * target_mirror(i - 1) * (1.0f - target_mirror(i - 1));
+        lib_mirror(i) = 4.0f * lib_mirror(i - 1) * (1.0f - lib_mirror(i - 1));
+        pred_mirror(i) =
+            4.0f * pred_mirror(i - 1) * (1.0f - pred_mirror(i - 1));
     }
 
-    Kokkos::deep_copy(library, library_mirror);
-    Kokkos::deep_copy(target, target_mirror);
+    Kokkos::deep_copy(lib, lib_mirror);
+    Kokkos::deep_copy(pred, pred_mirror);
 
     Kokkos::fence();
 
     Kokkos::Timer timer;
 
     for (auto i = 0; i < iterations; i++) {
-        edm::smap(prediction, library, target, E, tau, Tp, theta);
+        edm::smap(result, lib, pred, lib, E, tau, Tp, theta);
     }
 
     Kokkos::fence();

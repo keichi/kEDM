@@ -7,16 +7,14 @@ namespace edm
 {
 
 // Univariate
-void simplex(MutableTimeSeries prediction, TimeSeries library,
+void simplex(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
              TimeSeries target, int E, int tau, int Tp);
 
-void lookup(MutableTimeSeries prediction, TimeSeries target, SimplexLUT lut);
-
 // Multivariate
-void simplex(MutableDataset prediction, Dataset library, Dataset target, int E,
-             int tau, int Tp);
+void simplex(MutableTimeSeries result, Dataset lib, Dataset pred,
+             TimeSeries target, int E, int tau, int Tp);
 
-void lookup(MutableDataset prediction, Dataset target, SimplexLUT lut);
+void lookup(MutableTimeSeries result, TimeSeries target, SimplexLUT lut);
 
 } // namespace edm
 
