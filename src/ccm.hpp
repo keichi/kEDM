@@ -10,7 +10,7 @@ namespace edm
 
 std::vector<float> ccm(TimeSeries library, TimeSeries target,
                        const std::vector<int> &lib_sizes, int samples, int E,
-                       int tau, int Tp);
+                       int tau, int Tp, int seed);
 
 } // namespace edm
 

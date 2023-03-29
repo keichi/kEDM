@@ -13,34 +13,34 @@
 namespace edm
 {
 
-std::vector<float> ccm(TimeSeries library, TimeSeries target,
-                       const std::vector<int> &lib_sizes, int samples, int E,
-                       int tau, int Tp)
+std::vector<float> ccm(TimeSeries lib, TimeSeries target,
+                       const std::vector<int> &lib_sizes, int sample, int E,
+                       int tau, int Tp, int seed)
 {
     Kokkos::Profiling::pushRegion("EDM::ccm");
 
-    int shift = (E - 1) * tau + Tp;
-    int n_library = library.extent(0) - shift;
+    int n_partial = (E - 1) * tau;
+    int n_lib = lib.extent(0) - n_partial - Tp;
     int n_target = target.extent(0);
-    int n_prediction = n_target - shift + Tp;
+    int n_prediction = n_target - n_partial;
 
     std::vector<float> rhos;
 
-    TmpDistances tmp("tmp_distances", n_library, n_library);
-    SimplexLUT full_lut(n_library, n_library);
+    TmpDistances tmp("tmp_distances", n_lib, n_lib);
+    SimplexLUT full_lut(n_lib, n_lib);
 
-    calc_distances(library, library, tmp, n_library, n_library, E, tau);
+    calc_distances(lib, lib, tmp, n_lib, n_lib, E, tau);
 
     Kokkos::deep_copy(full_lut.distances, tmp);
 
     Kokkos::parallel_for(
-        "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_library, Kokkos::AUTO),
+        "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_lib, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_library), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
                     full_lut.distances(i, j) = sqrt(full_lut.distances(i, j));
-                    full_lut.indices(i, j) = j + shift;
+                    full_lut.indices(i, j) = j + n_partial + Tp;
                 });
 
             member.team_barrier();
@@ -50,23 +50,27 @@ std::vector<float> ccm(TimeSeries library, TimeSeries target,
                 Kokkos::subview(full_lut.indices, i, Kokkos::ALL));
         });
 
-    std::random_device seed_gen;
-    std::mt19937 engine(seed_gen());
+    if (seed == 0) {
+        std::random_device seed_gen;
+        seed = seed_gen();
+    }
 
-    Kokkos::Bitset<HostSpace> mask_mirror(n_library);
-    Kokkos::Bitset<DevSpace> mask(n_library);
+    std::mt19937 engine(seed);
+
+    Kokkos::Bitset<HostSpace> mask_mirror(n_lib);
+    Kokkos::Bitset<DevSpace> mask(n_lib);
 
     MutableTimeSeries prediction("prediction", n_prediction);
 
     for (int lib_size : lib_sizes) {
         SimplexLUT lut(n_prediction, E + 1);
 
-        float rho_avg = 0.0f;
+        float rho_sum = 0.0f;
 
-        for (int trial = 0; trial < samples; trial++) {
+        for (int trial = 0; trial < sample; trial++) {
             mask_mirror.clear();
 
-            for (int i = n_library - lib_size; i < n_library; i++) {
+            for (int i = n_lib - lib_size; i < n_lib; i++) {
                 int r = std::uniform_int_distribution<>(0, i)(engine);
                 mask_mirror.set(mask_mirror.test(r) ? i : r);
             }
@@ -77,7 +81,7 @@ std::vector<float> ccm(TimeSeries library, TimeSeries target,
                 "EDM::ccm::sample", n_prediction, KOKKOS_LAMBDA(int i) {
                     int selected = 0;
 
-                    for (int j = 0; j < n_library && selected < E + 1; j++) {
+                    for (int j = 0; j < n_lib && selected < E + 1; j++) {
                         int idx = full_lut.indices(i, j);
 
                         if (mask.test(idx)) {
@@ -94,17 +98,14 @@ std::vector<float> ccm(TimeSeries library, TimeSeries target,
             lookup(prediction, target, lut);
 
             float rho = edm::corrcoef(
-                Kokkos::subview(target,
-                                std::make_pair(shift, target.extent_int(0))),
+                Kokkos::subview(target, std::make_pair(n_partial + Tp,
+                                                       target.extent_int(0))),
                 prediction);
 
-            rho_avg += rho;
+            rho_sum += rho;
         }
 
-        std::cout << "lib_size=" << lib_size
-                  << " avg_rho=" << (rho_avg / samples) << std::endl;
-
-        rhos.push_back(rho_avg / samples);
+        rhos.push_back(rho_sum / sample);
     }
 
     Kokkos::Profiling::popRegion();
