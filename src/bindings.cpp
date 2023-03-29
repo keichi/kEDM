@@ -276,15 +276,8 @@ py::array_t<float> xmap(py::array_t<float> ds_arr,
     }
 
     auto ds = edm::MutableDataset("dataset", ds_arr.shape(0), ds_arr.shape(1));
-    auto mirror_ds = Kokkos::create_mirror_view(ds);
 
-    for (py::ssize_t i = 0; i < ds_arr.shape(0); i++) {
-        for (py::ssize_t j = 0; j < ds_arr.shape(1); j++) {
-            mirror_ds(i, j) = *ds_arr.data(i, j);
-        }
-    }
-
-    Kokkos::deep_copy(ds, mirror_ds);
+    copy(ds, ds_arr);
 
     std::vector<edm::SimplexLUT> luts;
 

@@ -7,8 +7,8 @@ namespace edm
 
 std::ostream &operator<<(std::ostream &os, const SimplexLUT &lut)
 {
-    os << "LUT (" << lut.distances.extent(0) << "x" << lut.distances.extent(1)
-       << ")" << std::endl;
+    os << "kNN LUT (" << lut.distances.extent(0) << "x"
+       << lut.distances.extent(1) << ")" << std::endl;
     os << "========================================" << std::endl;
 
     os << std::fixed << std::setprecision(4);
