@@ -21,20 +21,21 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
 
     int n_partial = (E - 1) * tau;
     int n_lib = lib.extent(0) - n_partial - Tp;
-    int n_target = target.extent(0);
-    int n_prediction = n_target - n_partial;
+    int n_pred = lib.extent(0) - n_partial;
 
     std::vector<float> rhos;
 
-    TmpDistances tmp("tmp_distances", n_lib, n_lib);
-    SimplexLUT full_lut(n_lib, n_lib);
+    TmpDistances tmp("tmp_distances", n_pred, n_lib);
+    SimplexLUT full_lut(n_pred, n_lib);
 
-    calc_distances(lib, lib, tmp, n_lib, n_lib, E, tau);
+    // Compute pairwise distance matrix
+    calc_distances(lib, lib, tmp, n_lib, n_pred, E, tau);
 
     Kokkos::deep_copy(full_lut.distances, tmp);
 
+    // Sort each row of the distance matrix
     Kokkos::parallel_for(
-        "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_lib, Kokkos::AUTO),
+        "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
             Kokkos::parallel_for(
@@ -57,47 +58,55 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
 
     std::mt19937 engine(seed);
 
-    Kokkos::Bitset<HostSpace> mask_mirror(n_lib);
-    Kokkos::Bitset<DevSpace> mask(n_lib);
+    // Bit mask representing which library row is sampled
+    Kokkos::Bitset<HostSpace> mask_mirror(lib.extent(0));
+    Kokkos::Bitset<DevSpace> mask(lib.extent(0));
 
-    MutableTimeSeries prediction("prediction", n_prediction);
+    SimplexLUT lut(n_pred, E + 1);
+
+    MutableTimeSeries prediction("prediction", n_pred);
 
     for (int lib_size : lib_sizes) {
-        SimplexLUT lut(n_prediction, E + 1);
 
         float rho_sum = 0.0f;
 
         for (int trial = 0; trial < sample; trial++) {
             mask_mirror.clear();
 
-            for (int i = n_lib - lib_size; i < n_lib; i++) {
+            // Random sampling without replacement (Floyd's algorithm)
+            for (int i = lib.extent_int(0) - lib_size; i < lib.extent_int(0);
+                 i++) {
                 int r = std::uniform_int_distribution<>(0, i)(engine);
                 mask_mirror.set(mask_mirror.test(r) ? i : r);
             }
 
             Kokkos::deep_copy(mask, mask_mirror);
 
+            // Scan each row of the full LUT and check if the neighbor is
+            // sampled. Collect neighbors into sampled LUT until E + 1
+            // neighbors are found for each row.
             Kokkos::parallel_for(
-                "EDM::ccm::sample", n_prediction, KOKKOS_LAMBDA(int i) {
+                "EDM::ccm::sample", n_pred, KOKKOS_LAMBDA(int i) {
+                    // Number of neighbors found so far
                     int selected = 0;
 
                     for (int j = 0; j < n_lib && selected < E + 1; j++) {
                         int idx = full_lut.indices(i, j);
 
                         if (mask.test(idx)) {
-                            float dist = full_lut.distances(i, j);
-
-                            lut.distances(i, selected) = dist;
+                            lut.distances(i, selected) =
+                                full_lut.distances(i, j);
                             lut.indices(i, selected) = idx;
                             selected++;
                         }
                     }
                 });
 
+            // Normalize LUT and make prediction
             normalize_lut(lut);
             lookup(prediction, target, lut);
 
-            float rho = edm::corrcoef(
+            float rho = corrcoef(
                 Kokkos::subview(target, std::make_pair(n_partial + Tp,
                                                        target.extent_int(0))),
                 prediction);
