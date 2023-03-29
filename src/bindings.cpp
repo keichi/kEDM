@@ -21,10 +21,11 @@ void copy(edm::MutableTimeSeries dst, py::array_t<float> src)
 
     // This macro avoids a compiler warning on CUDA (calling a __host__
     // function from a __host__ __device__ function)
-    KOKKOS_IF_ON_HOST(Kokkos::parallel_for(
-                          "edm::bindings::copy",
-                          Kokkos::RangePolicy<edm::HostSpace>(0, dst.extent(0)),
-                          KOKKOS_LAMBDA(int i) { dst(i) = src_proxy(i); });)
+    KOKKOS_IF_ON_HOST(
+        Kokkos::parallel_for(
+            "edm::bindings::copy",
+            Kokkos::RangePolicy<edm::HostSpace>(0, dst.extent(0)),
+            KOKKOS_LAMBDA(int i) { dst_mirror(i) = src_proxy(i); });)
 
     Kokkos::deep_copy(dst, dst_mirror);
 }
