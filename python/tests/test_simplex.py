@@ -37,6 +37,46 @@ def test_multivariate_simplex(pytestconfig):
     assert prediction == pytest.approx(valid, abs=1e-6)
 
 
+# Columns #1, #4 and #7 are x_t, y_t and z_t
+@pytest.mark.parametrize("valid_csv,lib_range,pred_range,columns,target",
+                         [("block_3sp_valid_MV_xy_xy_lib_1_100_pred_101_195.csv",
+                           [0, 100], [100, 195], [1, 4], 1),
+                          ("block_3sp_valid_MV_xy_xy_lib_1_100_pred_1_100.csv",
+                           [0, 100], [0,   100], [1, 4], 1),
+                          ("block_3sp_valid_MV_xy_xx_lib_1_100_pred_101_195.csv",
+                           [0, 100], [100, 195], [1, 4], 1),
+                          ("block_3sp_valid_MV_xy_zy_lib_1_100_pred_101_195.csv",
+                           [0, 100], [100, 195], [1, 4], 7)])
+def test_MV_simplex(pytestconfig, valid_csv, lib_range, pred_range, columns, target):
+    E, tau, Tp = 3, 1, 1
+
+    data = np.loadtxt(pytestconfig.rootdir / "test/block_3sp.csv", skiprows=1,
+                      delimiter=",")
+    valid = np.loadtxt(pytestconfig.rootdir / "test/" / valid_csv,
+                       skiprows=1, delimiter=",")[:, 2]  # Predictions
+
+    lib = data[lib_range[0]:lib_range[1], columns]
+    pred = data[pred_range[0]:pred_range[1], columns]
+    target = data[lib_range[0]:lib_range[1], target]
+
+    prediction = kedm.simplex(lib, pred, target=target, E=E, tau=tau, Tp=Tp)
+
+    assert prediction == pytest.approx(valid, abs=1e-5)
+
+
+def test_full_lib_simplex(pytestconfig):
+    E, tau, Tp = 2, 1, 1
+
+    ts = np.loadtxt(pytestconfig.rootdir / "test/simplex_test_data.csv",
+                    skiprows=1)
+    valid = np.loadtxt(pytestconfig.rootdir / f"test/simplex_full_lib_test_validation.csv",
+                       skiprows=1)
+
+    prediction = kedm.simplex(ts, ts, E=E, tau=tau, Tp=Tp)
+
+    assert prediction == pytest.approx(valid, abs=1e-5)
+
+
 @pytest.mark.parametrize("E", range(1, 21))
 def test_simplex_rho(pytestconfig, E):
     tau, Tp = 1, 1
