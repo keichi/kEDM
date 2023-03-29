@@ -3,7 +3,17 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
+build:
+  os: ubuntu-22.04
+  tools:
+    python: 3.10
+  apt_packages:
+    - libhdf5-dev
+    - libopenblas-openmp-dev
+    - liblapacke-dev
+
 python:
-  version: 3.8
   install:
     - requirements: docs/requirements.txt
+    - method: pip
+      path: .
