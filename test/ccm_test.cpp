@@ -1,13 +1,14 @@
 #include <doctest/doctest.h>
 
-#include "../src/io.hpp"
 #include "../src/ccm.hpp"
+#include "../src/io.hpp"
 #include "../src/types.hpp"
 
 namespace edm
 {
 
-TEST_CASE("Compute Convergent Cross Mapping") {
+TEST_CASE("Compute Convergent Cross Mapping")
+{
     const int E = 3;
     const int tau = 1;
     const int Tp = 0;
@@ -22,8 +23,19 @@ TEST_CASE("Compute Convergent Cross Mapping") {
     const auto anchovy = Kokkos::subview(ds1, Kokkos::ALL, 1);
     const auto sst = Kokkos::subview(ds1, Kokkos::ALL, 4);
 
-    ccm(anchovy, sst, lib_sizes, sample, E, tau, Tp);
-    ccm(sst, anchovy, lib_sizes, sample, E, tau, Tp);
+    const auto rhos1 = ccm(anchovy, sst, lib_sizes, sample, E, tau, Tp, 42);
+    const auto rhos2 = ccm(sst, anchovy, lib_sizes, sample, E, tau, Tp, 42);
+
+    const Dataset ds2 = load_csv("anchovy_sst_ccm_validation.csv");
+    const auto valid_rhos1 = Kokkos::create_mirror_view_and_copy(
+        HostSpace(), Kokkos::subview(ds2, Kokkos::ALL, 1));
+    const auto valid_rhos2 = Kokkos::create_mirror_view_and_copy(
+        HostSpace(), Kokkos::subview(ds2, Kokkos::ALL, 2));
+
+    for (size_t i = 0; i < rhos1.size(); i++) {
+        CHECK(rhos1[i] == doctest::Approx(valid_rhos1(i)));
+        CHECK(rhos2[i] == doctest::Approx(valid_rhos2(i)));
+    }
 }
 
 } // namespace edm
