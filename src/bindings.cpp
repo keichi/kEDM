@@ -18,10 +18,12 @@ void copy(edm::MutableTimeSeries dst, py::array_t<float> src)
     auto dst_mirror = Kokkos::create_mirror_view(dst);
     auto src_proxy = src.unchecked<1>();
 
-    Kokkos::parallel_for(
-        "edm::bindings::copy",
-        Kokkos::RangePolicy<>(edm::HostSpace(), 0, dst.extent(0)),
-        KOKKOS_LAMBDA(int i) { dst(i) = src_proxy(i); });
+    // This macro avoids a compiler warning on CUDA (calling a __host__
+    // function from a __host__ __device__ function)
+    KOKKOS_IF_ON_HOST(Kokkos::parallel_for(
+                          "edm::bindings::copy",
+                          Kokkos::RangePolicy<edm::HostSpace>(0, dst.extent(0)),
+                          KOKKOS_LAMBDA(int i) { dst(i) = src_proxy(i); });)
 
     Kokkos::deep_copy(dst, dst_mirror);
 }
@@ -31,11 +33,14 @@ void copy(edm::MutableDataset dst, py::array_t<float> src)
     auto dst_mirror = Kokkos::create_mirror_view(dst);
     auto src_proxy = src.unchecked<2>();
 
-    Kokkos::parallel_for(
-        "edm::bindings::copy",
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>(edm::HostSpace(), {0, 0},
-                                               {dst.extent(0), dst.extent(1)}),
-        KOKKOS_LAMBDA(int i, int j) { dst_mirror(i, j) = src_proxy(i, j); });
+    KOKKOS_IF_ON_HOST(
+        Kokkos::parallel_for(
+            "edm::bindings::copy",
+            Kokkos::MDRangePolicy<edm::HostSpace, Kokkos::Rank<2>>(
+                {0, 0}, {dst.extent(0), dst.extent(1)}),
+            KOKKOS_LAMBDA(int i, int j) {
+                dst_mirror(i, j) = src_proxy(i, j);
+            });)
 
     Kokkos::deep_copy(dst, dst_mirror);
 }
@@ -46,12 +51,15 @@ void copy(py::array_t<float> dst, edm::TimeSeries src)
     auto src_mirror =
         Kokkos::create_mirror_view_and_copy(edm::HostSpace(), src);
 
-    Kokkos::parallel_for(
-        "edm::bindings::copy",
-        Kokkos::RangePolicy<>(edm::HostSpace(), 0, src_mirror.extent(0)),
-        KOKKOS_LAMBDA(int i) {
-            const_cast<float &>(dst_proxy(i)) = src_mirror(i);
-        });
+    KOKKOS_IF_ON_HOST(
+        Kokkos::parallel_for(
+            "edm::bindings::copy",
+            Kokkos::RangePolicy<edm::HostSpace>(0, src_mirror.extent(0)),
+            KOKKOS_LAMBDA(int i) {
+                // const_cast is required because dst_proxy is captured by
+                // value.
+                const_cast<float &>(dst_proxy(i)) = src_mirror(i);
+            });)
 
     Kokkos::fence();
 }
@@ -327,7 +335,7 @@ PYBIND11_MODULE(_kedm, m)
             tau: Time delay
             Tp: Prediction interval
           Returns:
-            Predicted time series
+            Prediction result
           Note:
             If both lib and pred are 2D arrays, *mixed multivariate embedding*
             is peformed, where each time series is embedded into an
@@ -366,7 +374,7 @@ PYBIND11_MODULE(_kedm, m)
             Tp: Prediction interval
             theta: Neighbor localization exponent
           Returns:
-            Predicted time series
+            Prediction result
           )doc",
           py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
@@ -384,8 +392,7 @@ PYBIND11_MODULE(_kedm, m)
             Tp: Prediction interval
             theta: Neighbor localization exponent
           Returns:
-            Pearson's correlation coefficient between predicted and actual
-            time series
+            Pearson's correlation coefficient between observation and prediction
           )doc",
           py::arg("lib"), py::arg("pred"), py::arg("target"), py::arg("E") = 1,
           py::arg("tau") = 1, py::arg("Tp") = 1, py::arg("theta") = 1.0f);
