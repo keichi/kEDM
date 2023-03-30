@@ -80,9 +80,13 @@ jobs:
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(nproc)
-    - name: Run kEDM unit tests
+    - name: Run C++ unit tests
       run: ctest
       working-directory: build
+    - name: Build and install Python wheel
+      run: pip3 install -v '.[test]'
+    - name: Run Python unit tests
+      run: pytest python
 
   build-macos-cpu:
     strategy:
@@ -125,7 +129,7 @@ jobs:
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
-    - name: Run kEDM unit tests
+    - name: Run C++ unit tests
       run: ctest
       working-directory: build
 
