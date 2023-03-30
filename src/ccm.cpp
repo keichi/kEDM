@@ -3,6 +3,7 @@
 #include <Kokkos_NestedSort.hpp>
 
 #include <random>
+#include "thirdparty/pcg/include/pcg_random.hpp"
 
 #include "ccm.hpp"
 #include "knn.hpp"
@@ -51,12 +52,14 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                 Kokkos::subview(full_lut.indices, i, Kokkos::ALL));
         });
 
-    if (seed == 0) {
-        std::random_device seed_gen;
-        seed = seed_gen();
-    }
+    pcg32 rng;
 
-    std::mt19937 engine(seed);
+    if (seed == 0) {
+        pcg_extras::seed_seq_from<std::random_device> seed_source;
+        rng.seed(seed_source);
+    } else {
+        rng.seed(seed);
+    }
 
     // Bit mask representing which library row is sampled
     Kokkos::Bitset<HostSpace> mask_mirror(lib.extent(0));
@@ -76,7 +79,7 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
             // Random sampling without replacement (Floyd's algorithm)
             for (int i = lib.extent_int(0) - lib_size; i < lib.extent_int(0);
                  i++) {
-                int r = std::uniform_int_distribution<>(0, i)(engine);
+                int r = rng(i);
                 mask_mirror.set(mask_mirror.test(r) ? i : r);
             }
 
