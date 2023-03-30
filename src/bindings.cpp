@@ -272,7 +272,8 @@ std::vector<float> ccm(py::array_t<float> lib_arr,
 {
     if (lib_arr.ndim() != 1 || target_arr.ndim() != 1) {
         throw std::invalid_argument("lib and target must be 1D arrays");
-    } else if (*std::min_element(lib_sizes.begin(), lib_sizes.end()) <= 0) {
+    } else if (!lib_sizes.empty() &&
+               *std::min_element(lib_sizes.begin(), lib_sizes.end()) <= 0) {
         throw std::invalid_argument("All lib_sizes must be larger than zero");
     } else if (sample <= 0) {
         throw std::invalid_argument("sample must be larger than zero");
