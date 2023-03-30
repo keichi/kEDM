@@ -2,8 +2,8 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_NestedSort.hpp>
 
-#include <random>
 #include "thirdparty/pcg/include/pcg_random.hpp"
+#include <random>
 
 #include "ccm.hpp"
 #include "knn.hpp"
