@@ -335,6 +335,7 @@ PYBIND11_MODULE(_kedm, m)
            eval_simplex
            smap
            eval_smap
+           ccm
            xmap
            get_kokkos_config
     )pbdoc";
