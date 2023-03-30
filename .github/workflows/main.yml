@@ -129,21 +129,45 @@ jobs:
       run: ctest
       working-directory: build
 
+  generate-wheels-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      include: ${{ steps.set-matrix.outputs.include }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install cibuildwheel
+        run: pipx install cibuildwheel==2.12.0
+      - id: set-matrix
+        run: |
+          MATRIX=$(
+            {
+              cibuildwheel --print-build-identifiers --platform linux \
+              | jq -nRc '{"only": inputs, "os": "ubuntu-22.04"}' \
+              && cibuildwheel --print-build-identifiers --platform macos \
+              | jq -nRc '{"only": inputs, "os": "macos-11"}'
+            } | jq -sc
+          )
+          echo "include=$MATRIX" >> $GITHUB_OUTPUT          
+    env:
+      CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
+      CIBW_ARCHS_MACOS: x86_64 arm64
+
   build-wheels:
-    runs-on: ${{ matrix.os }}
+    needs: generate-wheels-matrix
     strategy:
       matrix:
-        os: [ubuntu-22.04, macOS-11]
+        include: ${{ fromJson(needs.generate-wheels-matrix.outputs.include) }}
       fail-fast: false
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
       - name: Build wheels
         uses: joerick/cibuildwheel@v2.12.0
+        with:
+          only: ${{ matrix.only }}
         env:
-          CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
-          CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y openblas-devel &&
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
@@ -159,7 +183,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   publish-wheels:
-    needs: [build-wheels]
+    needs: build-wheels
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
