@@ -143,7 +143,7 @@ jobs:
         uses: joerick/cibuildwheel@v2.12.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
-          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_ARCHS_MACOS: universal2
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y openblas-devel &&
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
@@ -153,7 +153,6 @@ jobs:
             LDFLAGS="-L/usr/local/lib -rpath /usr/local/lib -lomp"
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
-          CIBW_TEST_SKIP: "*_arm64"
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
