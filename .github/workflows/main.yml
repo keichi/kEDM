@@ -62,6 +62,8 @@ jobs:
         cxx: [clang++-14, g++-12]
       fail-fast: false
     runs-on: ubuntu-22.04
+    env:
+      CXX: ${{ matrix.cxx }}
     steps:
     - uses: actions/checkout@v3
       with:
@@ -76,7 +78,6 @@ jobs:
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(nproc)
@@ -94,6 +95,8 @@ jobs:
         cxx: [clang++, g++-11]
       fail-fast: false
     runs-on: macOS-11
+    env:
+      CXX: ${{ matrix.cxx }}
     steps:
     - uses: actions/checkout@v3
       with:
@@ -111,7 +114,6 @@ jobs:
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -122,7 +124,6 @@ jobs:
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
           -DCMAKE_CXX_FLAGS="-I/usr/local/include -Xpreprocessor -fopenmp" \
           -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -lomp" \
           -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -lomp" \
