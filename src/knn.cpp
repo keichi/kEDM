@@ -356,7 +356,7 @@ void knn(Dataset lib, Dataset pred, SimplexLUT out, TmpDistances tmp, int E,
 
 void normalize_lut(SimplexLUT lut)
 {
-    Kokkos::Profiling::pushRegion("EDM::normalize_lut");
+    Kokkos::Profiling::pushRegion("EDM::knn::normalize_lut");
 
     auto distances = lut.distances;
     auto indices = lut.indices;
@@ -365,7 +365,7 @@ void normalize_lut(SimplexLUT lut)
 
     // Normalize lookup table
     Kokkos::parallel_for(
-        "EDM::normalize_distances", L, KOKKOS_LAMBDA(int i) {
+        "EDM::knn::normalize_distances", L, KOKKOS_LAMBDA(int i) {
             float sum_weights = 0.0f;
             float min_dist = FLT_MAX;
             float max_dist = 0.0f;

@@ -38,6 +38,7 @@ add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
 
 # Main library
 add_library(kedm
+  src/ccm.cpp
   src/edim.cpp
   src/io.cpp
   src/simplex.cpp
@@ -143,6 +144,7 @@ if(KEDM_ENABLE_TESTS)
   # Test executable
   add_executable(kedm-test
     test/main.cpp
+    test/ccm_test.cpp
     test/knn_test.cpp
     test/simplex_test.cpp
     test/smap_test.cpp
@@ -152,7 +154,9 @@ if(KEDM_ENABLE_TESTS)
   )
   target_link_libraries(kedm-test PRIVATE kedm Kokkos::kokkos doctest::doctest)
 
-  doctest_discover_tests(kedm-test WORKING_DIRECTORY ../test/ ADD_LABELS 1)
+  doctest_discover_tests(kedm-test WORKING_DIRECTORY ../test/
+                         PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false"
+                         ADD_LABELS 1)
 endif()
 
 message(STATUS "kEDM build configuration:")

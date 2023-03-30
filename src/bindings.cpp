@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "ccm.hpp"
 #include "edim.hpp"
 #include "knn.hpp"
 #include "simplex.hpp"
@@ -20,10 +21,11 @@ void copy(edm::MutableTimeSeries dst, py::array_t<float> src)
 
     // This macro avoids a compiler warning on CUDA (calling a __host__
     // function from a __host__ __device__ function)
-    KOKKOS_IF_ON_HOST(Kokkos::parallel_for(
-                          "edm::bindings::copy",
-                          Kokkos::RangePolicy<edm::HostSpace>(0, dst.extent(0)),
-                          KOKKOS_LAMBDA(int i) { dst(i) = src_proxy(i); });)
+    KOKKOS_IF_ON_HOST(
+        Kokkos::parallel_for(
+            "edm::bindings::copy",
+            Kokkos::RangePolicy<edm::HostSpace>(0, dst.extent(0)),
+            KOKKOS_LAMBDA(int i) { dst_mirror(i) = src_proxy(i); });)
 
     Kokkos::deep_copy(dst, dst_mirror);
 }
@@ -239,6 +241,28 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     return edm::corrcoef(Kokkos::subview(pred, range), result);
 }
 
+std::vector<float> ccm(py::array_t<float> lib_arr,
+                       py::array_t<float> target_arr,
+                       const std::vector<int> &lib_sizes, int sample, int E,
+                       int tau, int Tp, int seed)
+{
+    if (lib_arr.ndim() != 1 || target_arr.ndim() != 1) {
+        throw std::invalid_argument("lib and target must be 1D arrays");
+    } else if (*std::min_element(lib_sizes.begin(), lib_sizes.end()) <= 0) {
+        throw std::invalid_argument("All lib_sizes must be larger than zero");
+    } else if (sample <= 0) {
+        throw std::invalid_argument("sample must be larger than zero");
+    }
+
+    edm::MutableTimeSeries lib("lib", lib_arr.shape(0));
+    edm::MutableTimeSeries target("target", target_arr.shape(0));
+
+    copy(lib, lib_arr);
+    copy(target, target_arr);
+
+    return edm::ccm(lib, target, lib_sizes, sample, E, tau, Tp, seed);
+}
+
 py::array_t<float> xmap(py::array_t<float> ds_arr,
                         const std::vector<int> &edims, int tau, int Tp)
 {
@@ -253,15 +277,8 @@ py::array_t<float> xmap(py::array_t<float> ds_arr,
     }
 
     auto ds = edm::MutableDataset("dataset", ds_arr.shape(0), ds_arr.shape(1));
-    auto mirror_ds = Kokkos::create_mirror_view(ds);
 
-    for (py::ssize_t i = 0; i < ds_arr.shape(0); i++) {
-        for (py::ssize_t j = 0; j < ds_arr.shape(1); j++) {
-            mirror_ds(i, j) = *ds_arr.data(i, j);
-        }
-    }
-
-    Kokkos::deep_copy(ds, mirror_ds);
+    copy(ds, ds_arr);
 
     std::vector<edm::SimplexLUT> luts;
 
@@ -414,6 +431,27 @@ PYBIND11_MODULE(_kedm, m)
           py::arg("lib"), py::arg("pred"), py::kw_only(),
           py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
           py::arg("Tp") = 1, py::arg("theta") = 1.0f);
+
+    m.def("ccm", &ccm,
+          R"doc(
+          Convergent Cross Mapping
+
+          Args:
+            lib: Library time series
+            target: Target time series
+            lib_sizes: Library sizes
+            sample: Number of random samples
+            E: Embedding dimension
+            tau: Time delay
+            Tp: Prediction interval
+            seed: Random seed
+          Returns:
+            List of rhos
+          )doc",
+          py::arg("lib"), py::arg("target"), py::kw_only(),
+          py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 100,
+          py::arg("E") = 1, py::arg("tau") = 1, py::arg("Tp") = 0,
+          py::arg("seed") = 0);
 
     m.def("xmap", &xmap,
           R"doc(
