@@ -7,6 +7,7 @@ Python bindings for kEDM
 .. autosummary::
    :toctree: _generate
 
+   ccm
    edim
    simplex
    eval_simplex

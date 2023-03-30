@@ -89,8 +89,13 @@ py::array_t<float> simplex(py::array_t<float> lib_arr,
             "lib and pred must have same dimensionality");
     } else if (target_arr.ndim() > 1) {
         throw std::invalid_argument("target must be a 1D array");
-    } else if (target_arr.ndim() == 0) {
+    }
+
+    if (target_arr.ndim() == 0) {
         target_arr = lib_arr;
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        throw std::invalid_argument(
+            "lib and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -150,8 +155,13 @@ float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
         throw std::invalid_argument("lib and pred must be 1D arrays");
     } else if (target_arr.ndim() > 1) {
         throw std::invalid_argument("target must be a 1D array");
-    } else if (target_arr.ndim() == 0) {
+    }
+
+    if (target_arr.ndim() == 0) {
         target_arr = lib_arr;
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        throw std::invalid_argument(
+            "lib and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -182,7 +192,16 @@ py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
         throw std::invalid_argument("lib and pred must be 1D arrays");
     } else if (target_arr.ndim() > 1) {
         throw std::invalid_argument("target must be a 1D array");
-    } else if (target_arr.ndim() == 0) {
+    }
+
+    if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        throw std::invalid_argument(
+            "lib and target must have same number of time steps");
+    }
+
+    if (target_arr.ndim() == 0) {
         target_arr = lib_arr;
     }
 
@@ -217,8 +236,13 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
         throw std::invalid_argument("lib and pred must be 1D arrays");
     } else if (target_arr.ndim() > 1) {
         throw std::invalid_argument("target must be a 1D array");
-    } else if (target_arr.ndim() == 0) {
+    }
+
+    if (target_arr.ndim() == 0) {
         target_arr = lib_arr;
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        throw std::invalid_argument(
+            "lib and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -252,6 +276,13 @@ std::vector<float> ccm(py::array_t<float> lib_arr,
         throw std::invalid_argument("All lib_sizes must be larger than zero");
     } else if (sample <= 0) {
         throw std::invalid_argument("sample must be larger than zero");
+    }
+
+    if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        throw std::invalid_argument(
+            "lib and target must have same number of time steps");
     }
 
     edm::MutableTimeSeries lib("lib", lib_arr.shape(0));
@@ -321,28 +352,9 @@ std::string get_kokkos_config()
 
 PYBIND11_MODULE(_kedm, m)
 {
-    m.doc() = R"pbdoc(
-        Python bindings for kEDM
-        ------------------------
-
-        .. currentmodule:: _kedm
-
-        .. autosummary::
-           :toctree: _generate
-
-           edim
-           simplex
-           eval_simplex
-           smap
-           eval_smap
-           ccm
-           xmap
-           get_kokkos_config
-    )pbdoc";
-
     m.def("edim", &edim,
           R"doc(
-          Infer the optimal embedding dimension of a time series.
+          Estimate the optimal embedding dimension of a time series.
 
           Args:
             timeseries: Time series
@@ -435,28 +447,29 @@ PYBIND11_MODULE(_kedm, m)
 
     m.def("ccm", &ccm,
           R"doc(
-          Convergent Cross Mapping
+          Estimate the strength of causal interaction between two time
+          series using Convergent Cross Mapping (CCM).
 
           Args:
             lib: Library time series
             target: Target time series
-            lib_sizes: Library sizes
+            lib_sizes: List of library sizes
             sample: Number of random samples
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
-            seed: Random seed
+            seed: Random seed (randomly initialized if 0)
           Returns:
-            List of rhos
+            List of Pearson's correlation coefficient for each library size
           )doc",
           py::arg("lib"), py::arg("target"), py::kw_only(),
-          py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 100,
+          py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 1,
           py::arg("E") = 1, py::arg("tau") = 1, py::arg("Tp") = 0,
           py::arg("seed") = 0);
 
     m.def("xmap", &xmap,
           R"doc(
-          Infer the strength of causal interaction between multiple time
+          Estimate the strength of causal interaction between multiple time
           series.
 
           Args:
