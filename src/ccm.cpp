@@ -1,15 +1,18 @@
+#include <cfloat>
+#include <random>
+
+#include "thirdparty/pcg/include/pcg_random.hpp"
 #include <Kokkos_Bitset.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_NestedSort.hpp>
-
-#include "thirdparty/pcg/include/pcg_random.hpp"
-#include <random>
+#include <boost/math/distributions/binomial.hpp>
 
 #include "ccm.hpp"
 #include "knn.hpp"
 #include "simplex.hpp"
 #include "stats.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 
 namespace edm
 {
@@ -27,6 +30,7 @@ void full_sort(SimplexLUT lut, int n_lib, int n_pred, int n_partial, int Tp)
                 });
 
             member.team_barrier();
+
             Kokkos::Experimental::sort_by_key_team(
                 member, Kokkos::subview(lut.distances, i, Kokkos::ALL),
                 Kokkos::subview(lut.indices, i, Kokkos::ALL));
@@ -71,9 +75,32 @@ void full_sort_with_scratch(SimplexLUT lut, int n_lib, int n_pred,
         });
 }
 
+void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
+                  int Tp)
+{
+    Kokkos::parallel_for(
+        "EDM::ccm::partial_sort", n_pred, KOKKOS_LAMBDA(int i) {
+            std::partial_sort_copy(
+                Counter<int>(0), Counter<int>(n_lib), &lut.indices(i, 0),
+                &lut.indices(i, k), [&](int a, int b) {
+                    return lut.distances(i, a) < lut.distances(i, b);
+                });
+
+            for (int j = 0; j < k; j++) {
+                int idx = lut.indices(i, j);
+                lut.distances(i, j) = sqrt(lut.distances(i, idx));
+                lut.indices(i, j) = idx + n_partial + Tp;
+            }
+
+            for (int j = k; j < n_lib; j++) {
+                lut.distances(i, j) = FLT_MAX;
+            }
+        });
+}
+
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                        const std::vector<int> &lib_sizes, int sample, int E,
-                       int tau, int Tp, int seed)
+                       int tau, int Tp, int seed, float accuracy)
 {
     Kokkos::Profiling::pushRegion("EDM::ccm");
 
@@ -82,6 +109,10 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
     int n_pred = lib.extent(0) - n_partial;
 
     std::vector<float> rhos;
+
+    if (lib_sizes.empty()) {
+        return rhos;
+    }
 
     TmpDistances tmp("tmp_distances", n_pred, n_lib);
     SimplexLUT full_lut(n_pred, n_lib);
@@ -100,11 +131,30 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
         false;
 #endif
 
-    // Sort each row of the distance matrix
-    if (use_scratch) {
-        full_sort_with_scratch(full_lut, n_lib, n_pred, n_partial, Tp);
+    // (Partially) Sort each row of the distance matrix
+    if (accuracy < 1.0f) {
+        // Calculate the probability of a row to be sampled
+        int min_lib_size =
+            *std::min_element(lib_sizes.begin(), lib_sizes.end());
+        float min_sampling_prob =
+            static_cast<float>(min_lib_size) / lib.extent(0);
+
+        // If we find the top-`k` neighbors and each of the top-k neighbors is
+        // sampled at a probability of `min_sampling_prob`, we want to ensure
+        // that at least E+1 neighbors are sampled with a probability of
+        // `accuracy`.
+        int k = std::ceil(boost::math::binomial::find_minimum_number_of_trials(
+            E + 1, min_sampling_prob, 1.0f - accuracy));
+
+        k = std::min(std::max(k, E + 1), n_lib);
+
+        partial_sort(full_lut, k, n_lib, n_pred, n_partial, Tp);
     } else {
-        full_sort(full_lut, n_lib, n_pred, n_partial, Tp);
+        if (use_scratch) {
+            full_sort_with_scratch(full_lut, n_lib, n_pred, n_partial, Tp);
+        } else {
+            full_sort(full_lut, n_lib, n_pred, n_partial, Tp);
+        }
     }
 
     pcg32 rng;

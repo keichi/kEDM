@@ -19,3 +19,6 @@
 [submodule "src/thirdparty/pcg"]
 	path = src/thirdparty/pcg
 	url = https://github.com/imneme/pcg-cpp.git
+[submodule "src/thirdparty/boost-math"]
+	path = src/thirdparty/boost-math
+	url = https://github.com/boostorg/math.git
