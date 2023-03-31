@@ -13,7 +13,7 @@ float corrcoef(TimeSeries x, TimeSeries y)
     CorrcoefState state;
 
     Kokkos::parallel_reduce(
-        "EDM::stats::corrcef", min(x.size(), y.size()),
+        "EDM::stats::corrcoef", min(x.size(), y.size()),
         KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
             upd += CorrcoefState(x(i), y(i));
         },
@@ -30,7 +30,8 @@ void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
 #endif
 
     Kokkos::parallel_for(
-        "EDM::stats::corrcef", Kokkos::TeamPolicy<>(ds.extent(1), Kokkos::AUTO),
+        "EDM::stats::corrcoef",
+        Kokkos::TeamPolicy<>(ds.extent(1), Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int j = member.league_rank();
             CorrcoefState state;
