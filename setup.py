@@ -1,10 +1,27 @@
-from skbuild import setup
+import platform
 
+from skbuild import setup
 import versioneer
 
 with open("README.md", "r") as f:
     readme = f.read()
 
+cmake_args = ["-DKEDM_ENABLE_PYTHON=ON",
+              "-DKEDM_ENABLE_TESTS=OFF",
+              "-DKEDM_ENABLE_EXECUTABLES=OFF",
+              "-DKEDM_ENABLE_CPU=ON"]
+
+if platform.system() == "Darwin":
+    if platform.processor() == "arm":
+        cmake_args += [
+            "-DCMAKE_CXX_FLAGS=-I/opt/homebrew/opt/libomp/include -Xpreprocessor -fopenmp",
+            "-DCMAKE_MODULE_LINKER_FLAGS=-L/opt/homebrew/opt/libomp/lib -lomp"
+        ]
+    elif platform.processor() == "i386":
+        cmake_args += [
+            "-DCMAKE_CXX_FLAGS=-I/usr/local/include -Xpreprocessor -fopenmp",
+            "-DCMAKE_MODULE_LINKER_FLAGS=-L/usr/local/lib -lomp"
+        ]
 
 setup(
     name="kedm",
@@ -18,11 +35,7 @@ setup(
     packages=["kedm"],
     package_dir={"kedm": "python/kedm"},
 
-    cmake_args=["-DKEDM_ENABLE_PYTHON=ON",
-                "-DKEDM_ENABLE_TESTS=OFF",
-                "-DKEDM_ENABLE_EXECUTABLES=OFF",
-                "-DKEDM_ENABLE_CPU=ON"
-                ],
+    cmake_args=cmake_args,
 
     url="https://github.com/keichi/kEDM",
     project_urls={
