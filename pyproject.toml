@@ -5,4 +5,5 @@ requires = ["setuptools", "wheel", "scikit-build", "cmake", "ninja", "tomli"]
 VCS = "git"
 style = "pep440"
 versionfile_source = "python/kedm/_version.py"
+versionfile_build = "kedm/_version.py"
 tag_prefix = "v"
