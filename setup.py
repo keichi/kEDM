@@ -20,7 +20,7 @@ if platform.system() == "Darwin":
     elif platform.processor() == "i386":
         cmake_args += [
             "-DCMAKE_CXX_FLAGS=-I/usr/local/include -Xpreprocessor -fopenmp",
-            "-DCMAKE_MODULE_LINKER_FLAGS=-L/usr/local/lib -lomp"
+            "-DCMAKE_MODULE_LINKER_FLAGS=-L/usr/local/lib -rpath /usr/local/lib -lomp"
         ]
 
 setup(
