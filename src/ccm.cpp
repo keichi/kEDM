@@ -14,6 +14,63 @@
 namespace edm
 {
 
+void full_sort(SimplexLUT lut, int n_lib, int n_pred, int n_partial, int Tp)
+{
+    Kokkos::parallel_for(
+        "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int i = member.league_rank();
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                    lut.distances(i, j) = sqrt(lut.distances(i, j));
+                    lut.indices(i, j) = j + n_partial + Tp;
+                });
+
+            member.team_barrier();
+            Kokkos::Experimental::sort_by_key_team(
+                member, Kokkos::subview(lut.distances, i, Kokkos::ALL),
+                Kokkos::subview(lut.indices, i, Kokkos::ALL));
+        });
+}
+
+void full_sort_with_scratch(SimplexLUT lut, int n_lib, int n_pred,
+                            int n_partial, int Tp)
+{
+    size_t shmem_size =
+        ScratchDistances1D::shmem_size(lut.distances.extent(1)) +
+        ScratchIndices1D::shmem_size(lut.indices.extent(1));
+
+    Kokkos::parallel_for(
+        "EDM::ccm::sort",
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(shmem_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int i = member.league_rank();
+
+            ScratchDistances1D scratch_distances(member.team_scratch(0),
+                                                 lut.distances.extent(1));
+            ScratchIndices1D scratch_indices(member.team_scratch(0),
+                                             lut.indices.extent(1));
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                    scratch_distances(j) = sqrt(lut.distances(i, j));
+                    scratch_indices(j) = j + n_partial + Tp;
+                });
+
+            member.team_barrier();
+
+            Kokkos::Experimental::sort_by_key_team(member, scratch_distances,
+                                                   scratch_indices);
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
+                                 [=](int j) {
+                                     lut.distances(i, j) = scratch_distances(j);
+                                     lut.indices(i, j) = scratch_indices(j);
+                                 });
+        });
+}
+
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                        const std::vector<int> &lib_sizes, int sample, int E,
                        int tau, int Tp, int seed)
@@ -34,23 +91,21 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
 
     Kokkos::deep_copy(full_lut.distances, tmp);
 
+    bool use_scratch =
+#ifdef KOKKOS_ENABLE_CUDA
+        ScratchDistances1D::shmem_size(full_lut.distances.extent(1)) +
+            ScratchIndices1D::shmem_size(full_lut.indices.extent(1)) <
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO).scratch_size_max(0);
+#else
+        false;
+#endif
+
     // Sort each row of the distance matrix
-    Kokkos::parallel_for(
-        "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int i = member.league_rank();
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
-                    full_lut.distances(i, j) = sqrt(full_lut.distances(i, j));
-                    full_lut.indices(i, j) = j + n_partial + Tp;
-                });
-
-            member.team_barrier();
-
-            Kokkos::Experimental::sort_by_key_team(
-                member, Kokkos::subview(full_lut.distances, i, Kokkos::ALL),
-                Kokkos::subview(full_lut.indices, i, Kokkos::ALL));
-        });
+    if (use_scratch) {
+        full_sort_with_scratch(full_lut, n_lib, n_pred, n_partial, Tp);
+    } else {
+        full_sort(full_lut, n_lib, n_pred, n_partial, Tp);
+    }
 
     pcg32 rng;
 

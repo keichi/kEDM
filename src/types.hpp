@@ -29,6 +29,10 @@ using ScratchDistances =
     Kokkos::View<float **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 using ScratchIndices =
     Kokkos::View<int **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
+using ScratchDistances1D =
+    Kokkos::View<float *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
+using ScratchIndices1D =
+    Kokkos::View<int *, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 
 struct SimplexLUT {
     Distances distances;

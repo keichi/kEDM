@@ -15,6 +15,7 @@ if platform.system() == "Darwin":
     if platform.processor() == "arm":
         cmake_args += [
             "-DCMAKE_CXX_FLAGS=-I/opt/homebrew/opt/libomp/include -Xpreprocessor -fopenmp",
+            "-DCMAKE_EXE_LINKER_FLAGS=-L/opt/homebrew/opt/libomp/lib -lomp",
             "-DCMAKE_MODULE_LINKER_FLAGS=-L/opt/homebrew/opt/libomp/lib -lomp"
         ]
     elif platform.processor() == "i386":
