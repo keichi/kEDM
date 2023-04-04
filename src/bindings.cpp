@@ -275,6 +275,10 @@ std::vector<float> ccm(py::array_t<float> lib_arr,
     } else if (!lib_sizes.empty() &&
                *std::min_element(lib_sizes.begin(), lib_sizes.end()) <= 0) {
         throw std::invalid_argument("All lib_sizes must be larger than zero");
+    } else if (!lib_sizes.empty() &&
+               *std::max_element(lib_sizes.begin(), lib_sizes.end()) >
+                   lib_arr.shape(0)) {
+        throw std::invalid_argument("All lib_sizes must not exceed lib size");
     } else if (sample <= 0) {
         throw std::invalid_argument("sample must be larger than zero");
     }
