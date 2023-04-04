@@ -131,11 +131,15 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
         for (int trial = 0; trial < sample; trial++) {
             mask_mirror.clear();
 
-            // Random sampling without replacement (Floyd's algorithm)
-            for (int i = lib.extent_int(0) - lib_size; i < lib.extent_int(0);
-                 i++) {
-                int r = rng(i);
-                mask_mirror.set(mask_mirror.test(r) ? i : r);
+            if (lib_size >= lib.extent(0)) {
+                mask_mirror.set();
+            } else {
+                // Random sampling without replacement (Floyd's algorithm)
+                for (int i = lib.extent_int(0) - lib_size;
+                     i < lib.extent_int(0); i++) {
+                    int r = rng(i);
+                    mask_mirror.set(mask_mirror.test(r) ? i : r);
+                }
             }
 
             Kokkos::deep_copy(mask, mask_mirror);
