@@ -131,7 +131,7 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
         for (int trial = 0; trial < sample; trial++) {
             mask_mirror.clear();
 
-            if (lib_size >= lib.extent(0)) {
+            if (lib_size >= lib.extent_int(0)) {
                 mask_mirror.set();
             } else {
                 // Random sampling without replacement (Floyd's algorithm)
