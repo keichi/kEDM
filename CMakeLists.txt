@@ -16,6 +16,11 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "")
+  set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK ON CACHE BOOL "")
+endif()
+
 # LTO is unsporrted by CUDA
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

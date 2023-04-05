@@ -116,8 +116,13 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                          Kokkos::MemoryUnmanaged>
         Scratch;
 
-    int lv0_scratch_size =
-        Scratch::shmem_size(RADIX_SIZE) + Scratch::shmem_size(k);
+    typedef Kokkos::View<float *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        ScratchDist;
+
+    int lv0_scratch_size = Scratch::shmem_size(RADIX_SIZE) +
+                           Scratch::shmem_size(k) + ScratchDist::shmem_size(k);
 
     Kokkos::parallel_for(
         "EDM::ccm::partial_sort",
@@ -130,7 +135,8 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
             bool found = false;
 
             Scratch bins(member.team_scratch(0), RADIX_SIZE);
-            Scratch topk(member.team_scratch(0), k);
+            Scratch topk_ind(member.team_scratch(0), k);
+            ScratchDist topk_dist(member.team_scratch(0), k);
 
             for (int digit_pos = 32 - RADIX_BITS; digit_pos >= 0 && !found;
                  digit_pos -= RADIX_BITS) {
@@ -168,6 +174,9 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
 
                     cur_k -= count;
                 }
+
+                // Needed because bins will be reset in the next iteration
+                member.team_barrier();
             }
 
             find_result<float> res;
@@ -187,28 +196,35 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                                   [=](int j, int &partial_sum, bool is_final) {
                                       if (lut.distances(i, j) <= res.val) {
                                           if (is_final && partial_sum < k) {
-                                              topk(partial_sum) = j;
+                                              topk_dist(partial_sum) =
+                                                  sqrt(lut.distances(i, j));
+                                              topk_ind(partial_sum) =
+                                                  j + n_partial + Tp;
                                           }
                                           partial_sum++;
                                       }
                                   });
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k), [=](int j) {
-                    lut.distances(i, j) = sqrt(lut.distances(i, topk(j)));
-                    lut.indices(i, j) = topk(j) + n_partial + Tp;
-                });
+            member.team_barrier();
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k),
+                                 [=](int j) {
+                                     lut.distances(i, j) = topk_dist(j);
+                                     lut.indices(i, j) = topk_ind(j);
+                                 });
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k, n_lib),
+                                 [=](int j) {
+                                     lut.distances(i, j) = FLT_MAX;
+                                     lut.indices(i, j) = -1;
+                                 });
+
+            member.team_barrier();
 
             Kokkos::Experimental::sort_by_key_team(
                 member,
                 Kokkos::subview(lut.distances, i, Kokkos::make_pair(0, k)),
                 Kokkos::subview(lut.indices, i, Kokkos::make_pair(0, k)));
-
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k, n_lib), [=](int j) {
-                lut.distances(i, j) = FLT_MAX;
-                lut.indices(i, j) = 0;
-            });
         });
 }
 
@@ -319,12 +335,21 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                     for (int j = 0; j < n_lib && selected < E + 1; j++) {
                         int idx = full_lut.indices(i, j);
 
+                        // This means we ran out of (partially) sorted items
+                        if (idx < 0) break;
+
                         if (mask.test(idx)) {
                             lut.distances(i, selected) =
                                 full_lut.distances(i, j);
                             lut.indices(i, selected) = idx;
                             selected++;
                         }
+                    }
+
+                    // Fill the rest
+                    for (int j = selected; j < E + 1; j++) {
+                        lut.distances(i, j) = FLT_MAX;
+                        lut.indices(i, j) = 0;
                     }
                 });
 
