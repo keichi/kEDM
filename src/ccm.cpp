@@ -1,4 +1,3 @@
-#include <cfloat>
 #include <random>
 
 #include "thirdparty/pcg/include/pcg_random.hpp"
@@ -13,6 +12,36 @@
 #include "stats.hpp"
 #include "types.hpp"
 #include "utils.hpp"
+
+namespace edm
+{
+
+template <class T> struct find_result {
+    T val;
+    bool found;
+
+    KOKKOS_INLINE_FUNCTION find_result() : val(0), found(false) {}
+
+    KOKKOS_INLINE_FUNCTION find_result &operator+=(const find_result &src)
+    {
+        if (src.found) {
+            found = src.found;
+            val = src.val;
+        }
+        return *this;
+    }
+};
+
+} // namespace edm
+namespace Kokkos
+{
+template <class T> struct reduction_identity<struct edm::find_result<T>> {
+    KOKKOS_FORCEINLINE_FUNCTION static edm::find_result<T> sum()
+    {
+        return edm::find_result<T>();
+    }
+};
+} // namespace Kokkos
 
 namespace edm
 {
@@ -75,26 +104,111 @@ void full_sort_with_scratch(SimplexLUT lut, int n_lib, int n_pred,
         });
 }
 
+const unsigned int RADIX_BITS = 8;
+const unsigned int RADIX_SIZE = 1 << RADIX_BITS;
+const unsigned int RADIX_MASK = RADIX_SIZE - 1;
+
 void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                   int Tp)
 {
+    typedef Kokkos::View<int *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        Scratch;
+
+    int lv0_scratch_size =
+        Scratch::shmem_size(RADIX_SIZE) + Scratch::shmem_size(k);
+
     Kokkos::parallel_for(
-        "EDM::ccm::partial_sort", n_pred, KOKKOS_LAMBDA(int i) {
-            std::partial_sort_copy(
-                Counter<int>(0), Counter<int>(n_lib), &lut.indices(i, 0),
-                &lut.indices(i, k), [&](int a, int b) {
-                    return lut.distances(i, a) < lut.distances(i, b);
+        "EDM::ccm::partial_sort",
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(lv0_scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int i = member.league_rank();
+            int cur_k = k;
+            unsigned int mask_desired = 0, desired = 0;
+            bool found = false;
+
+            Scratch bins(member.team_scratch(0), RADIX_SIZE);
+            Scratch topk(member.team_scratch(0), k);
+
+            for (int digit_pos = 32 - RADIX_BITS; digit_pos >= 0 && !found;
+                 digit_pos -= RADIX_BITS) {
+                Kokkos::single(Kokkos::PerTeam(member), [=] {
+                    for (unsigned int j = 0; j < RADIX_SIZE; j++) {
+                        bins(j) = 0;
+                    }
                 });
 
-            for (int j = 0; j < k; j++) {
-                int idx = lut.indices(i, j);
-                lut.distances(i, j) = sqrt(lut.distances(i, idx));
-                lut.indices(i, j) = idx + n_partial + Tp;
+                member.team_barrier();
+
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                        unsigned int val = reinterpret_cast<unsigned int &>(
+                            lut.distances(i, j));
+                        if ((val & mask_desired) == desired) {
+                            unsigned int digit = val >> digit_pos & RADIX_MASK;
+                            Kokkos::atomic_inc(&bins(digit));
+                        }
+                    });
+
+                member.team_barrier();
+
+                for (unsigned int j = 0; j < RADIX_SIZE; j++) {
+                    int count = bins(j);
+
+                    if (count >= cur_k) {
+                        mask_desired |= RADIX_MASK << digit_pos;
+                        desired |= j << digit_pos;
+
+                        if (count == 1) found = true;
+
+                        break;
+                    }
+
+                    cur_k -= count;
+                }
             }
 
-            for (int j = k; j < n_lib; j++) {
+            find_result<float> res;
+            Kokkos::parallel_reduce(
+                Kokkos::TeamThreadRange(member, n_lib),
+                [=](int j, find_result<float> &upd) {
+                    unsigned int val =
+                        reinterpret_cast<unsigned int &>(lut.distances(i, j));
+                    if ((val & mask_desired) == desired) {
+                        upd.found = true;
+                        upd.val = lut.distances(i, j);
+                    }
+                },
+                Kokkos::Sum<find_result<float>>(res));
+
+            Kokkos::parallel_scan(Kokkos::TeamThreadRange(member, n_lib),
+                                  [=](int j, int &partial_sum, bool is_final) {
+                                      if (lut.distances(i, j) <= res.val) {
+                                          if (is_final && partial_sum < k) {
+                                              topk(partial_sum) = j;
+                                          }
+                                          partial_sum++;
+                                      }
+                                  });
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, k), [=](int j) {
+                    lut.distances(i, j) = sqrt(lut.distances(i, topk(j)));
+                    lut.indices(i, j) = topk(j) + n_partial + Tp;
+                });
+
+            Kokkos::Experimental::sort_by_key_team(
+                member,
+                Kokkos::subview(lut.distances, i, Kokkos::make_pair(0, k)),
+                Kokkos::subview(lut.indices, i, Kokkos::make_pair(0, k)));
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, k, n_lib), [=](int j) {
                 lut.distances(i, j) = FLT_MAX;
-            }
+                lut.indices(i, j) = 0;
+            });
         });
 }
 
