@@ -268,7 +268,7 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
 std::vector<float> ccm(py::array_t<float> lib_arr,
                        py::array_t<float> target_arr,
                        const std::vector<int> &lib_sizes, int sample, int E,
-                       int tau, int Tp, int seed)
+                       int tau, int Tp, int seed, float accuracy)
 {
     if (lib_arr.ndim() != 1 || target_arr.ndim() != 1) {
         throw std::invalid_argument("lib and target must be 1D arrays");
@@ -281,6 +281,8 @@ std::vector<float> ccm(py::array_t<float> lib_arr,
         throw std::invalid_argument("All lib_sizes must not exceed lib size");
     } else if (sample <= 0) {
         throw std::invalid_argument("sample must be larger than zero");
+    } else if (accuracy <= 0 || accuracy > 1.0) {
+        throw std::invalid_argument("accuracy must be between zero and one");
     }
 
     if (target_arr.ndim() == 0) {
@@ -296,7 +298,7 @@ std::vector<float> ccm(py::array_t<float> lib_arr,
     copy(lib, lib_arr);
     copy(target, target_arr);
 
-    return edm::ccm(lib, target, lib_sizes, sample, E, tau, Tp, seed);
+    return edm::ccm(lib, target, lib_sizes, sample, E, tau, Tp, seed, accuracy);
 }
 
 py::array_t<float> xmap(py::array_t<float> ds_arr,
@@ -464,13 +466,14 @@ PYBIND11_MODULE(_kedm, m)
             tau: Time delay
             Tp: Prediction interval
             seed: Random seed (randomly initialized if 0)
+            accuracy: Approximation accuracy
           Returns:
             List of Pearson's correlation coefficient for each library size
           )doc",
           py::arg("lib"), py::arg("target"), py::kw_only(),
           py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 1,
           py::arg("E") = 1, py::arg("tau") = 1, py::arg("Tp") = 0,
-          py::arg("seed") = 0);
+          py::arg("seed") = 0, py::arg("accuracy") = 1.0f);
 
     m.def("xmap", &xmap,
           R"doc(
