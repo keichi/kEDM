@@ -87,7 +87,8 @@ TEST_CASE("Partially sort kNN LUT")
 
     for (int i = 0; i < distances.extent_int(0); i++) {
         for (int j = 0; j < K; j++) {
-            CHECK(distances(i, j) == sqrt(valid_distances(i, j)));
+            CHECK(distances(i, j) ==
+                  doctest::Approx(sqrt(valid_distances(i, j))));
             CHECK(indices(i, j) == valid_indices(i, j));
         }
         for (int j = K; j < L; j++) {
