@@ -41,9 +41,6 @@ add_subdirectory(src/thirdparty/kokkos EXCLUDE_FROM_ALL)
 # argh
 add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
 
-# boost-math
-add_subdirectory(src/thirdparty/boost-math EXCLUDE_FROM_ALL)
-
 # Main library
 add_library(kedm
   src/ccm.cpp
@@ -54,7 +51,11 @@ add_library(kedm
   src/knn.cpp
   src/smap.cpp
   src/stats.cpp)
-target_link_libraries(kedm PRIVATE Kokkos::kokkos Boost::math)
+target_link_libraries(kedm PRIVATE Kokkos::kokkos)
+
+# boost-math
+add_subdirectory(src/thirdparty/boost-math EXCLUDE_FROM_ALL)
+target_link_libraries(kedm PRIVATE Boost::math)
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
