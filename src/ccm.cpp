@@ -11,7 +11,6 @@
 #include "simplex.hpp"
 #include "stats.hpp"
 #include "types.hpp"
-#include "utils.hpp"
 
 namespace edm
 {

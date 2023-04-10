@@ -53,7 +53,6 @@ add_library(kedm
   src/xmap.cpp
   src/knn.cpp
   src/smap.cpp
-  src/utils.cpp
   src/stats.cpp)
 target_link_libraries(kedm PRIVATE Kokkos::kokkos Boost::math)
 
