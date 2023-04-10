@@ -74,9 +74,6 @@ endif()
 # Executables
 option(KEDM_ENABLE_EXECUTABLES "Build executables" ON)
 if(KEDM_ENABLE_EXECUTABLES)
-  # HDF5
-  find_package(HDF5 REQUIRED)
-
   # HighFive
   set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "")
   set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")

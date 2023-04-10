@@ -92,7 +92,7 @@ jobs:
   build-macos-cpu:
     strategy:
       matrix:
-        cxx: [clang++, g++-11]
+        cxx: [clang++, g++-12]
       fail-fast: false
     runs-on: macOS-11
     env:
@@ -104,21 +104,22 @@ jobs:
     - name: Install HDF5
       run: brew install hdf5
     - name: Install libomp
-      if: matrix.cxx == 'clang++'
+      if: startsWith(matrix.cxx, 'clang++')
       run: |
         scripts/install_libomp.sh
     - name: Build kEDM (gcc)
-      if: matrix.cxx == 'g++-11'
+      if: startsWith(matrix.cxx, 'g++')
       run: |
         mkdir build
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_INCLUDE_PATH=/usr/local/include \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
     - name: Build kEDM (clang)
-      if: matrix.cxx == 'clang++'
+      if: startsWith(matrix.cxx, 'clang++')
       run: |
         mkdir build
         cd build
