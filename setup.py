@@ -9,8 +9,7 @@ with open("README.md", "r") as f:
 cmake_args = ["-DKEDM_ENABLE_PYTHON=ON",
               "-DKEDM_ENABLE_TESTS=OFF",
               "-DKEDM_ENABLE_EXECUTABLES=OFF",
-              "-DKEDM_ENABLE_CPU=ON",
-              "-DKEDM_ENABLE_GPU=ON"]
+              "-DKEDM_ENABLE_CPU=ON"]
 
 if platform.system() == "Darwin":
     if platform.processor() == "arm":
