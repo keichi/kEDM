@@ -195,14 +195,10 @@ py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     }
 
     if (target_arr.ndim() == 0) {
-        target_arr = lib_arr;
-    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        target_arr = pred_arr;
+    } else if (pred_arr.shape(0) != target_arr.shape(0)) {
         throw std::invalid_argument(
-            "lib and target must have same number of time steps");
-    }
-
-    if (target_arr.ndim() == 0) {
-        target_arr = lib_arr;
+            "pred and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -239,10 +235,10 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
     }
 
     if (target_arr.ndim() == 0) {
-        target_arr = lib_arr;
+        target_arr = pred_arr;
     } else if (lib_arr.shape(0) != target_arr.shape(0)) {
         throw std::invalid_argument(
-            "lib and target must have same number of time steps");
+            "pred and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
