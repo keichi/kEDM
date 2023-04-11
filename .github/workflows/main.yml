@@ -28,11 +28,11 @@ jobs:
   build-linux-gpu:
     strategy:
       matrix:
-        cxx: [g++-9]
+        cxx: [g++-11]
       fail-fast: false
     runs-on: ubuntu-latest
     container:
-      image: nvidia/cuda:11.8.0-devel-ubuntu20.04
+      image: nvidia/cuda:11.8.0-devel-ubuntu22.04
     steps:
     - name: Install dependencies
       run: |
