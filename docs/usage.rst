@@ -1,26 +1,25 @@
-kEDM Utilities
+Utilities
 #################
 
-Convergent Cross Mapping (CCM)
+Pairwise Cross Mapping
 ==============================
 
 Overview
 --------
 
-``edm-xmap`` performs a pairwise Convergent Cross Mapping (CCM) between
-many time series. The input is given as a 2D array where a column corresponds
-to a time series. The output is a 2D array where each element represents the
-CCM rho between two time series. Optionally, pairwise cross-correlation, and
-the difference between CCM rho and pairwise cross-correlation can also be
-computed.
+``edm-xmap`` performs pairwise cross mapping between many time series using
+Simplex projection. The input is given as a 2D array where a column
+corresponds to a time series. The output is a 2D array where each element
+represents the cross map rho between two time series. Optionally, pairwise
+cross-correlation can also be computed.
 
-Both the input and output are stored as HDF5 files. The output HDF5 file will
-contain up to four datasets, which are:
+Both the input and output are stored as HDF5 files. The output HDF5 file 
+contains up to four datasets, which are:
 
-- ``ccm``: Pairwise CCM rho
+- ``ccm``: Cross map rho
 - ``e``: Optimal embedding dimension
 - ``rho``: Pairwise cross-correlation (if ``--rho`` is enabled)
-- ``rhodiff``: ``ccm`` - abs(``rho``) (if ``--rho-diff`` is enabled)
+- ``rhodiff``: ``ccm - abs(rho)`` (if ``--rho-diff`` is enabled)
 
 Command-line options
 --------------------

@@ -364,6 +364,7 @@ PYBIND11_MODULE(_kedm, m)
             E_max: Maximum embedding dimension (E is varied from 1 to E_max)
             tau: Time delay
             Tp: Prediction interval
+          
           Returns:
             Optimal embedding dimension of the time series
           )doc",
@@ -377,16 +378,31 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series
+            target: Target time series (defaults to ``lib`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
+
           Returns:
             Prediction result
+
           Note:
-            If both lib and pred are 2D arrays, *mixed multivariate embedding*
-            is peformed, where each time series is embedded into an
+            If both ``lib`` and ``pred`` are 2D arrays, *mixed* multivariate
+            embedding is peformed, where each time series is embedded into an
             E-dimensional state space.
+
+          Examples:
+            Forecast:
+            
+            >>> kedm.simplex(x[:100], x[100:200], E=2, Tp=1)
+
+            Cross mapping:
+            
+            >>> kedm.simplex(x, y, target=y, E=3, Tp=0)
+
+            Multivariate forecast:
+            
+            >>> kedm.simplex(xs, ys, target=y, E=4, Tp=1)
           )doc",
           py::arg("lib"), py::arg("pred"), py::kw_only(),
           py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
@@ -399,10 +415,11 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series
+            target: Target time series (defaults to ``lib`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
+          
           Returns:
             Pearson's correlation coefficient between observation and prediction
           )doc",
@@ -417,11 +434,12 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series
+            target: Target time series (defaults to ``pred`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
             theta: Neighbor localization exponent
+          
           Returns:
             Prediction result
           )doc",
@@ -436,11 +454,12 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series
+            target: Target time series (defaults to ``lib`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
             theta: Neighbor localization exponent
+          
           Returns:
             Pearson's correlation coefficient between observation and prediction
           )doc",
@@ -463,8 +482,15 @@ PYBIND11_MODULE(_kedm, m)
             Tp: Prediction interval
             seed: Random seed (randomly initialized if 0)
             accuracy: Approximation accuracy
+
           Returns:
             List of Pearson's correlation coefficient for each library size
+
+          Note:
+            If ``accuracy`` < 1.0, approximate nearest neighbor search is used
+            to speed up execution with a slightly reduced accuracy. For example,
+            99.9% of the true neighbors is expected to be used if ``accuracy`` 
+            is set to 0.999.
           )doc",
           py::arg("lib"), py::arg("target"), py::kw_only(),
           py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 1,
@@ -481,16 +507,22 @@ PYBIND11_MODULE(_kedm, m)
             edims: Embedding dimension for each time series (can be computed using ``kedm.edim``)
             tau: Time delay
             Tp: Prediction interval
+          
           Returns:
             A 2D array where each element represents the interaction strength
             between two time series.
+
+          Note:
+            ``kedm.xmap`` performs a single cross mapping using the full time
+            series as library. To perform `Convergent` Cross Mapping, use
+            ``kedm.ccm``.
           )doc",
           py::arg("dataset"), py::arg("edims"), py::arg("tau") = 1,
           py::arg("Tp") = 0);
 
     m.def("get_kokkos_config", &get_kokkos_config,
           R"doc(
-          Get configuration of Kokkos that kEDM was built with.
+          Returns the configuration of Kokkos that kEDM was built with.
 
           Returns:
             Kokkos configuration
