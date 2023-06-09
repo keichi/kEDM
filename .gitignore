@@ -197,4 +197,5 @@ cython_debug/
 _skbuild
 
 # sphinx
+docs/html/
 docs/output/

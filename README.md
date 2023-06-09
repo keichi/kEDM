@@ -5,15 +5,21 @@
 kEDM (Kokkos-EDM) is a high-performance implementation of the [Empirical
 Dynamical Modeling (EDM)](https://sugiharalab.github.io/EDM_Documentation/)
 framework. The goal of kEDM is to provide an optimized and parallelized
-implementation of EDM algorithms for HPC hardware (Intel Xeon, AMD EPYC,
-NVIDIA GPUs, Fujitsu A64FX, etc.) while ensuring compatibility with the
-reference implementation ([cppEDM](https://github.com/SugiharaLab/cppEDM))
+implementation of EDM algorithms for high-end CPUs and GPUs, while ensuring
+compatibility with the original reference implementation
+([cppEDM](https://github.com/SugiharaLab/cppEDM)).
 
 Following EDM algorithms are currently implemented in kEDM:
 
 - Simplex projection [1]
 - Sequential Locally Weighted Global Linear Maps (S-Map) [2]
 - Convergent Cross Mapping (CCM) [3]
+
+## Installation
+
+```
+pip install kedm
+```
 
 ## Citing
 
@@ -28,12 +34,12 @@ Performance-portable Implementation of Empirical Dynamical Modeling," Practice
 
 1. George Sugihara, Robert May, "Nonlinear forecasting as a way of
    distinguishing chaos from measurement error in time series," Nature, vol.
-   344, pp. 734-741,  1990. [10.1038/344734a0](https://doi.org/10.1038/344734a0)
+   344, pp. 734–741,  1990. [10.1038/344734a0](https://doi.org/10.1038/344734a0)
 2. George Sugihara, "Nonlinear forecasting for the classification of natural
    time series. Philosophical Transactions," Physical Sciences and Engineering,
    vol. 348, no. 1688, pp. 477–495, 1994.
    [10.1098/rsta.1994.0106](https://doi.org/10.1098/rsta.1994.0106)
 3. George Sugihara, Robert May, Hao Ye, Chih-hao Hsieh, Ethan Deyle, Michael
    Fogarty, Stephan Munch, "Detecting Causality in Complex Ecosystems,"
-   Science, vol. 338, pp. 496-500, 2012.
+   Science, vol. 338, pp. 496–500, 2012.
    [10.1126/science.1227079](https://doi.org/10.1126/science.1227079)
