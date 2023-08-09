@@ -32,7 +32,7 @@ TEST_CASE("Compute S-Map projections")
 
         for (size_t j = 0; j < result_mirror.extent(0); j++) {
             CHECK(result_mirror(j) ==
-                  doctest::Approx(ds2(j, i + 1)).epsilon(5e-2f));
+                  doctest::Approx(ds2_mirror(j, i + 1)).epsilon(5e-2f));
         }
     }
 }
