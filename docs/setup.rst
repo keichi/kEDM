@@ -148,6 +148,7 @@ Tips
   - NVIDIA H100: ``-DKokkos_ARCH_HOPPER90=ON``
   - NVIDIA A100: ``-DKokkos_ARCH_AMPERE80=ON``
   - NVIDIA V100: ``-DKokkos_ARCH_VOLTA70=ON``
+  - GeForce RTX 4090: ``-DKokkos_ARCH_ADA89=ON``
   - GeForce RTX 3090: ``-DKokkos_ARCH_AMPERE86=ON``
   - GeForce RTX 2080: ``-DKokkos_ARCH_TURING75=ON``
 
