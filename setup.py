@@ -1,3 +1,4 @@
+import os
 import platform
 
 from skbuild import setup
@@ -25,7 +26,7 @@ if platform.system() == "Darwin":
         ]
 
 setup(
-    name="kedm",
+    name=os.environ.get("KEDM_PACKAGE_NAME", "kedm"),
 
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),

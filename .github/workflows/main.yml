@@ -89,7 +89,7 @@ jobs:
     - name: Run Python unit tests
       run: pytest python
 
-  build-macos-cpu:
+  build-macos:
     strategy:
       matrix:
         cxx: [clang++, g++-12]
@@ -135,6 +135,54 @@ jobs:
       run: ctest
       working-directory: build
 
+  build-wheels-cuda11x:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v2.14.0
+        env:
+          CIBW_BUILD: cp3*-manylinux_x86_64
+          CIBW_BEFORE_ALL_LINUX: >
+            yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo &&
+            yum install -y cuda-compiler-11-8 libcublas-devel-11-8 cuda-cudart-devel-11-8 cuda-driver-devel-11-8
+          CIBW_TEST_SKIP: "*"
+          CIBW_ENVIRONMENT: >
+            CMAKE_ARGS='-DKEDM_ENABLE_GPU=ON -DKokkos_ARCH_VOLTA70=ON'
+            PATH=/usr/local/cuda/bin:$PATH
+            KEDM_PACKAGE_NAME=kedm-cuda11x
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.11 --exclude libcublasLt.so.11 --exclude libcuda.so.1 {wheel}
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
+  build-wheels-cuda12x:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Build wheels
+        uses: joerick/cibuildwheel@v2.14.0
+        env:
+          CIBW_BUILD: cp3*-manylinux_x86_64
+          CIBW_BEFORE_ALL_LINUX: >
+            yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo &&
+            yum install -y cuda-compiler-12-2 libcublas-devel-12-2 cuda-cudart-devel-12-2 cuda-driver-devel-12-2
+          CIBW_TEST_SKIP: "*"
+          CIBW_ENVIRONMENT: >
+            CMAKE_ARGS='-DKEDM_ENABLE_GPU=ON -DKokkos_ARCH_VOLTA70=ON'
+            PATH=/usr/local/cuda/bin:$PATH
+            KEDM_PACKAGE_NAME=kedm-cuda12x
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.12 --exclude libcublasLt.so.12 --exclude libcuda.so.1 {wheel}
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
+
   build-wheels:
     strategy:
       matrix:
@@ -147,7 +195,7 @@ jobs:
         with:
           submodules: true
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.12.0
+        uses: joerick/cibuildwheel@v2.14.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
           CIBW_ARCHS_MACOS: x86_64 arm64
@@ -163,7 +211,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   publish-wheels:
-    needs: [build-wheels]
+    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
