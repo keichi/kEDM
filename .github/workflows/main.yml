@@ -157,6 +157,7 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.11 --exclude libcublasLt.so.11 --exclude libcuda.so.1 {wheel}
       - uses: actions/upload-artifact@v3
         with:
+          name: wheels-cuda11x
           path: ./wheelhouse/*.whl
 
   build-wheels-cuda12x:
@@ -181,6 +182,7 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.12 --exclude libcublasLt.so.12 --exclude libcuda.so.1 {wheel}
       - uses: actions/upload-artifact@v3
         with:
+          name: wheels-cuda12x
           path: ./wheelhouse/*.whl
 
   build-wheels:
@@ -208,18 +210,31 @@ jobs:
           CIBW_TEST_SKIP: "*_arm64"
       - uses: actions/upload-artifact@v3
         with:
+          name: wheels
           path: ./wheelhouse/*.whl
 
   publish-wheels:
-    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
+    needs: build-wheels
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v3
         with:
-          name: artifact
+          name: wheels
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-wheels-cuda11x:
+    needs: build-wheels-cuda11x
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v3
         with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          name: wheels-cuda11x
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
