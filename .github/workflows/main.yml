@@ -218,6 +218,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kedm
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v3
@@ -231,10 +234,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kedm-cuda11x
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v3
         with:
           name: wheels-cuda11x
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-wheels-cuda12x:
+    needs: build-wheels-cuda12x
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kedm-cuda12x
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: wheels-cuda12x
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
