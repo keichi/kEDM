@@ -148,7 +148,8 @@ jobs:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
             yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo &&
-            yum install -y cuda-compiler-11-8 libcublas-devel-11-8 cuda-cudart-devel-11-8 cuda-driver-devel-11-8
+            yum install -y cuda-compiler-11-2 libcublas-devel-11-2 cuda-cudart-devel-11-2 cuda-driver-devel-11-2 &&
+            update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.2 112
           CIBW_TEST_SKIP: "*"
           CIBW_ENVIRONMENT: >
             CMAKE_ARGS='-DKEDM_ENABLE_GPU=ON -DKokkos_ARCH_VOLTA70=ON'
@@ -173,7 +174,7 @@ jobs:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
             yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo &&
-            yum install -y cuda-compiler-12-2 libcublas-devel-12-2 cuda-cudart-devel-12-2 cuda-driver-devel-12-2
+            yum install -y cuda-compiler-12-0 libcublas-devel-12-0 cuda-cudart-devel-12-0 cuda-driver-devel-12-0
           CIBW_TEST_SKIP: "*"
           CIBW_ENVIRONMENT: >
             CMAKE_ARGS='-DKEDM_ENABLE_GPU=ON -DKokkos_ARCH_VOLTA70=ON'
