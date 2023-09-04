@@ -1,5 +1,5 @@
 #include <Kokkos_Core.hpp>
-
+#include <simd.hpp>
 #ifdef LIKWID_PERFMON
 #include <likwid.h>
 #else
@@ -12,8 +12,6 @@
 #define LIKWID_MARKER_CLOSE
 #define LIKWID_MARKER_GET(regionTag, nevents, events, time, count)
 #endif
-
-#include "thirdparty/simd/simd.hpp"
 
 #include "knn.hpp"
 #include "types.hpp"

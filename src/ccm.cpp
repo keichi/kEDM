@@ -1,10 +1,10 @@
 #include <random>
 
-#include "thirdparty/pcg/include/pcg_random.hpp"
 #include <Kokkos_Bitset.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_NestedSort.hpp>
 #include <boost/math/distributions/binomial.hpp>
+#include <pcg_random.hpp>
 
 #include "ccm.hpp"
 #include "knn.hpp"

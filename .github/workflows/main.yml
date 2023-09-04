@@ -18,8 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: true
     - name: Run clang-format
       run: |
         git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
@@ -41,8 +39,6 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
     - uses: actions/checkout@v3
-      with:
-        submodules: true
     - name: Build kEDM
       run: |
         mkdir build
@@ -66,8 +62,6 @@ jobs:
       CXX: ${{ matrix.cxx }}
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: true
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -99,8 +93,6 @@ jobs:
       CXX: ${{ matrix.cxx }}
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: true
     - name: Install HDF5
       run: brew install hdf5
     - name: Install libomp
@@ -140,8 +132,6 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - name: Build wheels
         uses: joerick/cibuildwheel@v2.14.0
         env:
@@ -166,8 +156,6 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - name: Build wheels
         uses: joerick/cibuildwheel@v2.14.0
         env:
@@ -195,8 +183,6 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v3
-        with:
-          submodules: true
       - name: Build wheels
         uses: joerick/cibuildwheel@v2.14.0
         env:

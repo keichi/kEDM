@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(kokkos-edm CXX)
 
+include(FetchContent)
+
 if(SKBUILD)
   message(STATUS "The project is built using scikit-build")
 endif()
@@ -37,10 +39,21 @@ if(KEDM_ENABLE_GPU)
   set(Kokkos_ENABLE_CUDA ON CACHE BOOL "")
   set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "")
 endif()
-add_subdirectory(src/thirdparty/kokkos EXCLUDE_FROM_ALL)
+
+FetchContent_Declare(
+  kokkos
+  GIT_REPOSITORY https://github.com/kokkos/kokkos.git
+  GIT_TAG        4.1.00
+)
+FetchContent_MakeAvailable(kokkos)
 
 # argh
-add_subdirectory(src/thirdparty/argh EXCLUDE_FROM_ALL)
+FetchContent_Declare(
+  argh
+  GIT_REPOSITORY https://github.com/adishavit/argh.git
+  GIT_TAG        v1.3.2
+)
+FetchContent_MakeAvailable(argh)
 
 # Main library
 add_library(kedm
@@ -55,8 +68,31 @@ add_library(kedm
 target_link_libraries(kedm PRIVATE Kokkos::kokkos)
 
 # boost-math
-add_subdirectory(src/thirdparty/boost-math EXCLUDE_FROM_ALL)
+FetchContent_Declare(
+  boost-math
+  GIT_REPOSITORY https://github.com/boostorg/math.git
+  GIT_TAG        boost-1.83.0
+)
+FetchContent_MakeAvailable(boost-math)
 target_link_libraries(kedm PRIVATE Boost::math)
+
+# pcg
+FetchContent_Declare(
+  pcg
+  GIT_REPOSITORY https://github.com/imneme/pcg-cpp.git
+  GIT_TAG        v0.98.1
+)
+FetchContent_Populate(pcg)
+target_include_directories(kedm PRIVATE ${pcg_SOURCE_DIR}/include)
+
+# simd-math
+FetchContent_Declare(
+  simd
+  GIT_REPOSITORY https://github.com/kokkos/simd-math.git
+  GIT_TAG        fa2cfa62b13dd6ddc9d9e4f52a4cd9d39ea721cf
+)
+FetchContent_Populate(simd)
+target_include_directories(kedm PRIVATE ${simd_SOURCE_DIR})
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
@@ -81,7 +117,13 @@ if(KEDM_ENABLE_EXECUTABLES)
   set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "")
   set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "")
   set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "")
-  add_subdirectory(src/thirdparty/highfive EXCLUDE_FROM_ALL)
+
+  FetchContent_Declare(
+    highfive
+    GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
+    GIT_TAG        v2.7.1
+  )
+  FetchContent_MakeAvailable(highfive)
 
   target_link_libraries(kedm PRIVATE HighFive)
   target_compile_definitions(kedm PRIVATE -DHAVE_HDF5)
@@ -131,7 +173,13 @@ endif()
 # Python bindings
 option(KEDM_ENABLE_PYTHON "Build Python bindings")
 if(KEDM_ENABLE_PYTHON)
-  add_subdirectory(src/thirdparty/pybind11 EXCLUDE_FROM_ALL)
+  # pybind11
+  FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG        v2.11.1
+  )
+  FetchContent_MakeAvailable(pybind11)
 
   pybind11_add_module(_kedm src/bindings.cpp)
   target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
@@ -144,8 +192,13 @@ if(KEDM_ENABLE_TESTS)
   enable_testing()
 
   # doctest
-  add_subdirectory(src/thirdparty/doctest EXCLUDE_FROM_ALL)
-  include(src/thirdparty/doctest/scripts/cmake/doctest.cmake)
+  FetchContent_Declare(
+    doctest
+    GIT_REPOSITORY https://github.com/doctest/doctest.git
+    GIT_TAG        v2.4.11
+  )
+  FetchContent_MakeAvailable(doctest)
+  include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 
   # Test executable
   add_executable(kedm-test
