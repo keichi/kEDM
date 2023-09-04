@@ -17,18 +17,36 @@ Following EDM algorithms are currently implemented in kEDM:
 
 ## Installation
 
+CPU (Linux and macOS)
+
 ```
-pip install kedm
+pip3 install kedm
+```
+
+NVIDIA GPU (CUDA 11.2 or later)
+
+```
+pip3 install kedm-11x
+```
+
+NVIDIA GPU (CUDA 12.0 or later)
+
+```
+pip3 install kedm-12x
 ```
 
 ## Citing
 
-Please cite the following paper if you find kEDM useful:
+Please cite the following papers if you find kEDM useful:
 
-Keichi Takahashi, Wassapon Watanakeesuntorn, Kohei Ichikawa, Joseph Park,
-Ryousei Takano, Jason Haga, George Sugihara, Gerald M. Pao, "kEDM: A
-Performance-portable Implementation of Empirical Dynamical Modeling," Practice
-& Experience in Advanced Research Computing (PEARC 2021), Jul. 2021.
+- Keichi Takahashi, Kohei Ichikawa, Joseph Park, Gerald M. Pao, “Scalable Empirical Dynamic Modeling
+  with Parallel Computing and Approximate k-NN Search,” IEEE Access, vol. 11, pp. 68171–68183,
+  Jun. 2023. [10.1109/ACCESS.2023.3289836](https://doi.org/10.1109/ACCESS.2023.3289836)
+- Keichi Takahashi, Wassapon Watanakeesuntorn, Kohei Ichikawa, Joseph Park,
+  Ryousei Takano, Jason Haga, George Sugihara, Gerald M. Pao, "kEDM: A
+  Performance-portable Implementation of Empirical Dynamical Modeling," Practice
+  & Experience in Advanced Research Computing (PEARC 2021), Jul. 2021.
+  [10.1145/3437359.3465571](https://doi.org/10.1145/3437359.3465571)
 
 ## References
 
