@@ -193,7 +193,7 @@ jobs:
             yum install -y openblas-devel &&
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
           CIBW_BEFORE_ALL_MACOS: "scripts/install_libomp.sh"
-          CIBW_ENVIRONMENT: CMAKE_ARGS='-DKokkos_ARCH_HSW=ON'
+          CIBW_ENVIRONMENT_LINUX: CMAKE_ARGS='-DKokkos_ARCH_HSW=ON'
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
           CIBW_TEST_SKIP: "*_arm64"
@@ -203,7 +203,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   publish-wheels:
-    needs: build-wheels
+    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -219,7 +219,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   publish-wheels-cuda11x:
-    needs: build-wheels-cuda11x
+    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -235,7 +235,7 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   publish-wheels-cuda12x:
-    needs: build-wheels-cuda12x
+    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
