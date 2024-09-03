@@ -212,7 +212,7 @@ jobs:
       url: https://pypi.org/p/kedm
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: wheels
           path: dist
@@ -228,7 +228,7 @@ jobs:
       url: https://pypi.org/p/kedm-cuda11x
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: wheels-cuda11x
           path: dist
@@ -244,7 +244,7 @@ jobs:
       url: https://pypi.org/p/kedm-cuda12x
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: wheels-cuda12x
           path: dist
