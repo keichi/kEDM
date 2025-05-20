@@ -85,15 +85,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(pcg)
 target_include_directories(kedm PRIVATE ${pcg_SOURCE_DIR}/include)
 
-# simd-math
-FetchContent_Declare(
-  simd
-  GIT_REPOSITORY https://github.com/kokkos/simd-math.git
-  GIT_TAG        fa2cfa62b13dd6ddc9d9e4f52a4cd9d39ea721cf
-)
-FetchContent_MakeAvailable(simd)
-target_include_directories(kedm PRIVATE ${simd_SOURCE_DIR})
-
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
   find_package(CUDA REQUIRED)
