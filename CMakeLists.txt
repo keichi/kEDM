@@ -74,6 +74,8 @@ FetchContent_Declare(
   GIT_TAG        boost-1.88.0
 )
 FetchContent_MakeAvailable(boost-math)
+# Workaround compile error in nvcc
+add_compile_definitions(BOOST_MATH_DISABLE_FLOAT128)
 target_link_libraries(kedm PRIVATE Boost::math)
 
 # pcg
