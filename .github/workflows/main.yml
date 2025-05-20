@@ -197,6 +197,7 @@ jobs:
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
           CIBW_BEFORE_ALL_MACOS: "scripts/install_libomp.sh"
           CIBW_ENVIRONMENT_LINUX: CMAKE_ARGS='-DKokkos_ARCH_HSW=ON'
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.13
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
           CIBW_TEST_SKIP: "*_arm64"
