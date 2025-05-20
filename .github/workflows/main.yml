@@ -177,37 +177,50 @@ jobs:
           name: wheels-cuda12x
           path: ./wheelhouse/*.whl
 
-  build-wheels:
-    strategy:
-      matrix:
-        os: [ubuntu-22.04, macOS-13]
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
+  build-wheels-linux:
+    runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
-          CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
+          CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_SKIP: cp36-*
-          CIBW_ARCHS_MACOS: x86_64 arm64
-          CIBW_BEFORE_ALL_LINUX: >
+          CIBW_BEFORE_ALL: >
             yum install -y openblas-devel &&
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
-          CIBW_BEFORE_ALL_MACOS: "scripts/install_libomp.sh"
-          CIBW_ENVIRONMENT_LINUX: CMAKE_ARGS='-DKokkos_ARCH_HSW=ON'
-          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.13
+          CIBW_ENVIRONMENT: CMAKE_ARGS='-DKokkos_ARCH_HSW=ON'
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: pytest {project}/python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux
+          path: ./wheelhouse/*.whl
+
+  build-wheels-macos:
+    runs-on: macOS-13
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.23.3
+        env:
+          CIBW_BUILD: cp3*-macosx*
+          CIBW_SKIP: cp36-*
+          CIBW_ARCHS: x86_64 arm64
+          CIBW_BEFORE_ALL: "scripts/install_libomp.sh"
+          CIBW_ENVIRONMENT: MACOSX_DEPLOYMENT_TARGET=10.13
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
           CIBW_TEST_SKIP: "*_arm64"
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-macos
           path: ./wheelhouse/*.whl
 
   publish-wheels:
-    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
+    needs: [build-wheels-linux, build-wheels-macos, build-wheels-cuda11x, build-wheels-cuda12x]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -216,40 +229,9 @@ jobs:
       url: https://pypi.org/p/kedm
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: wheels
           path: dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
-
-  publish-wheels-cuda11x:
-    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    environment:
-      name: pypi
-      url: https://pypi.org/p/kedm-cuda11x
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: wheels-cuda11x
-          path: dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
-
-  publish-wheels-cuda12x:
-    needs: [build-wheels, build-wheels-cuda11x, build-wheels-cuda12x]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    environment:
-      name: pypi
-      url: https://pypi.org/p/kedm-cuda12x
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: wheels-cuda12x
-          path: dist
+          pattern: wheels-*
+          merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1

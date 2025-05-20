@@ -7,7 +7,7 @@ export LDFLAGS=""
 
 cd $(mktemp -d)
 
-curl -sL https://github.com/llvm/llvm-project/releases/download/llvmorg-$LIBOMP_VER/openmp-$LIBOMP_VER.src.tar.xz | tar xvf -
+curl -sL https://github.com/llvm/llvm-project/releases/download/llvmorg-$LIBOMP_VER/openmp-$LIBOMP_VER.src.tar.xz | tar xf -
 cd openmp-$LIBOMP_VER.src
 
 cmake -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" .
