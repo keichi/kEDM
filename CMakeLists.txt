@@ -120,8 +120,8 @@ if(KEDM_ENABLE_EXECUTABLES)
 
   FetchContent_Declare(
     highfive
-    GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
-    GIT_TAG        v2.7.1
+    GIT_REPOSITORY https://github.com/highfive-devs/highfive.git
+    GIT_TAG        v2.10.1
   )
   FetchContent_MakeAvailable(highfive)
 
