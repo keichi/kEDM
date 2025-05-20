@@ -134,7 +134,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.14.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
@@ -158,7 +158,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.14.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
@@ -185,7 +185,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.14.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
           CIBW_ARCHS_MACOS: x86_64 arm64
