@@ -130,7 +130,8 @@ void run_rho_diff(edm::Dataset ds, HighFive::File &output)
             rho_diff[j] = ccm[j] - std::abs(rho[j]);
         }
 
-        ds_rho_diff.select({i, 0}, {1, ds.extent(1)}).write_raw(rho_diff.data());
+        ds_rho_diff.select({i, 0}, {1, ds.extent(1)})
+            .write_raw(rho_diff.data());
     }
 }
 
