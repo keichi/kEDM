@@ -82,7 +82,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/imneme/pcg-cpp.git
   GIT_TAG        v0.98.1
 )
-FetchContent_Populate(pcg)
+FetchContent_MakeAvailable(pcg)
 target_include_directories(kedm PRIVATE ${pcg_SOURCE_DIR}/include)
 
 # simd-math
@@ -91,7 +91,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/kokkos/simd-math.git
   GIT_TAG        fa2cfa62b13dd6ddc9d9e4f52a4cd9d39ea721cf
 )
-FetchContent_Populate(simd)
+FetchContent_MakeAvailable(simd)
 target_include_directories(kedm PRIVATE ${simd_SOURCE_DIR})
 
 # LAPACK
