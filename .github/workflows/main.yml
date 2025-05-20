@@ -147,7 +147,7 @@ jobs:
             PATH=/usr/local/cuda/bin:$PATH
             KEDM_PACKAGE_NAME=kedm-cuda11x
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.11 --exclude libcublasLt.so.11 --exclude libcuda.so.1 {wheel}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels-cuda11x
           path: ./wheelhouse/*.whl
@@ -170,7 +170,7 @@ jobs:
             PATH=/usr/local/cuda/bin:$PATH
             KEDM_PACKAGE_NAME=kedm-cuda12x
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.12 --exclude libcublasLt.so.12 --exclude libcuda.so.1 {wheel}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels-cuda12x
           path: ./wheelhouse/*.whl
@@ -197,7 +197,7 @@ jobs:
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
           CIBW_TEST_SKIP: "*_arm64"
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: ./wheelhouse/*.whl
