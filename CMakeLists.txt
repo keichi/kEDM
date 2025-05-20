@@ -51,7 +51,7 @@ FetchContent_MakeAvailable(kokkos)
 FetchContent_Declare(
   argh
   GIT_REPOSITORY https://github.com/adishavit/argh.git
-  GIT_TAG        v1.3.2
+  GIT_TAG        c3f0d8c8a6dacb00df626b409248a34e3bcd15f5
 )
 FetchContent_MakeAvailable(argh)
 
