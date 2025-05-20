@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.16)
 
 project(kokkos-edm CXX)
 
@@ -26,7 +26,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK ON CACHE BOOL "")
 endif()
 
-# LTO is unsported by CUDA
+# LTO is unsporrted by CUDA
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
