@@ -121,7 +121,7 @@ if(KEDM_ENABLE_EXECUTABLES)
   FetchContent_Declare(
     highfive
     GIT_REPOSITORY https://github.com/highfive-devs/highfive.git
-    GIT_TAG        v2.10.1
+    GIT_TAG        v3.0.0-beta2
   )
   FetchContent_MakeAvailable(highfive)
 
