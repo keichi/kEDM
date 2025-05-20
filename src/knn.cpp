@@ -1,5 +1,5 @@
 #include <Kokkos_Core.hpp>
-#include <simd.hpp>
+#include <Kokkos_SIMD.hpp>
 #ifdef LIKWID_PERFMON
 #include <likwid.h>
 #else
@@ -22,7 +22,7 @@ namespace edm
 void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
                     int n_lib, int n_pred, int E, int tau)
 {
-    using simd_t = simd::simd<float, simd::simd_abi::native>;
+    using simd_t = Kokkos::Experimental::simd<float>;
 
 #ifdef USE_SCRATCH_MEMORY
     const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
@@ -59,19 +59,21 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
 
                     for (int e = 0; e < E; e++) {
 #ifdef USE_SCRATCH_MEMORY
-                        simd_t diff = simd_t(scratch_pred(e)) -
-                                      simd_t(&lib(j * simd_t::size() + e * tau),
-                                             simd::element_aligned_tag());
+                        simd_t diff =
+                            simd_t(scratch_pred(e)) -
+                            simd_t(&lib(j * simd_t::size() + e * tau),
+                                   Kokkos::Experimental::simd_flag_default);
 #else
-                        simd_t diff = simd_t(pred(i + e * tau)) -
-                                      simd_t(&lib(j * simd_t::size() + e * tau),
-                                             simd::element_aligned_tag());
+                        simd_t diff =
+                            simd_t(pred(i + e * tau)) -
+                            simd_t(&lib(j * simd_t::size() + e * tau),
+                                   Kokkos::Experimental::simd_flag_default);
 #endif
                         dist += diff * diff;
                     }
 
                     dist.copy_to(&distances(i, j * simd_t::size()),
-                                 simd::element_aligned_tag());
+                                 Kokkos::Experimental::simd_flag_default);
                 });
 #endif
 
@@ -112,7 +114,7 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
 void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
                     int n_lib, int n_pred, int E, int tau)
 {
-    using simd_t = simd::simd<float, simd::simd_abi::native>;
+    using simd_t = Kokkos::Experimental::simd<float>;
 
     Kokkos::parallel_for(
         "EDM::knn::calc_distances", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
@@ -131,13 +133,13 @@ void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
                             simd_t diff =
                                 simd_t(pred(i + e * tau, k)) -
                                 simd_t(&lib(j * simd_t::size() + e * tau, k),
-                                       simd::element_aligned_tag());
+                                       Kokkos::Experimental::simd_flag_default);
                             dist += diff * diff;
                         }
                     }
 
                     dist.copy_to(&distances(i, j * simd_t::size()),
-                                 simd::element_aligned_tag());
+                                 Kokkos::Experimental::simd_flag_default);
                 });
 #endif
 

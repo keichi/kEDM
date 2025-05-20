@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.28)
 
 project(kokkos-edm CXX)
 
@@ -15,16 +15,18 @@ if(APPLE)
   add_compile_options(-flax-vector-conversions)
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+if(LINUX)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+  set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "")
   set(Kokkos_ENABLE_DEBUG_BOUNDS_CHECK ON CACHE BOOL "")
 endif()
 
-# LTO is unsporrted by CUDA
+# LTO is unsported by CUDA
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -43,7 +45,8 @@ endif()
 FetchContent_Declare(
   kokkos
   GIT_REPOSITORY https://github.com/kokkos/kokkos.git
-  GIT_TAG        4.1.00
+  GIT_TAG        4.6.00
+  EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(kokkos)
 
@@ -51,7 +54,7 @@ FetchContent_MakeAvailable(kokkos)
 FetchContent_Declare(
   argh
   GIT_REPOSITORY https://github.com/adishavit/argh.git
-  GIT_TAG        v1.3.2
+  GIT_TAG        c3f0d8c8a6dacb00df626b409248a34e3bcd15f5
 )
 FetchContent_MakeAvailable(argh)
 
@@ -71,9 +74,11 @@ target_link_libraries(kedm PRIVATE Kokkos::kokkos)
 FetchContent_Declare(
   boost-math
   GIT_REPOSITORY https://github.com/boostorg/math.git
-  GIT_TAG        boost-1.83.0
+  GIT_TAG        boost-1.88.0
 )
 FetchContent_MakeAvailable(boost-math)
+# Workaround compile error in nvcc
+add_compile_definitions(BOOST_MATH_DISABLE_FLOAT128)
 target_link_libraries(kedm PRIVATE Boost::math)
 
 # pcg
@@ -82,17 +87,8 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/imneme/pcg-cpp.git
   GIT_TAG        v0.98.1
 )
-FetchContent_Populate(pcg)
+FetchContent_MakeAvailable(pcg)
 target_include_directories(kedm PRIVATE ${pcg_SOURCE_DIR}/include)
-
-# simd-math
-FetchContent_Declare(
-  simd
-  GIT_REPOSITORY https://github.com/kokkos/simd-math.git
-  GIT_TAG        fa2cfa62b13dd6ddc9d9e4f52a4cd9d39ea721cf
-)
-FetchContent_Populate(simd)
-target_include_directories(kedm PRIVATE ${simd_SOURCE_DIR})
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
@@ -120,8 +116,8 @@ if(KEDM_ENABLE_EXECUTABLES)
 
   FetchContent_Declare(
     highfive
-    GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
-    GIT_TAG        v2.7.1
+    GIT_REPOSITORY https://github.com/highfive-devs/highfive.git
+    GIT_TAG        v3.0.0-beta2
   )
   FetchContent_MakeAvailable(highfive)
 
@@ -177,7 +173,7 @@ if(KEDM_ENABLE_PYTHON)
   FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11.git
-    GIT_TAG        v2.11.1
+    GIT_TAG        v2.13.6
   )
   FetchContent_MakeAvailable(pybind11)
 
@@ -195,7 +191,7 @@ if(KEDM_ENABLE_TESTS)
   FetchContent_Declare(
     doctest
     GIT_REPOSITORY https://github.com/doctest/doctest.git
-    GIT_TAG        v2.4.11
+    GIT_TAG        v2.4.12
   )
   FetchContent_MakeAvailable(doctest)
   include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)

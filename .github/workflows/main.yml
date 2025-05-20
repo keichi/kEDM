@@ -17,7 +17,7 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run clang-format
       run: |
         git ls-files '*.hpp' '*.cpp' | xargs clang-format -i
@@ -38,7 +38,7 @@ jobs:
         apt-get install -y cmake git libhdf5-dev
       env:
         DEBIAN_FRONTEND: noninteractive
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Build kEDM
       run: |
         mkdir build
@@ -61,7 +61,7 @@ jobs:
     env:
       CXX: ${{ matrix.cxx }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -89,11 +89,11 @@ jobs:
       matrix:
         cxx: [clang++, g++-12]
       fail-fast: false
-    runs-on: macOS-11
+    runs-on: macOS-13
     env:
       CXX: ${{ matrix.cxx }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install HDF5
       run: brew install hdf5
     - name: Install libomp
@@ -119,8 +119,8 @@ jobs:
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
           -DCMAKE_CXX_FLAGS="-I/usr/local/include -Xpreprocessor -fopenmp" \
-          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -lomp" \
-          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -lomp" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib -lomp" \
+          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib -lomp" \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -132,9 +132,9 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.14.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
@@ -156,9 +156,9 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.14.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
@@ -178,14 +178,14 @@ jobs:
   build-wheels:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macOS-11]
+        os: [ubuntu-22.04, macOS-13]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build wheels
-        uses: joerick/cibuildwheel@v2.14.0
+        uses: pypa/cibuildwheel@v2.23.3
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64 cp3*-macosx*
           CIBW_ARCHS_MACOS: x86_64 arm64

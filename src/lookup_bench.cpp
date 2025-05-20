@@ -86,8 +86,7 @@ int main(int argc, char *argv[])
     edm::CrossMap ccm("ccm", N);
     edm::Targets targets("targets", N);
 
-    Kokkos::parallel_for(
-        N, KOKKOS_LAMBDA(int i) { targets(i) = i; });
+    Kokkos::parallel_for(N, KOKKOS_LAMBDA(int i) { targets(i) = i; });
 
     Kokkos::Timer timer;
     Timer timer_lookup;

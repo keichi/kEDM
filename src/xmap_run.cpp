@@ -107,7 +107,7 @@ void run_cross_correlation(edm::Dataset ds, HighFive::File &output)
                       << timer.seconds() << " seconds." << std::endl;
         }
 
-        ds_rho.select({i, 0}, {1, ds.extent(1)}).write(rho_mirror.data());
+        ds_rho.select({i, 0}, {1, ds.extent(1)}).write_raw(rho_mirror.data());
     }
 }
 
@@ -123,14 +123,15 @@ void run_rho_diff(edm::Dataset ds, HighFive::File &output)
     std::vector<float> rho_diff(ds.extent(1));
 
     for (size_t i = 0; i < ds.extent(1); i++) {
-        ds_ccm.select({i, 0}, {1, ds.extent(1)}).read(ccm.data());
-        ds_rho.select({i, 0}, {1, ds.extent(1)}).read(rho.data());
+        ds_ccm.select({i, 0}, {1, ds.extent(1)}).read_raw(ccm.data());
+        ds_rho.select({i, 0}, {1, ds.extent(1)}).read_raw(rho.data());
 
         for (size_t j = 0; j < ds.extent(1); j++) {
             rho_diff[j] = ccm[j] - std::abs(rho[j]);
         }
 
-        ds_rho_diff.select({i, 0}, {1, ds.extent(1)}).write(rho_diff.data());
+        ds_rho_diff.select({i, 0}, {1, ds.extent(1)})
+            .write_raw(rho_diff.data());
     }
 }
 

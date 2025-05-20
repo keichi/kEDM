@@ -79,7 +79,7 @@ Dataset load_hdf5(const HighFive::DataSet &dataset)
     for (size_t i = 0; i < n_rows; i += MAX_CHUNK_SIZE) {
         const size_t chunk_size = std::min(MAX_CHUNK_SIZE, n_rows - i);
 
-        dataset.select({i, 0}, {chunk_size, n_columns}).read(rows.data());
+        dataset.select({i, 0}, {chunk_size, n_columns}).read_raw(rows.data());
 
         for (size_t j = 0; j < chunk_size; j++) {
             for (size_t k = 0; k < n_columns; k++) {
