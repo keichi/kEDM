@@ -89,7 +89,7 @@ jobs:
       matrix:
         cxx: [clang++, g++-12]
       fail-fast: false
-    runs-on: macOS-11
+    runs-on: macOS-13
     env:
       CXX: ${{ matrix.cxx }}
     steps:
@@ -178,7 +178,7 @@ jobs:
   build-wheels:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macOS-11]
+        os: [ubuntu-22.04, macOS-13]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
