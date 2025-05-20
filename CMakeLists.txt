@@ -43,7 +43,7 @@ endif()
 FetchContent_Declare(
   kokkos
   GIT_REPOSITORY https://github.com/kokkos/kokkos.git
-  GIT_TAG        4.1.00
+  GIT_TAG        4.6.00
 )
 FetchContent_MakeAvailable(kokkos)
 
