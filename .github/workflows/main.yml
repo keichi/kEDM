@@ -89,7 +89,7 @@ jobs:
       matrix:
         cxx: [clang++, g++-12]
       fail-fast: false
-    runs-on: macOS-13
+    runs-on: macOS-14
     env:
       CXX: ${{ matrix.cxx }}
     steps:
@@ -97,9 +97,7 @@ jobs:
     - name: Install HDF5
       run: brew install hdf5
     - name: Install libomp
-      if: startsWith(matrix.cxx, 'clang++')
-      run: |
-        scripts/install_libomp.sh
+      run: brew install libomp
     - name: Build kEDM (gcc)
       if: startsWith(matrix.cxx, 'g++')
       run: |
@@ -107,7 +105,6 @@ jobs:
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_INCLUDE_PATH=/usr/local/include \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -118,9 +115,9 @@ jobs:
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_FLAGS="-I/usr/local/include -Xpreprocessor -fopenmp" \
-          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib -lomp" \
-          -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib -lomp" \
+          -DCMAKE_CXX_FLAGS="-I$(brew --prefix libomp)/include -Xpreprocessor -fopenmp" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix libomp)/lib -lomp" \
+          -DCMAKE_SHARED_LINKER_FLAGS="-L$(brew --prefix libomp)/lib -lomp" \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -199,7 +196,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build-wheels-macos:
-    runs-on: macOS-13
+    runs-on: macOS-14
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
@@ -208,12 +205,11 @@ jobs:
         env:
           CIBW_BUILD: cp3*-macosx*
           CIBW_SKIP: cp36-*
-          CIBW_ARCHS: x86_64 arm64
-          CIBW_BEFORE_ALL: "scripts/install_libomp.sh"
-          CIBW_ENVIRONMENT: MACOSX_DEPLOYMENT_TARGET=10.13
+          CIBW_ARCHS: arm64
+          CIBW_BEFORE_ALL: >
+            brew install libomp
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
-          CIBW_TEST_SKIP: "*_arm64"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-macos
