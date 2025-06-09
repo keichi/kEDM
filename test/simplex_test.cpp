@@ -130,7 +130,8 @@ void embed_dim_test_common()
 
         simplex(prediction, library, target, library, E, tau, Tp);
 
-        const auto range = std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
+        const auto range =
+            std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
         rho[E - 1] = corrcoef(prediction, Kokkos::subview(target, range));
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);
 
