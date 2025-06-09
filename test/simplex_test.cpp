@@ -127,13 +127,11 @@ void embed_dim_test_common()
 
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
-        TimeSeries shifted_target(
-            target,
-            std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
         simplex(prediction, library, target, library, E, tau, Tp);
 
-        rho[E - 1] = corrcoef(prediction, shifted_target);
+        const auto range = std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
+        rho[E - 1] = corrcoef(prediction, Kokkos::subview(target, range));
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);
 
         // Check correlation coefficient

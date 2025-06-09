@@ -180,8 +180,8 @@ float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
 
     edm::simplex(result, lib, pred, target, E, tau, Tp);
 
-    const auto range = std::make_pair((E - 1) * tau + Tp, pred.extent_int(0));
-    return edm::corrcoef(Kokkos::subview(pred, range), result);
+    const auto range = std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
+    return edm::corrcoef(Kokkos::subview(target, range), result);
 }
 
 py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
