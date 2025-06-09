@@ -22,10 +22,8 @@ int edim(TimeSeries ts, int E_max, int tau, int Tp)
 
     std::vector<float> rho(E_max);
 
-    const auto library =
-        TimeSeries(ts, std::make_pair<size_t, size_t>(0, ts.size() / 2));
-    const auto target =
-        TimeSeries(ts, std::make_pair(ts.size() / 2, ts.size()));
+    const auto library = ts;
+    const auto target = ts;
 
     TmpDistances tmp("tmp_distances", ts.size(), ts.size());
 
@@ -37,13 +35,12 @@ int edim(TimeSeries ts, int E_max, int tau, int Tp)
 
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
-        TimeSeries shifted_target(
-            target,
-            std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
         lookup(prediction, library, lut);
 
-        rho[E - 1] = corrcoef(prediction, shifted_target);
+        const auto range =
+            std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
+        rho[E - 1] = corrcoef(prediction, Kokkos::subview(target, range));
     }
 
     Kokkos::Profiling::popRegion();
