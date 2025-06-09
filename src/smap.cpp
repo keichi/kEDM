@@ -142,7 +142,7 @@ void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
                         for (int k = 0; k < E; k++) {
                             A(j, k + 1, i) = w * lib(j + k * tau);
                         }
-                        b(j, i) = w * lib(j + n_partial + Tp);
+                        b(j, i) = w * target(j + n_partial + Tp);
                     });
             });
 
@@ -171,7 +171,7 @@ void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
                 float p = b(0, i);
 
                 for (int k = 0; k < E; k++) {
-                    p += b(k + 1, i) * target(offset + i + k * tau);
+                    p += b(k + 1, i) * lib(offset + i + k * tau);
                 }
 
                 result(i + offset) = p;
