@@ -51,8 +51,8 @@ void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
         throw std::invalid_argument("lib size is too small");
     } else if (n_pred <= 0) {
         throw std::invalid_argument("pred size is too small");
-    } else if (pred.extent(0) != target.extent(0)) {
-        throw std::invalid_argument("pred size and target size must be equal");
+    } else if (lib.extent(0) != target.extent(0)) {
+        throw std::invalid_argument("lib size and target size must be equal");
     }
 
 #ifdef KOKKOS_ENABLE_CUDA
@@ -171,7 +171,7 @@ void smap(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
                 float p = b(0, i);
 
                 for (int k = 0; k < E; k++) {
-                    p += b(k + 1, i) * lib(offset + i + k * tau);
+                    p += b(k + 1, i) * pred(offset + i + k * tau);
                 }
 
                 result(i + offset) = p;

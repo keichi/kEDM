@@ -27,15 +27,15 @@ def test_smap_varying_theta(pytestconfig, i):
 
 
 # Case 1:
-# pyEDM.SMap(dataFrame=pyEDM.sampleData["block_3sp"], columns="x_t",
+# pyEDM.SMap(dataFrame=pyEDM.sampleData["block_3sp"], columns="x_t", target="x_t",
 #            lib="1 100", pred="1 99", E=3, tau=-1, Tp=1, theta=1.0)
 #
 # Case 2:
-#  pyEDM.SMap(dataFrame=pyEDM.sampleData["block_3sp"], columns="x_t",
+# pyEDM.SMap(dataFrame=pyEDM.sampleData["block_3sp"], columns="x_t", target="x_t",
 #             lib="1 100", pred="101 194", E=3, tau=-1, Tp=1, theta=1.0)
 #
 # Case 3:
-# pyEDM.SMap(dataFrame=pyEDM.sampleData["Lorenz5D"], columns="V1",
+# pyEDM.SMap(dataFrame=pyEDM.sampleData["Lorenz5D"], columns="V1", target="x_t",
 #            lib="1 600", pred="601 995", E=5, tau=-5, Tp=5, theta=1.0)
 @pytest.mark.parametrize(
     "data_csv,valid_csv,lib_range,pred_range,E,tau,Tp,columns,target",
@@ -54,7 +54,7 @@ def test_smap_values(pytestconfig, data_csv, valid_csv, lib_range,
 
     lib = data[lib_range[0]:lib_range[1], columns]
     pred = data[pred_range[0]:pred_range[1], columns]
-    target = data[pred_range[0]:pred_range[1], target]
+    target = data[lib_range[0]:lib_range[1], target]
 
     prediction = kedm.smap(lib=lib, pred=pred, target=target, E=E,
                            tau=tau, Tp=Tp, theta=1.0)

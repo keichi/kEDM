@@ -196,9 +196,9 @@ py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
 
     if (target_arr.ndim() == 0) {
         target_arr = pred_arr;
-    } else if (pred_arr.shape(0) != target_arr.shape(0)) {
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
         throw std::invalid_argument(
-            "pred and target must have same number of time steps");
+            "lib and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -238,7 +238,7 @@ float eval_smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
         target_arr = pred_arr;
     } else if (lib_arr.shape(0) != target_arr.shape(0)) {
         throw std::invalid_argument(
-            "pred and target must have same number of time steps");
+            "lib and target must have same number of time steps");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -434,7 +434,7 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series (defaults to ``pred`` if None)
+            target: Target time series (defaults to ``lib`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
@@ -454,7 +454,7 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series (defaults to ``pred`` if None)
+            target: Target time series (defaults to ``lib`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
