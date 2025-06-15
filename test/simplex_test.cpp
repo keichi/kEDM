@@ -103,6 +103,12 @@ TEST_CASE("Compute multivariate simplex projection for E=3")
 }
 
 // Test data is generated using pyEDM with the following parameters:
+// res = pyEDM.Simplex(pyEDM.sampleData["TentMap"], columns="TentMap",
+//                     lib="1 100", pred="201 500", target="TentMap",
+//                     E=E, tau=-1, Tp=1)["Predictions"][Tp:]
+// rho = np.corrcoef(pyEDM.sampleData["TentMap"]["TentMap"][201:500],
+//                  res[:-Tp])[0][1])
+//
 // pyEDM.EmbedDimension(dataFrame=pyEDM.sampleData["TentMap"], lib="1 100",
 //                      pred="201 500", columns="TentMap", target="TentMap",
 //                      maxE=20)
@@ -127,13 +133,12 @@ void embed_dim_test_common()
 
         MutableTimeSeries prediction("prediction",
                                      target.size() - (E - 1) * tau);
-        TimeSeries shifted_target(
-            target,
-            std::make_pair<size_t, size_t>((E - 1) * tau + Tp, target.size()));
 
         simplex(prediction, library, target, library, E, tau, Tp);
 
-        rho[E - 1] = corrcoef(prediction, shifted_target);
+        const auto range =
+            std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
+        rho[E - 1] = corrcoef(prediction, Kokkos::subview(target, range));
         rho_valid[E - 1] = ds2_mirror(E - 1, 1);
 
         // Check correlation coefficient

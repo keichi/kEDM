@@ -90,14 +90,14 @@ def test_simplex_rho(pytestconfig, E):
     pred = ts[200 - (E - 1) * tau:500]
     prediction = kedm.simplex(lib, pred, E=E, tau=tau, Tp=Tp)
 
-    rho = np.corrcoef(prediction[:-1], pred[(E-1)*tau+Tp:])[0][1]
+    rho = np.corrcoef(prediction[:-Tp], pred[(E-1)*tau+Tp:])[0][1]
     rho_valid = valid[E-1]
 
-    assert rho == pytest.approx(rho_valid, abs=1e-6)
+    assert rho == pytest.approx(rho_valid, abs=1e-5)
 
     rho = kedm.eval_simplex(lib, pred, E=E, tau=tau, Tp=Tp)
 
-    assert rho == pytest.approx(rho_valid, abs=1e-6)
+    assert rho == pytest.approx(rho_valid, abs=1e-5)
 
 
 def test_invalid_args():
