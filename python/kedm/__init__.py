@@ -18,4 +18,4 @@ Python bindings for kEDM
 """
 
 from ._kedm import *
-from ._version import version as __version__
+from ._version import __version__
