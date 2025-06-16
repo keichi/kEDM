@@ -11,8 +11,9 @@ void simplex(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
 {
     int n_partial = (E - 1) * tau;
 
-    if (lib.extent(0) != target.extent(0)) {
-        throw std::invalid_argument("lib size and target size must be equal");
+    if (lib.extent(0) > target.extent(0)) {
+        throw std::invalid_argument(
+            "lib must have no more time steps than target");
     }
 
     TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));
@@ -28,8 +29,9 @@ void simplex(MutableTimeSeries result, Dataset lib, Dataset pred,
 {
     int n_partial = (E - 1) * tau;
 
-    if (lib.extent(0) != target.extent(0)) {
-        throw std::invalid_argument("lib size and target size must be equal");
+    if (lib.extent(0) > target.extent(0)) {
+        throw std::invalid_argument(
+            "lib must have no more time steps than target");
     }
 
     TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));

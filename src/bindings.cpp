@@ -93,9 +93,9 @@ py::array_t<float> simplex(py::array_t<float> lib_arr,
 
     if (target_arr.ndim() == 0) {
         target_arr = lib_arr;
-    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+    } else if (lib_arr.shape(0) > target_arr.shape(0)) {
         throw std::invalid_argument(
-            "lib and target must have same number of time steps");
+            "lib must have no more time steps than target");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -159,9 +159,9 @@ float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
 
     if (target_arr.ndim() == 0) {
         target_arr = lib_arr;
-    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+    } else if (lib_arr.shape(0) > target_arr.shape(0)) {
         throw std::invalid_argument(
-            "lib and target must have same number of time steps");
+            "lib must have no more time steps than target");
     }
 
     const auto n_lib = lib_arr.shape(0);
@@ -180,8 +180,15 @@ float eval_simplex(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
 
     edm::simplex(result, lib, pred, target, E, tau, Tp);
 
-    const auto range = std::make_pair((E - 1) * tau + Tp, pred.extent_int(0));
-    return edm::corrcoef(Kokkos::subview(pred, range), result);
+    if (target_arr == lib_arr) {
+        const auto range =
+            std::make_pair((E - 1) * tau + Tp, pred.extent_int(0));
+        return edm::corrcoef(Kokkos::subview(pred, range), result);
+    } else {
+        const auto range =
+            std::make_pair((E - 1) * tau + Tp, target.extent_int(0));
+        return edm::corrcoef(Kokkos::subview(target, range), result);
+    }
 }
 
 py::array_t<float> smap(py::array_t<float> lib_arr, py::array_t<float> pred_arr,
@@ -364,7 +371,7 @@ PYBIND11_MODULE(_kedm, m)
             E_max: Maximum embedding dimension (E is varied from 1 to E_max)
             tau: Time delay
             Tp: Prediction interval
-          
+
           Returns:
             Optimal embedding dimension of the time series
           )doc",
@@ -393,15 +400,15 @@ PYBIND11_MODULE(_kedm, m)
 
           Examples:
             Forecast:
-            
+
             >>> kedm.simplex(x[:100], x[100:200], E=2, Tp=1)
 
             Cross mapping:
-            
+
             >>> kedm.simplex(x, y, target=y, E=3, Tp=0)
 
             Multivariate forecast:
-            
+
             >>> kedm.simplex(xs, ys, target=y, E=4, Tp=1)
           )doc",
           py::arg("lib"), py::arg("pred"), py::kw_only(),
@@ -419,9 +426,13 @@ PYBIND11_MODULE(_kedm, m)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
-          
+
           Returns:
             Pearson's correlation coefficient between observation and prediction
+
+          Note:
+            If ``target`` is given (cross mapping), the prediction is compared to ``target``.
+            Otherwise, the prediction is compared to ``pred``.
           )doc",
           py::arg("lib"), py::arg("pred"), py::kw_only(),
           py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
@@ -434,12 +445,12 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series (defaults to ``lib`` if None)
+            target: Target time series (defaults to ``pred`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
             theta: Neighbor localization exponent
-          
+
           Returns:
             Prediction result
           )doc",
@@ -454,14 +465,18 @@ PYBIND11_MODULE(_kedm, m)
           Args:
             lib: Library time series
             pred: Prediction time series
-            target: Target time series (defaults to ``lib`` if None)
+            target: Target time series (defaults to ``pred`` if None)
             E: Embedding dimension
             tau: Time delay
             Tp: Prediction interval
             theta: Neighbor localization exponent
-          
+
           Returns:
             Pearson's correlation coefficient between observation and prediction
+
+          Note:
+            If ``target`` is given (cross mapping), the prediction is compared to ``target``.
+            Otherwise, the prediction is compared to ``pred``.
           )doc",
           py::arg("lib"), py::arg("pred"), py::kw_only(),
           py::arg("target") = nullptr, py::arg("E") = 1, py::arg("tau") = 1,
@@ -507,7 +522,7 @@ PYBIND11_MODULE(_kedm, m)
             edims: Embedding dimension for each time series (can be computed using ``kedm.edim``)
             tau: Time delay
             Tp: Prediction interval
-          
+
           Returns:
             A 2D array where each element represents the interaction strength
             between two time series.
