@@ -4,10 +4,6 @@ project(kokkos-edm CXX)
 
 include(FetchContent)
 
-if(SKBUILD)
-  message(STATUS "The project is built using scikit-build")
-endif()
-
 # Compiler flags
 add_compile_options(-Wall -Wextra)
 if(APPLE)
@@ -19,6 +15,12 @@ if(LINUX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
   set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+endif()
+
+if(APPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/opt/homebrew/opt/libomp/include -Xpreprocessor -fopenmp")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -L/opt/homebrew/opt/libomp/lib -lomp")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/opt/homebrew/opt/libomp/lib -lomp")
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -177,7 +179,7 @@ if(KEDM_ENABLE_PYTHON)
 
   pybind11_add_module(_kedm src/bindings.cpp)
   target_link_libraries(_kedm PRIVATE kedm Kokkos::kokkos)
-  install(TARGETS _kedm LIBRARY DESTINATION python/kedm)
+  install(TARGETS _kedm DESTINATION .)
 endif()
 
 # Unit tests

@@ -80,7 +80,9 @@ jobs:
       run: ctest
       working-directory: build
     - name: Build and install Python wheel
-      run: pip3 install -v '.[test]'
+      run: |
+        pip3 install -U pip
+        pip3 install -v '.[test]'
     - name: Run Python unit tests
       run: pytest python
 
@@ -115,9 +117,6 @@ jobs:
         cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_FLAGS="-I$(brew --prefix libomp)/include -Xpreprocessor -fopenmp" \
-          -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix libomp)/lib -lomp" \
-          -DCMAKE_SHARED_LINKER_FLAGS="-L$(brew --prefix libomp)/lib -lomp" \
           -DKEDM_ENABLE_CPU=ON \
           ..
         make -j $(sysctl -n hw.physicalcpu_max)
@@ -130,20 +129,23 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
+      - name: Replace project name with kedm-cuda11x
+        run: sed -i 's/name = "kedm"/name = "kedm-cuda11x"/' pyproject.toml
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.0.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
-          CIBW_SKIP: cp36-*
           CIBW_BEFORE_ALL_LINUX: >
-            yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo &&
-            yum install -y cuda-compiler-11-2 libcublas-devel-11-2 cuda-cudart-devel-11-2 cuda-driver-devel-11-2 &&
-            update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.2 112
+            yum install -y yum-utils &&
+            yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo &&
+            yum install -y cuda-compiler-11-8 libcublas-devel-11-8 cuda-cudart-devel-11-8 cuda-driver-devel-11-8 &&
+            update-alternatives --install /usr/local/cuda cuda /usr/local/cuda-11.8 118
           CIBW_TEST_SKIP: "*"
           CIBW_ENVIRONMENT: >
             CMAKE_ARGS='-DKEDM_ENABLE_GPU=ON -DKokkos_ARCH_VOLTA70=ON'
             PATH=/usr/local/cuda/bin:$PATH
-            KEDM_PACKAGE_NAME=kedm-cuda11x
+            CC=/usr/bin/gcc
+            CXX=/usr/bin/g++
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.11 --exclude libcublasLt.so.11 --exclude libcuda.so.1 {wheel}
       - uses: actions/upload-artifact@v4
         with:
@@ -155,19 +157,20 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
+      - name: Replace project name with kedm-cuda12x
+        run: sed -i 's/name = "kedm"/name = "kedm-cuda12x"/' pyproject.toml
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.0.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
-          CIBW_SKIP: cp36-*
           CIBW_BEFORE_ALL_LINUX: >
-            yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo &&
-            yum install -y cuda-compiler-12-0 libcublas-devel-12-0 cuda-cudart-devel-12-0 cuda-driver-devel-12-0
+            yum install -y yum-utils &&
+            yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo &&
+            yum install -y cuda-compiler-12-9 libcublas-devel-12-9 cuda-cudart-devel-12-9 cuda-driver-devel-12-9
           CIBW_TEST_SKIP: "*"
           CIBW_ENVIRONMENT: >
             CMAKE_ARGS='-DKEDM_ENABLE_GPU=ON -DKokkos_ARCH_VOLTA70=ON'
             PATH=/usr/local/cuda/bin:$PATH
-            KEDM_PACKAGE_NAME=kedm-cuda12x
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: auditwheel repair -w {dest_dir} --exclude libcublas.so.12 --exclude libcublasLt.so.12 --exclude libcuda.so.1 {wheel}
       - uses: actions/upload-artifact@v4
         with:
@@ -180,10 +183,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.0.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
-          CIBW_SKIP: cp36-*
           CIBW_BEFORE_ALL: >
             yum install -y openblas-devel &&
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
@@ -201,15 +203,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.0.0
         env:
           CIBW_BUILD: cp3*-macosx*
-          CIBW_SKIP: cp36-*
           CIBW_ARCHS: arm64
-          CIBW_BEFORE_ALL: >
-            brew install libomp
+          CIBW_BEFORE_ALL: ./scripts/install_libomp.sh
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/python
+          CIBW_ENVIRONMENT: DYLD_LIBRARY_PATH=/opt/homebrew/opt/libomp/lib
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-macos

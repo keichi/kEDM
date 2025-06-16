@@ -199,3 +199,6 @@ _skbuild
 # sphinx
 docs/html/
 docs/output/
+
+# setuptools-scm
+python/kedm/_version.py
