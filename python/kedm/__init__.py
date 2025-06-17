@@ -18,4 +18,6 @@ Python bindings for kEDM
 """
 
 from ._kedm import *
-from ._version import __version__
+
+__version__ = "0.9.2"
+__version_info__ = (0, 9, 2)
