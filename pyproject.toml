@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "numpy>=2.0.0"
+    "numpy>=1.24.0"
 ]
 
 [project.urls]
