@@ -132,7 +132,7 @@ jobs:
       - name: Replace project name with kedm-cuda11x
         run: sed -i 's/name = "kedm"/name = "kedm-cuda11x"/' pyproject.toml
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
@@ -160,7 +160,7 @@ jobs:
       - name: Replace project name with kedm-cuda12x
         run: sed -i 's/name = "kedm"/name = "kedm-cuda12x"/' pyproject.toml
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL_LINUX: >
@@ -183,7 +183,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
           CIBW_BEFORE_ALL: >
@@ -203,7 +203,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-macosx*
           CIBW_ARCHS: arm64
