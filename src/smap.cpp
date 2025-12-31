@@ -1,3 +1,5 @@
+#include <cfloat>
+
 #include <Kokkos_Core.hpp>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cublas_v2.h>

@@ -47,7 +47,7 @@ endif()
 FetchContent_Declare(
   kokkos
   GIT_REPOSITORY https://github.com/kokkos/kokkos.git
-  GIT_TAG        4.6.00
+  GIT_TAG        5.0.0
   EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(kokkos)

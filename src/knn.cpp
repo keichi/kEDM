@@ -72,8 +72,9 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
                         dist += diff * diff;
                     }
 
-                    dist.copy_to(&distances(i, j * simd_t::size()),
-                                 Kokkos::Experimental::simd_flag_default);
+                    Kokkos::Experimental::simd_unchecked_store(
+                        dist, &distances(i, j * simd_t::size()),
+                        Kokkos::Experimental::simd_flag_default);
                 });
 #endif
 
@@ -138,8 +139,9 @@ void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
                         }
                     }
 
-                    dist.copy_to(&distances(i, j * simd_t::size()),
-                                 Kokkos::Experimental::simd_flag_default);
+                    Kokkos::Experimental::simd_unchecked_store(
+                        dist, &distances(i, j * simd_t::size()),
+                        Kokkos::Experimental::simd_flag_default);
                 });
 #endif
 

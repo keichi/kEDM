@@ -1,3 +1,5 @@
+#include <cfloat>
+
 #include <Kokkos_NestedSort.hpp>
 #include <Kokkos_Random.hpp>
 #include <doctest/doctest.h>
