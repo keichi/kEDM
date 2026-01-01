@@ -52,7 +52,7 @@ void full_sort(SimplexLUT lut, int n_lib, int n_pred, int n_partial, int Tp)
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                     lut.distances(i, j) = sqrt(lut.distances(i, j));
                     lut.indices(i, j) = j + n_partial + Tp;
                 });
@@ -85,7 +85,7 @@ void full_sort_with_scratch(SimplexLUT lut, int n_lib, int n_pred,
                                              lut.indices.extent(1));
 
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                     scratch_distances(j) = sqrt(lut.distances(i, j));
                     scratch_indices(j) = j + n_partial + Tp;
                 });
@@ -96,7 +96,7 @@ void full_sort_with_scratch(SimplexLUT lut, int n_lib, int n_pred,
                                                    scratch_indices);
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
-                                 [=](int j) {
+                                 [=](size_t j) {
                                      lut.distances(i, j) = scratch_distances(j);
                                      lut.indices(i, j) = scratch_indices(j);
                                  });
@@ -148,7 +148,7 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                 member.team_barrier();
 
                 Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                    Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                         unsigned int val = reinterpret_cast<unsigned int &>(
                             lut.distances(i, j));
                         if ((val & mask_desired) == desired) {
@@ -181,7 +181,7 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
             find_result<float> res;
             Kokkos::parallel_reduce(
                 Kokkos::TeamThreadRange(member, n_lib),
-                [=](int j, find_result<float> &upd) {
+                [=](size_t j, find_result<float> &upd) {
                     unsigned int val =
                         reinterpret_cast<unsigned int &>(lut.distances(i, j));
                     if ((val & mask_desired) == desired) {
@@ -191,29 +191,28 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                 },
                 Kokkos::Sum<find_result<float>>(res));
 
-            Kokkos::parallel_scan(Kokkos::TeamThreadRange(member, n_lib),
-                                  [=](int j, int &partial_sum, bool is_final) {
-                                      if (lut.distances(i, j) <= res.val) {
-                                          if (is_final && partial_sum < k) {
-                                              topk_dist(partial_sum) =
-                                                  sqrt(lut.distances(i, j));
-                                              topk_ind(partial_sum) =
-                                                  j + n_partial + Tp;
-                                          }
-                                          partial_sum++;
-                                      }
-                                  });
+            Kokkos::parallel_scan(
+                Kokkos::TeamThreadRange(member, n_lib),
+                [=](size_t j, int &partial_sum, bool is_final) {
+                    if (lut.distances(i, j) <= res.val) {
+                        if (is_final && partial_sum < k) {
+                            topk_dist(partial_sum) = sqrt(lut.distances(i, j));
+                            topk_ind(partial_sum) = j + n_partial + Tp;
+                        }
+                        partial_sum++;
+                    }
+                });
 
             member.team_barrier();
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k),
-                                 [=](int j) {
+                                 [=](size_t j) {
                                      lut.distances(i, j) = topk_dist(j);
                                      lut.indices(i, j) = topk_ind(j);
                                  });
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k, n_lib),
-                                 [=](int j) {
+                                 [=](size_t j) {
                                      lut.distances(i, j) = FLT_MAX;
                                      lut.indices(i, j) = -1;
                                  });
@@ -331,7 +330,9 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                     // Number of neighbors found so far
                     int selected = 0;
 
-                    for (int j = 0; j < n_lib && selected < E + 1; j++) {
+                    for (size_t j = 0;
+                         j < static_cast<size_t>(n_lib) && selected < E + 1;
+                         j++) {
                         int idx = full_lut.indices(i, j);
 
                         // This means we ran out of (partially) sorted items
