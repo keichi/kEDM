@@ -191,18 +191,17 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                 },
                 Kokkos::Sum<find_result<float>>(res));
 
-            Kokkos::parallel_scan(Kokkos::TeamThreadRange(member, n_lib),
-                                  [=](size_t j, int &partial_sum, bool is_final) {
-                                      if (lut.distances(i, j) <= res.val) {
-                                          if (is_final && partial_sum < k) {
-                                              topk_dist(partial_sum) =
-                                                  sqrt(lut.distances(i, j));
-                                              topk_ind(partial_sum) =
-                                                  j + n_partial + Tp;
-                                          }
-                                          partial_sum++;
-                                      }
-                                  });
+            Kokkos::parallel_scan(
+                Kokkos::TeamThreadRange(member, n_lib),
+                [=](size_t j, int &partial_sum, bool is_final) {
+                    if (lut.distances(i, j) <= res.val) {
+                        if (is_final && partial_sum < k) {
+                            topk_dist(partial_sum) = sqrt(lut.distances(i, j));
+                            topk_ind(partial_sum) = j + n_partial + Tp;
+                        }
+                        partial_sum++;
+                    }
+                });
 
             member.team_barrier();
 
@@ -331,7 +330,9 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                     // Number of neighbors found so far
                     int selected = 0;
 
-                    for (size_t j = 0; j < static_cast<size_t>(n_lib) && selected < E + 1; j++) {
+                    for (size_t j = 0;
+                         j < static_cast<size_t>(n_lib) && selected < E + 1;
+                         j++) {
                         int idx = full_lut.indices(i, j);
 
                         // This means we ran out of (partially) sorted items

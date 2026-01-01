@@ -234,7 +234,8 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
 
                     int k = 0;
                     // Shift elements until the insertion point is found
-                    for (k = min(static_cast<int>(j) / team_size, top_k - 1); k > 0; k--) {
+                    for (k = min(static_cast<int>(j) / team_size, top_k - 1);
+                         k > 0; k--) {
                         if (scratch_dist(r, k - 1) <= cur_dist) {
                             break;
                         }
