@@ -72,8 +72,9 @@ TEST_CASE("Compute kNN table for E=5") { test_knn_common(5); }
 //   - Execution time: ~90 seconds
 //
 // Run with: ./kedm-test --no-skip -tc="*large*"
-TEST_CASE("Compute kNN table for large dataset" *
-          doctest::skip(true)) // Skip by default due to memory/time requirements
+TEST_CASE(
+    "Compute kNN table for large dataset" *
+    doctest::skip(true)) // Skip by default due to memory/time requirements
 {
     // n = 46342 gives n^2 = 2,147,578,964 > INT_MAX (2,147,483,647)
     const int n = 46342;
@@ -84,7 +85,9 @@ TEST_CASE("Compute kNN table for large dataset" *
 
     MutableTimeSeries ts("timeseries", n);
     Kokkos::parallel_for(
-        "init_ts", n, KOKKOS_LAMBDA(int i) { ts(i) = static_cast<float>(i % 1000) / 1000.0f; });
+        "init_ts", n, KOKKOS_LAMBDA(int i) {
+            ts(i) = static_cast<float>(i % 1000) / 1000.0f;
+        });
 
     TmpDistances tmp("tmp_distances", n, n);
     SimplexLUT lut(n - (E - 1) * tau, top_k);
