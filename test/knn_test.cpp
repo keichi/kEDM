@@ -64,4 +64,41 @@ TEST_CASE("Compute kNN table for E=4") { test_knn_common(4); }
 
 TEST_CASE("Compute kNN table for E=5") { test_knn_common(5); }
 
+// Test for large datasets where n_pred * n_lib > INT_MAX
+// This test verifies the fix for SIGSEGV with large 2D array indexing
+//
+// Reference (Apple M4, 10 cores):
+//   - Memory usage: ~8.6 GB (TmpDistances: 46342^2 * 4 bytes)
+//   - Execution time: ~90 seconds
+//
+// Run with: ./kedm-test --no-skip -tc="*large*"
+TEST_CASE("Compute kNN table for large dataset" *
+          doctest::skip(true)) // Skip by default due to memory/time requirements
+{
+    // n = 46342 gives n^2 = 2,147,578,964 > INT_MAX (2,147,483,647)
+    const int n = 46342;
+    const int E = 2;
+    const int tau = 1;
+    const int Tp = 0;
+    const int top_k = E + 1;
+
+    MutableTimeSeries ts("timeseries", n);
+    Kokkos::parallel_for(
+        "init_ts", n, KOKKOS_LAMBDA(int i) { ts(i) = static_cast<float>(i % 1000) / 1000.0f; });
+
+    TmpDistances tmp("tmp_distances", n, n);
+    SimplexLUT lut(n - (E - 1) * tau, top_k);
+
+    knn(ts, ts, lut, tmp, E, tau, Tp, top_k);
+
+    auto distances =
+        Kokkos::create_mirror_view_and_copy(HostSpace(), lut.distances);
+
+    CHECK(distances.extent(0) == static_cast<size_t>(n - (E - 1) * tau));
+    CHECK(distances.extent(1) == static_cast<size_t>(top_k));
+
+    // Check that distances are non-negative (basic sanity)
+    CHECK(distances(0, 0) >= 0.0f);
+}
+
 } // namespace edm
