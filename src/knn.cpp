@@ -22,7 +22,9 @@ namespace edm
 void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
                     int n_lib, int n_pred, int E, int tau)
 {
+#ifdef USE_SIMD_PRIMITIVES
     using simd_t = Kokkos::Experimental::simd<float>;
+#endif
 
 #ifdef USE_SCRATCH_MEMORY
     const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
@@ -54,7 +56,7 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
             // Vectorized loop
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_lib / simd_t::size()),
-                [=](int j) {
+                [=](size_t j) {
                     simd_t dist = simd_t(0.0f);
 
                     for (int e = 0; e < E; e++) {
@@ -87,7 +89,7 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
                                         0,
 #endif
                                         n_lib),
-                [=](int j) {
+                [=](size_t j) {
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
@@ -104,7 +106,7 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
 
             // Ignore degenerate neighbors
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
-                                 [=](int j) {
+                                 [=](size_t j) {
                                      if (distances(i, j) == 0.0f) {
                                          distances(i, j) = FLT_MAX;
                                      }
@@ -126,7 +128,7 @@ void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
             // Vectorized loop
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, n_lib / simd_t::size()),
-                [=](int j) {
+                [=](size_t j) {
                     simd_t dist = simd_t(0.0f);
 
                     for (int e = 0; e < E; e++) {
@@ -154,7 +156,7 @@ void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
                                         0,
 #endif
                                         n_lib),
-                [=](int j) {
+                [=](size_t j) {
                     float dist = 0.0f;
 
                     for (int e = 0; e < E; e++) {
@@ -170,7 +172,7 @@ void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
 
             // Ignore degenerate neighbors
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
-                                 [=](int j) {
+                                 [=](size_t j) {
                                      if (distances(i, j) == 0.0f) {
                                          distances(i, j) = FLT_MAX;
                                      }
@@ -220,19 +222,19 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
             member.team_barrier();
 
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                     const float cur_dist = distances(i, j);
 
                     // Skip elements larger than the current k-th smallest
                     // element
-                    if (j / team_size >= top_k &&
+                    if (static_cast<int>(j) / team_size >= top_k &&
                         cur_dist > scratch_dist(r, top_k - 1)) {
                         return;
                     }
 
                     int k = 0;
                     // Shift elements until the insertion point is found
-                    for (k = min(j / team_size, top_k - 1); k > 0; k--) {
+                    for (k = min(static_cast<int>(j) / team_size, top_k - 1); k > 0; k--) {
                         if (scratch_dist(r, k - 1) <= cur_dist) {
                             break;
                         }
