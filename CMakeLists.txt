@@ -76,7 +76,7 @@ target_link_libraries(kedm PRIVATE Kokkos::kokkos)
 FetchContent_Declare(
   boost-math
   GIT_REPOSITORY https://github.com/boostorg/math.git
-  GIT_TAG        boost-1.86.0
+  GIT_TAG        boost-1.89.0
 )
 FetchContent_MakeAvailable(boost-math)
 target_link_libraries(kedm PRIVATE Boost::math)
