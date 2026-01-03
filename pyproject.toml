@@ -10,7 +10,7 @@ authors = [
 ]
 description = "A high-performance implementation of the Empirical Dynamic Modeling (EDM) framework"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 classifiers = [
     "Programming Language :: C++",
@@ -33,7 +33,7 @@ Issues = "https://github.com/keichi/kEDM/issues"
 
 [project.optional-dependencies]
 test = [
-    "pytest>=6.2.0"
+    "pytest>=8.0.0"
 ]
 
 [tool.scikit-build]

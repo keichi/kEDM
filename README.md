@@ -23,16 +23,10 @@ CPU (Linux and macOS)
 pip3 install kedm
 ```
 
-NVIDIA GPU (CUDA 11.2 or later)
-
-```
-pip3 install kedm-11x
-```
-
 NVIDIA GPU (CUDA 12.0 or later)
 
 ```
-pip3 install kedm-12x
+pip3 install kedm-cuda12x
 ```
 
 ## Citing
