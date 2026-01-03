@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
+# Allow building with dependencies that specify cmake_minimum_required < 3.5
+# (e.g., argh v1.3.2 specifies VERSION 3.1)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 project(kokkos-edm CXX)
 
 include(FetchContent)
@@ -56,7 +60,7 @@ FetchContent_MakeAvailable(kokkos)
 FetchContent_Declare(
   argh
   GIT_REPOSITORY https://github.com/adishavit/argh.git
-  GIT_TAG        c3f0d8c8a6dacb00df626b409248a34e3bcd15f5
+  GIT_TAG        v1.3.2
 )
 FetchContent_MakeAvailable(argh)
 
