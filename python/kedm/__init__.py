@@ -17,6 +17,11 @@ Python bindings for kEDM
    get_kokkos_config
 """
 
+import os
+
+if "OMP_PROC_BIND" not in os.environ:
+    os.environ["OMP_PROC_BIND"] = "close"
+
 from ._kedm import *
 
 __version__ = "0.9.3"
