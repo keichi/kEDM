@@ -86,7 +86,7 @@ Requirements
 
 Following dependencies are required when building kEDM from source.
 
-- `CMake <https://cmake.org/>`_ >= 3.16
+- `CMake <https://cmake.org/>`_ >= 3.22
 - A C++ compiler supporting C++20 (currently tested on GCC and Clang)
 - LAPACK (on CPU)
 - CUDA Toolkit (on GPU, currently tested on CUDA >= 12)

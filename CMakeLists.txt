@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 
 # Allow building with dependencies that specify cmake_minimum_required < 3.5
 # (e.g., argh v1.3.2 specifies VERSION 3.1)

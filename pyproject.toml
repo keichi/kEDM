@@ -39,7 +39,7 @@ test = [
 [tool.scikit-build]
 wheel.install-dir = "kedm"
 wheel.packages = ["python/kedm"]
-cmake.version = ">=3.16"
+cmake.version = ">=3.22"
 
 [tool.scikit-build.cmake.define]
 KEDM_ENABLE_PYTHON = true
