@@ -138,6 +138,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
+          CIBW_SKIP: cp38-* cp39-*
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y yum-utils &&
             yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo &&
@@ -161,6 +162,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-manylinux_x86_64
+          CIBW_SKIP: cp38-* cp39-*
           CIBW_BEFORE_ALL: >
             yum install -y openblas-devel &&
             ln -sf /usr/lib64/libopenblaso.so /usr/lib64/libopenblas.so
@@ -181,6 +183,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_BUILD: cp3*-macosx*
+          CIBW_SKIP: cp38-* cp39-*
           CIBW_ARCHS: arm64
           CIBW_BEFORE_ALL: ./scripts/install_libomp.sh
           CIBW_TEST_REQUIRES: pytest

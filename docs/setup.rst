@@ -12,7 +12,7 @@ install :ref:`from source <pip-source>`.
 Requirements
 ============
 
-- Python >= 3.6
+- Python >= 3.10
 - pip >= 21.0
 
 Installation
@@ -33,11 +33,11 @@ need to install from source.
 Requirements
 ============
 
-- Python >= 3.6
+- Python >= 3.10
 - pip >= 21.0
-- A C++ compiler supporting C++17 (currently tested on GCC and Clang)
+- A C++ compiler supporting C++20 (currently tested on GCC and Clang)
 - LAPACK (on CPU)
-- CUDA Toolkit (on GPU, currently tested on CUDA >= 11)
+- CUDA Toolkit (on GPU, currently tested on CUDA >= 12)
 
 On Ubuntu, install the following packages via apt:
 
@@ -87,9 +87,9 @@ Requirements
 Following dependencies are required when building kEDM from source.
 
 - `CMake <https://cmake.org/>`_ >= 3.16
-- A C++ compiler supporting C++17 (currently tested on GCC and Clang)
+- A C++ compiler supporting C++20 (currently tested on GCC and Clang)
 - LAPACK (on CPU)
-- CUDA Toolkit (on GPU, currently tested on CUDA >= 11)
+- CUDA Toolkit (on GPU, currently tested on CUDA >= 12)
 - `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_ (optional)
 - MPI (optional)
 
@@ -108,12 +108,11 @@ On macOS, install the following packages via Homebrew:
 Installation
 ------------
 
-First clone kEDM from GitHub using git. Note that the ``--recursive`` flag is
-required because third-party libraries are bundled as git submodules.
+First clone kEDM from GitHub using git.
 
 .. code-block:: bash
 
-    $ git clone --recursive https://github.com/keichi/kEDM.git
+    $ git clone https://github.com/keichi/kEDM.git
 
 Then configure and build using CMake.
 
