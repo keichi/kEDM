@@ -135,6 +135,9 @@ if(KEDM_ENABLE_EXECUTABLES)
   add_executable(knn-bench src/knn_bench.cpp)
   target_link_libraries(knn-bench PRIVATE kedm Kokkos::kokkos argh)
 
+  add_executable(partial-sort-bench src/partial_sort_bench.cpp)
+  target_link_libraries(partial-sort-bench PRIVATE kedm Kokkos::kokkos argh)
+
   add_executable(lookup-bench src/lookup_bench.cpp)
   target_link_libraries(lookup-bench PRIVATE kedm Kokkos::kokkos argh)
 

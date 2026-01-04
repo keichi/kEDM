@@ -226,6 +226,83 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
         });
 }
 
+void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
+                          int n_partial, int Tp)
+{
+    typedef Kokkos::View<int *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        Scratch;
+
+    typedef Kokkos::View<float *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        ScratchDist;
+
+    int lv0_scratch_size = Scratch::shmem_size(k) + ScratchDist::shmem_size(k);
+
+    Kokkos::parallel_for(
+        "EDM::ccm::partial_sort_bitonic",
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(lv0_scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int i = member.league_rank();
+
+            Scratch topk_ind(member.team_scratch(0), k);
+            ScratchDist topk_dist(member.team_scratch(0), k);
+
+            // Initialize buffer with first k elements
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, k), [=](int j) {
+                    if (j < n_lib) {
+                        topk_dist(j) = lut.distances(i, j);
+                        topk_ind(j) = j + n_partial + Tp;
+                    } else {
+                        topk_dist(j) = FLT_MAX;
+                        topk_ind(j) = -1;
+                    }
+                });
+
+            member.team_barrier();
+
+            // Initial bitonic sort on k elements
+            Kokkos::Experimental::sort_by_key_team(member, topk_dist, topk_ind);
+
+            // Process remaining n-k elements
+            for (int j = k; j < n_lib; j++) {
+                float new_dist = lut.distances(i, j);
+
+                // Only insert if new element is smaller than current max
+                if (new_dist < topk_dist(k - 1)) {
+                    Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                        topk_dist(k - 1) = new_dist;
+                        topk_ind(k - 1) = j + n_partial + Tp;
+                    });
+
+                    member.team_barrier();
+
+                    // Re-sort to restore order
+                    Kokkos::Experimental::sort_by_key_team(
+                        member, topk_dist, topk_ind);
+                }
+            }
+
+            // Write results with sqrt transformation
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, k), [=](int j) {
+                    lut.distances(i, j) = sqrt(topk_dist(j));
+                    lut.indices(i, j) = topk_ind(j);
+                });
+
+            // Fill remaining with sentinel values
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, k, n_lib), [=](int j) {
+                    lut.distances(i, j) = FLT_MAX;
+                    lut.indices(i, j) = -1;
+                });
+        });
+}
+
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                        const std::vector<int> &lib_sizes, int sample, int E,
                        int tau, int Tp, int seed, float accuracy)
