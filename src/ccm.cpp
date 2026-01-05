@@ -239,84 +239,94 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                          Kokkos::MemoryUnmanaged>
         ScratchDist;
 
-    int lv0_scratch_size = Scratch::shmem_size(k) + ScratchDist::shmem_size(k);
+    // topk + buffer for batch processing (2k elements total)
+    int lv0_scratch_size =
+        Scratch::shmem_size(2 * k) + ScratchDist::shmem_size(2 * k);
 
     Kokkos::parallel_for(
         "EDM::ccm::partial_sort_bitonic",
-        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+        Kokkos::TeamPolicy<>(n_pred, 32)
             .set_scratch_size(0, Kokkos::PerTeam(lv0_scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
 
-            Scratch topk_ind(member.team_scratch(0), k);
-            ScratchDist topk_dist(member.team_scratch(0), k);
+            // 2k buffer (first k: topk, second k: new batch)
+            ScratchDist dist_buf(member.team_scratch(0), 2 * k);
+            Scratch ind_buf(member.team_scratch(0), 2 * k);
 
-            // Initialize buffer with first k elements
+            // Initialize with first k elements
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, k), [=](int j) {
                     if (j < n_lib) {
-                        topk_dist(j) = lut.distances(i, j);
-                        topk_ind(j) = j + n_partial + Tp;
+                        dist_buf(j) = lut.distances(i, j);
+                        ind_buf(j) = j + n_partial + Tp;
                     } else {
-                        topk_dist(j) = FLT_MAX;
-                        topk_ind(j) = -1;
+                        dist_buf(j) = FLT_MAX;
+                        ind_buf(j) = -1;
                     }
                 });
 
             member.team_barrier();
 
-            // Initial bitonic sort on k elements
-            Kokkos::Experimental::sort_by_key_team(member, topk_dist, topk_ind);
+            // Initial sort
+            Kokkos::Experimental::sort_by_key_team(
+                member, Kokkos::subview(dist_buf, Kokkos::make_pair(0, k)),
+                Kokkos::subview(ind_buf, Kokkos::make_pair(0, k)));
 
-            // Process remaining n-k elements
-            for (int j = k; j < n_lib; j++) {
-                float new_dist = lut.distances(i, j);
+            // Process remaining elements in batches of k
+            for (int batch_start = k; batch_start < n_lib; batch_start += k) {
+                int batch_size = Kokkos::min(k, n_lib - batch_start);
 
-                // Only insert if new element is smaller than current max
-                if (new_dist < topk_dist(k - 1)) {
-                    // Find insertion position using binary search (single thread)
-                    int insert_pos = k - 1;
-                    Kokkos::single(Kokkos::PerTeam(member), [&]() {
-                        int lo = 0, hi = k - 1;
-                        while (lo < hi) {
-                            int mid = (lo + hi) / 2;
-                            if (topk_dist(mid) < new_dist) {
-                                lo = mid + 1;
-                            } else {
-                                hi = mid;
-                            }
+                // Load batch into second half of buffer
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, k), [=](int j) {
+                        if (j < batch_size) {
+                            dist_buf(k + j) =
+                                lut.distances(i, batch_start + j);
+                            ind_buf(k + j) =
+                                batch_start + j + n_partial + Tp;
+                        } else {
+                            dist_buf(k + j) = FLT_MAX;
+                            ind_buf(k + j) = -1;
                         }
-                        insert_pos = lo;
                     });
 
-                    member.team_barrier();
+                member.team_barrier();
 
-                    // Shift elements to the right (parallel)
-                    Kokkos::parallel_for(
-                        Kokkos::TeamThreadRange(member, insert_pos, k - 1),
-                        [=](int idx) {
-                            int src = k - 2 - (idx - insert_pos);
-                            topk_dist(src + 1) = topk_dist(src);
-                            topk_ind(src + 1) = topk_ind(src);
-                        });
+                // Sort the new batch
+                Kokkos::Experimental::sort_by_key_team(
+                    member,
+                    Kokkos::subview(dist_buf, Kokkos::make_pair(k, 2 * k)),
+                    Kokkos::subview(ind_buf, Kokkos::make_pair(k, 2 * k)));
 
-                    member.team_barrier();
-
-                    // Insert new element (single thread)
-                    Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                        topk_dist(insert_pos) = new_dist;
-                        topk_ind(insert_pos) = j + n_partial + Tp;
+                // Bitonic merge: compare first half (ascending) with second
+                // half (ascending, reversed) to form bitonic sequence
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, k), [=](int j) {
+                        int other = 2 * k - 1 - j;
+                        if (dist_buf(j) > dist_buf(other)) {
+                            auto tmp_d = dist_buf(j);
+                            auto tmp_i = ind_buf(j);
+                            dist_buf(j) = dist_buf(other);
+                            ind_buf(j) = ind_buf(other);
+                            dist_buf(other) = tmp_d;
+                            ind_buf(other) = tmp_i;
+                        }
                     });
 
-                    member.team_barrier();
-                }
+                member.team_barrier();
+
+                // Re-sort first k elements to finalize merge
+                Kokkos::Experimental::sort_by_key_team(
+                    member, Kokkos::subview(dist_buf, Kokkos::make_pair(0, k)),
+                    Kokkos::subview(ind_buf, Kokkos::make_pair(0, k)));
             }
 
             // Write results with sqrt transformation
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, k), [=](int j) {
-                    lut.distances(i, j) = sqrt(topk_dist(j));
-                    lut.indices(i, j) = topk_ind(j);
+                    lut.distances(i, j) = sqrt(dist_buf(j));
+                    lut.indices(i, j) = ind_buf(j);
                 });
 
             // Fill remaining with sentinel values
