@@ -324,12 +324,8 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                     Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
                         int other = 2 * kp_local - 1 - j;
                         if (dist_buf(j) > dist_buf(other)) {
-                            auto tmp_d = dist_buf(j);
-                            auto tmp_i = ind_buf(j);
-                            dist_buf(j) = dist_buf(other);
-                            ind_buf(j) = ind_buf(other);
-                            dist_buf(other) = tmp_d;
-                            ind_buf(other) = tmp_i;
+                            Kokkos::kokkos_swap(dist_buf(j), dist_buf(other));
+                            Kokkos::kokkos_swap(ind_buf(j), ind_buf(other));
                         }
                     });
 
@@ -341,15 +337,9 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                     Kokkos::parallel_for(
                         Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
                             int partner = j ^ stride;
-                            if (partner > j) {
-                                if (dist_buf(j) > dist_buf(partner)) {
-                                    auto tmp_d = dist_buf(j);
-                                    auto tmp_i = ind_buf(j);
-                                    dist_buf(j) = dist_buf(partner);
-                                    ind_buf(j) = ind_buf(partner);
-                                    dist_buf(partner) = tmp_d;
-                                    ind_buf(partner) = tmp_i;
-                                }
+                            if (partner > j && dist_buf(j) > dist_buf(partner)) {
+                                Kokkos::kokkos_swap(dist_buf(j), dist_buf(partner));
+                                Kokkos::kokkos_swap(ind_buf(j), ind_buf(partner));
                             }
                         });
 
