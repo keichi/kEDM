@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <numeric>
 #include <random>
 
 #include <Kokkos_Bitset.hpp>
@@ -109,8 +108,8 @@ const unsigned int RADIX_BITS = 8;
 const unsigned int RADIX_SIZE = 1 << RADIX_BITS;
 const unsigned int RADIX_MASK = RADIX_SIZE - 1;
 
-void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
-                  int Tp)
+void partial_sort_radix(SimplexLUT lut, int k, int n_lib, int n_pred,
+                        int n_partial, int Tp)
 {
     typedef Kokkos::View<int *,
                          Kokkos::DefaultExecutionSpace::scratch_memory_space,
@@ -126,7 +125,7 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
                            Scratch::shmem_size(k) + ScratchDist::shmem_size(k);
 
     Kokkos::parallel_for(
-        "EDM::ccm::partial_sort",
+        "EDM::ccm::partial_sort_radix",
         Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(lv0_scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
@@ -370,39 +369,14 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
         });
 }
 
-void partial_sort_cpu(SimplexLUT lut, int k, int n_lib, int n_pred,
-                      int n_partial, int Tp)
+void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
+                  int Tp)
 {
-    Kokkos::parallel_for(
-        "EDM::ccm::partial_sort_cpu", n_pred, [=](int i) {
-            // Create index array for sorting
-            std::vector<int> idx(n_lib);
-            std::iota(idx.begin(), idx.end(), 0);
-
-            // Partial sort indices by distance
-            std::partial_sort(idx.begin(), idx.begin() + k, idx.end(),
-                              [&](int a, int b) {
-                                  return lut.distances(i, a) < lut.distances(i, b);
-                              });
-
-            // Extract top-k distances before overwriting
-            std::vector<float> top_dist(k);
-            for (int j = 0; j < k; j++) {
-                top_dist[j] = std::sqrt(lut.distances(i, idx[j]));
-            }
-
-            // Write results
-            for (int j = 0; j < k; j++) {
-                lut.distances(i, j) = top_dist[j];
-                lut.indices(i, j) = idx[j] + n_partial + Tp;
-            }
-
-            // Fill remaining with sentinel values
-            for (int j = k; j < n_lib; j++) {
-                lut.distances(i, j) = FLT_MAX;
-                lut.indices(i, j) = -1;
-            }
-        });
+#ifdef KOKKOS_ENABLE_CUDA
+    partial_sort_bitonic(lut, k, n_lib, n_pred, n_partial, Tp);
+#else
+    partial_sort_radix(lut, k, n_lib, n_pred, n_partial, Tp);
+#endif
 }
 
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,
