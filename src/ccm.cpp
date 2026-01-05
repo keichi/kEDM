@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <numeric>
 #include <random>
 
 #include <Kokkos_Bitset.hpp>
@@ -365,6 +367,41 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                     lut.distances(i, j) = FLT_MAX;
                     lut.indices(i, j) = -1;
                 });
+        });
+}
+
+void partial_sort_cpu(SimplexLUT lut, int k, int n_lib, int n_pred,
+                      int n_partial, int Tp)
+{
+    Kokkos::parallel_for(
+        "EDM::ccm::partial_sort_cpu", n_pred, [=](int i) {
+            // Create index array for sorting
+            std::vector<int> idx(n_lib);
+            std::iota(idx.begin(), idx.end(), 0);
+
+            // Partial sort indices by distance
+            std::partial_sort(idx.begin(), idx.begin() + k, idx.end(),
+                              [&](int a, int b) {
+                                  return lut.distances(i, a) < lut.distances(i, b);
+                              });
+
+            // Extract top-k distances before overwriting
+            std::vector<float> top_dist(k);
+            for (int j = 0; j < k; j++) {
+                top_dist[j] = std::sqrt(lut.distances(i, idx[j]));
+            }
+
+            // Write results
+            for (int j = 0; j < k; j++) {
+                lut.distances(i, j) = top_dist[j];
+                lut.indices(i, j) = idx[j] + n_partial + Tp;
+            }
+
+            // Fill remaining with sentinel values
+            for (int j = k; j < n_lib; j++) {
+                lut.distances(i, j) = FLT_MAX;
+                lut.indices(i, j) = -1;
+            }
         });
 }
 
