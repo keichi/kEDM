@@ -226,6 +226,18 @@ void partial_sort(SimplexLUT lut, int k, int n_lib, int n_pred, int n_partial,
         });
 }
 
+// Round up to next power of 2
+KOKKOS_INLINE_FUNCTION int next_pow2(int n)
+{
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    return n + 1;
+}
+
 void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                           int n_partial, int Tp)
 {
@@ -239,25 +251,29 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                          Kokkos::MemoryUnmanaged>
         ScratchDist;
 
-    // topk + buffer for batch processing (2k elements total)
+    // Round k up to power of 2 for bitonic merge
+    int kp = next_pow2(k);
+
+    // topk + buffer for batch processing (2*kp elements total)
     int lv0_scratch_size =
-        Scratch::shmem_size(2 * k) + ScratchDist::shmem_size(2 * k);
+        Scratch::shmem_size(2 * kp) + ScratchDist::shmem_size(2 * kp);
 
     Kokkos::parallel_for(
         "EDM::ccm::partial_sort_bitonic",
-        Kokkos::TeamPolicy<>(n_pred, 32)
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
             .set_scratch_size(0, Kokkos::PerTeam(lv0_scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
+            int kp_local = next_pow2(k);
 
-            // 2k buffer (first k: topk, second k: new batch)
-            ScratchDist dist_buf(member.team_scratch(0), 2 * k);
-            Scratch ind_buf(member.team_scratch(0), 2 * k);
+            // 2*kp buffer (first kp: topk, second kp: new batch)
+            ScratchDist dist_buf(member.team_scratch(0), 2 * kp_local);
+            Scratch ind_buf(member.team_scratch(0), 2 * kp_local);
 
-            // Initialize with first k elements
+            // Initialize with first k elements (pad with FLT_MAX)
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k), [=](int j) {
-                    if (j < n_lib) {
+                Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
+                    if (j < k && j < n_lib) {
                         dist_buf(j) = lut.distances(i, j);
                         ind_buf(j) = j + n_partial + Tp;
                     } else {
@@ -268,26 +284,27 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
 
             member.team_barrier();
 
-            // Initial sort
+            // Initial sort on kp elements
             Kokkos::Experimental::sort_by_key_team(
-                member, Kokkos::subview(dist_buf, Kokkos::make_pair(0, k)),
-                Kokkos::subview(ind_buf, Kokkos::make_pair(0, k)));
+                member,
+                Kokkos::subview(dist_buf, Kokkos::make_pair(0, kp_local)),
+                Kokkos::subview(ind_buf, Kokkos::make_pair(0, kp_local)));
 
             // Process remaining elements in batches of k
             for (int batch_start = k; batch_start < n_lib; batch_start += k) {
                 int batch_size = Kokkos::min(k, n_lib - batch_start);
 
-                // Load batch into second half of buffer
+                // Load batch into second half of buffer (pad with FLT_MAX)
                 Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, k), [=](int j) {
+                    Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
                         if (j < batch_size) {
-                            dist_buf(k + j) =
+                            dist_buf(kp_local + j) =
                                 lut.distances(i, batch_start + j);
-                            ind_buf(k + j) =
+                            ind_buf(kp_local + j) =
                                 batch_start + j + n_partial + Tp;
                         } else {
-                            dist_buf(k + j) = FLT_MAX;
-                            ind_buf(k + j) = -1;
+                            dist_buf(kp_local + j) = FLT_MAX;
+                            ind_buf(kp_local + j) = -1;
                         }
                     });
 
@@ -296,14 +313,16 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                 // Sort the new batch
                 Kokkos::Experimental::sort_by_key_team(
                     member,
-                    Kokkos::subview(dist_buf, Kokkos::make_pair(k, 2 * k)),
-                    Kokkos::subview(ind_buf, Kokkos::make_pair(k, 2 * k)));
+                    Kokkos::subview(dist_buf,
+                                    Kokkos::make_pair(kp_local, 2 * kp_local)),
+                    Kokkos::subview(ind_buf,
+                                    Kokkos::make_pair(kp_local, 2 * kp_local)));
 
                 // Bitonic merge: compare first half (ascending) with second
-                // half (ascending, reversed) to form bitonic sequence
+                // half (ascending, reversed) to keep smallest kp elements
                 Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, k), [=](int j) {
-                        int other = 2 * k - 1 - j;
+                    Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
+                        int other = 2 * kp_local - 1 - j;
                         if (dist_buf(j) > dist_buf(other)) {
                             auto tmp_d = dist_buf(j);
                             auto tmp_i = ind_buf(j);
@@ -316,13 +335,29 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
 
                 member.team_barrier();
 
-                // Re-sort first k elements to finalize merge
-                Kokkos::Experimental::sort_by_key_team(
-                    member, Kokkos::subview(dist_buf, Kokkos::make_pair(0, k)),
-                    Kokkos::subview(ind_buf, Kokkos::make_pair(0, k)));
+                // Bitonic sort the first kp elements (now a bitonic sequence)
+                // O(log kp) parallel steps instead of a full sort
+                for (int stride = kp_local / 2; stride >= 1; stride /= 2) {
+                    Kokkos::parallel_for(
+                        Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
+                            int partner = j ^ stride;
+                            if (partner > j) {
+                                if (dist_buf(j) > dist_buf(partner)) {
+                                    auto tmp_d = dist_buf(j);
+                                    auto tmp_i = ind_buf(j);
+                                    dist_buf(j) = dist_buf(partner);
+                                    ind_buf(j) = ind_buf(partner);
+                                    dist_buf(partner) = tmp_d;
+                                    ind_buf(partner) = tmp_i;
+                                }
+                            }
+                        });
+
+                    member.team_barrier();
+                }
             }
 
-            // Write results with sqrt transformation
+            // Write results with sqrt transformation (only first k elements)
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, k), [=](int j) {
                     lut.distances(i, j) = sqrt(dist_buf(j));
