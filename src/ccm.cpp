@@ -274,16 +274,41 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
 
                 // Only insert if new element is smaller than current max
                 if (new_dist < topk_dist(k - 1)) {
-                    Kokkos::single(Kokkos::PerTeam(member), [=]() {
-                        topk_dist(k - 1) = new_dist;
-                        topk_ind(k - 1) = j + n_partial + Tp;
+                    // Find insertion position using binary search (single thread)
+                    int insert_pos = k - 1;
+                    Kokkos::single(Kokkos::PerTeam(member), [&]() {
+                        int lo = 0, hi = k - 1;
+                        while (lo < hi) {
+                            int mid = (lo + hi) / 2;
+                            if (topk_dist(mid) < new_dist) {
+                                lo = mid + 1;
+                            } else {
+                                hi = mid;
+                            }
+                        }
+                        insert_pos = lo;
                     });
 
                     member.team_barrier();
 
-                    // Re-sort to restore order
-                    Kokkos::Experimental::sort_by_key_team(
-                        member, topk_dist, topk_ind);
+                    // Shift elements to the right (parallel)
+                    Kokkos::parallel_for(
+                        Kokkos::TeamThreadRange(member, insert_pos, k - 1),
+                        [=](int idx) {
+                            int src = k - 2 - (idx - insert_pos);
+                            topk_dist(src + 1) = topk_dist(src);
+                            topk_ind(src + 1) = topk_ind(src);
+                        });
+
+                    member.team_barrier();
+
+                    // Insert new element (single thread)
+                    Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                        topk_dist(insert_pos) = new_dist;
+                        topk_ind(insert_pos) = j + n_partial + Tp;
+                    });
+
+                    member.team_barrier();
                 }
             }
 
