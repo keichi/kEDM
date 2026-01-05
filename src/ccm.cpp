@@ -258,9 +258,16 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
     int lv0_scratch_size =
         Scratch::shmem_size(2 * kp) + ScratchDist::shmem_size(2 * kp);
 
+    // Use kp as team size on GPU (min 32 for warp efficiency), 1 on CPU
+#ifdef KOKKOS_ENABLE_CUDA
+    int team_size = std::max(32, std::min(kp, 256));
+#else
+    int team_size = 1;
+#endif
+
     Kokkos::parallel_for(
         "EDM::ccm::partial_sort_bitonic",
-        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+        Kokkos::TeamPolicy<>(n_pred, team_size)
             .set_scratch_size(0, Kokkos::PerTeam(lv0_scratch_size)),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int i = member.league_rank();
@@ -317,6 +324,11 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                                     Kokkos::make_pair(kp_local, 2 * kp_local)),
                     Kokkos::subview(ind_buf,
                                     Kokkos::make_pair(kp_local, 2 * kp_local)));
+
+                // Early termination: if min of new batch >= max of topk, skip
+                if (dist_buf(kp_local) >= dist_buf(kp_local - 1)) {
+                    continue;
+                }
 
                 // Bitonic merge: compare first half (ascending) with second
                 // half (ascending, reversed) to keep smallest kp elements
