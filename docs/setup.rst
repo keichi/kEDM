@@ -5,9 +5,8 @@ Prebuilt wheels
 ---------------
 
 The easiest way to install kEDM is to use the prebuilt wheels. Prebuilt wheels
-for Linux (x86_64) and macOS (x86_64 and arm64) are available on PyPI. Note that
-these wheels are not built for GPUs. If you want to use GPUs, you need to
-install :ref:`from source <pip-source>`.
+for Linux (x86_64) and macOS (x86_64 and arm64) are available on PyPI. GPU
+wheels are distributed as separate packages, one for each CUDA major version.
 
 Requirements
 ============
@@ -18,9 +17,23 @@ Requirements
 Installation
 ============
 
+CPU (Linux and macOS):
+
 .. code-block:: bash
 
     $ pip3 install kedm
+
+NVIDIA GPU (CUDA 12):
+
+.. code-block:: bash
+
+    $ pip3 install kedm-cuda12x
+
+NVIDIA GPU (CUDA 13):
+
+.. code-block:: bash
+
+    $ pip3 install kedm-cuda13x
 
 .. _pip-source:
 
