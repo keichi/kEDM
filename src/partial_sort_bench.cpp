@@ -77,7 +77,8 @@ int main(int argc, char *argv[])
                 Kokkos::deep_copy(lut_radix.distances, lut_radix.distances);
 
                 timer_radix.start();
-                edm::partial_sort(lut_radix, k, n_lib, n_pred, n_partial, Tp);
+                edm::partial_sort_radix(lut_radix, k, n_lib, n_pred, n_partial,
+                                        Tp);
                 Kokkos::fence();
                 timer_radix.stop();
 
