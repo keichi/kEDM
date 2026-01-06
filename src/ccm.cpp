@@ -319,14 +319,14 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
 
             // Write results with sqrt transformation (only first k elements)
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k), [=](int j) {
+                Kokkos::TeamThreadRange(member, k), [=](size_t j) {
                     lut.distances(i, j) = sqrt(dist_buf(j));
                     lut.indices(i, j) = ind_buf(j);
                 });
 
             // Fill remaining with sentinel values
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k, n_lib), [=](int j) {
+                Kokkos::TeamThreadRange(member, k, n_lib), [=](size_t j) {
                     lut.distances(i, j) = FLT_MAX;
                     lut.indices(i, j) = -1;
                 });
