@@ -311,46 +311,10 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
 
                 member.team_barrier();
 
-                // Sort the new batch
-                Kokkos::Experimental::sort_by_key_team(
-                    member,
-                    Kokkos::subview(dist_buf,
-                                    Kokkos::make_pair(kp_local, 2 * kp_local)),
-                    Kokkos::subview(ind_buf,
-                                    Kokkos::make_pair(kp_local, 2 * kp_local)));
-
-                // Early termination: if min of new batch >= max of topk, skip
-                if (dist_buf(kp_local) >= dist_buf(kp_local - 1)) {
-                    continue;
-                }
-
-                // Bitonic merge: compare first half (ascending) with second
-                // half (ascending, reversed) to keep smallest kp elements
-                Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
-                        int other = 2 * kp_local - 1 - j;
-                        if (dist_buf(j) > dist_buf(other)) {
-                            Kokkos::kokkos_swap(dist_buf(j), dist_buf(other));
-                            Kokkos::kokkos_swap(ind_buf(j), ind_buf(other));
-                        }
-                    });
-
-                member.team_barrier();
-
-                // Bitonic sort the first kp elements (now a bitonic sequence)
-                // O(log kp) parallel steps instead of a full sort
-                for (int stride = kp_local / 2; stride >= 1; stride /= 2) {
-                    Kokkos::parallel_for(
-                        Kokkos::TeamThreadRange(member, kp_local), [=](int j) {
-                            int partner = j ^ stride;
-                            if (partner > j && dist_buf(j) > dist_buf(partner)) {
-                                Kokkos::kokkos_swap(dist_buf(j), dist_buf(partner));
-                                Kokkos::kokkos_swap(ind_buf(j), ind_buf(partner));
-                            }
-                        });
-
-                    member.team_barrier();
-                }
+                // Sort all 2*kp elements together
+                // The first kp elements will contain the smallest values
+                Kokkos::Experimental::sort_by_key_team(member, dist_buf,
+                                                       ind_buf);
             }
 
             // Write results with sqrt transformation (only first k elements)
