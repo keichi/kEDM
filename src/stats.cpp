@@ -5,43 +5,34 @@ namespace edm
 
 float corrcoef(TimeSeries x, TimeSeries y)
 {
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::min;
-    using std::sqrt;
-#endif
-
-    CorrcoefState state;
+    CorrcoefSimpleState state;
 
     Kokkos::parallel_reduce(
-        "EDM::stats::corrcoef", min(x.size(), y.size()),
-        KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
-            upd += CorrcoefState(x(i), y(i));
+        "EDM::stats::corrcoef", Kokkos::min(x.size(), y.size()),
+        KOKKOS_LAMBDA(int i, CorrcoefSimpleState &upd) {
+            upd += CorrcoefSimpleState(x(i), y(i));
         },
-        Kokkos::Sum<CorrcoefState>(state));
+        Kokkos::Sum<CorrcoefSimpleState>(state));
 
     return state.rho();
 }
 
 void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
 {
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::min;
-    using std::sqrt;
-#endif
-
     Kokkos::parallel_for(
         "EDM::stats::corrcoef",
         Kokkos::TeamPolicy<>(ds.extent(1), Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int j = member.league_rank();
-            CorrcoefState state;
+            CorrcoefSimpleState state;
 
             Kokkos::parallel_reduce(
-                Kokkos::TeamThreadRange(member, min(x.extent(0), ds.extent(0))),
-                [=](int i, CorrcoefState &upd) {
-                    upd += CorrcoefState(x(i), ds(i, j));
+                Kokkos::TeamThreadRange(member,
+                                        Kokkos::min(x.extent(0), ds.extent(0))),
+                [=](int i, CorrcoefSimpleState &upd) {
+                    upd += CorrcoefSimpleState(x(i), ds(i, j));
                 },
-                Kokkos::Sum<CorrcoefState>(state));
+                Kokkos::Sum<CorrcoefSimpleState>(state));
 
             rho(j) = state.rho();
         });
@@ -49,28 +40,20 @@ void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
 
 float mae(TimeSeries x, TimeSeries y)
 {
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::abs;
-    using std::min;
-#endif
-
-    int n = min(x.size(), y.size());
+    int n = Kokkos::min(x.size(), y.size());
     float sum;
 
     Kokkos::parallel_reduce(
         "EDM::stats::mae", n,
-        KOKKOS_LAMBDA(int i, float &upd) { upd += abs(x(i) - y(i)); }, sum);
+        KOKKOS_LAMBDA(int i, float &upd) { upd += Kokkos::abs(x(i) - y(i)); },
+        sum);
 
     return sum / n;
 }
 
 float mse(TimeSeries x, TimeSeries y)
 {
-#ifndef KOKKOS_ENABLE_CUDA
-    using std::min;
-#endif
-
-    int n = min(x.size(), y.size());
+    int n = Kokkos::min(x.size(), y.size());
     float sum;
 
     Kokkos::parallel_reduce(
