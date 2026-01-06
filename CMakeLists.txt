@@ -96,8 +96,8 @@ target_include_directories(kedm PRIVATE ${pcg_SOURCE_DIR}/include)
 
 # LAPACK
 if (Kokkos_ENABLE_CUDA)
-  find_package(CUDA REQUIRED)
-  target_link_libraries(kedm PRIVATE ${CUDA_cublas_LIBRARY})
+  find_package(CUDAToolkit REQUIRED)
+  target_link_libraries(kedm PRIVATE CUDA::cublas)
 else()
   find_package(LAPACK REQUIRED)
   target_link_libraries(kedm PRIVATE ${LAPACK_LIBRARIES})
