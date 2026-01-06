@@ -5,14 +5,14 @@ namespace edm
 
 float corrcoef(TimeSeries x, TimeSeries y)
 {
-    CorrcoefState state;
+    CorrcoefSimpleState state;
 
     Kokkos::parallel_reduce(
         "EDM::stats::corrcoef", Kokkos::min(x.size(), y.size()),
-        KOKKOS_LAMBDA(int i, CorrcoefState &upd) {
-            upd += CorrcoefState(x(i), y(i));
+        KOKKOS_LAMBDA(int i, CorrcoefSimpleState &upd) {
+            upd += CorrcoefSimpleState(x(i), y(i));
         },
-        Kokkos::Sum<CorrcoefState>(state));
+        Kokkos::Sum<CorrcoefSimpleState>(state));
 
     return state.rho();
 }
@@ -24,15 +24,15 @@ void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
         Kokkos::TeamPolicy<>(ds.extent(1), Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             const int j = member.league_rank();
-            CorrcoefState state;
+            CorrcoefSimpleState state;
 
             Kokkos::parallel_reduce(
                 Kokkos::TeamThreadRange(member,
                                         Kokkos::min(x.extent(0), ds.extent(0))),
-                [=](int i, CorrcoefState &upd) {
-                    upd += CorrcoefState(x(i), ds(i, j));
+                [=](int i, CorrcoefSimpleState &upd) {
+                    upd += CorrcoefSimpleState(x(i), ds(i, j));
                 },
-                Kokkos::Sum<CorrcoefState>(state));
+                Kokkos::Sum<CorrcoefSimpleState>(state));
 
             rho(j) = state.rho();
         });
