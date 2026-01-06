@@ -188,7 +188,6 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
     const int team_size = std::min(32, std::max(n_lib / top_k, 1));
 #else
     const int team_size = 1;
-    using std::min;
 #endif
 
     const size_t scratch_size =
@@ -234,7 +233,8 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
 
                     int k = 0;
                     // Shift elements until the insertion point is found
-                    for (k = min(static_cast<int>(j) / team_size, top_k - 1);
+                    for (k = Kokkos::min(static_cast<int>(j) / team_size,
+                                         top_k - 1);
                          k > 0; k--) {
                         if (scratch_dist(r, k - 1) <= cur_dist) {
                             break;
@@ -274,7 +274,7 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
                         scratch_idx(min_rank, scratch_head(min_rank)) + shift;
 
                     scratch_head(min_rank) =
-                        min(scratch_head(min_rank) + 1, top_k);
+                        Kokkos::min(scratch_head(min_rank) + 1, top_k);
                 }
             });
         });
