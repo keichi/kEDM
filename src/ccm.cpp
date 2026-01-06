@@ -255,7 +255,6 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
     // Round k up to power of 2 for bitonic merge
     int kp = next_pow2(k);
 
-    // topk + buffer for batch processing (2*kp elements total)
     int lv0_scratch_size =
         Scratch::shmem_size(2 * kp) + ScratchDist::shmem_size(2 * kp);
 
@@ -270,7 +269,7 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
             ScratchDist top2k_dist(member.team_scratch(0), 2 * kp);
             Scratch top2k_ind(member.team_scratch(0), 2 * kp);
 
-            // Initialize with first k elements (pad with FLT_MAX)
+            // Initialize with first k elements
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, kp), [=](int j) {
                     if (j < k && j < n_lib) {
@@ -294,7 +293,7 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
             for (int batch_start = k; batch_start < n_lib; batch_start += k) {
                 int batch_size = Kokkos::min(k, n_lib - batch_start);
 
-                // Load batch into second half of buffer (pad with FLT_MAX)
+                // Load batch into second half of buffer
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, kp), [=](int j) {
                         if (j < batch_size) {
@@ -311,19 +310,16 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                 member.team_barrier();
 
                 // Sort all 2*kp elements together
-                // The first kp elements will contain the smallest values
                 Kokkos::Experimental::sort_by_key_team(member, top2k_dist,
                                                        top2k_ind);
             }
 
-            // Write results with sqrt transformation (only first k elements)
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, k), [=](size_t j) {
                     lut.distances(i, j) = sqrt(top2k_dist(j));
                     lut.indices(i, j) = top2k_ind(j);
                 });
 
-            // Fill remaining with sentinel values
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, k, n_lib), [=](size_t j) {
                     lut.distances(i, j) = FLT_MAX;
