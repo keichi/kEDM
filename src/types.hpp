@@ -25,6 +25,7 @@ using Indices = Kokkos::View<int **, DevSpace>;
 
 // Used in kNN (partial sort)
 using TmpDistances = Kokkos::View<float **, Kokkos::LayoutRight, DevSpace>;
+using TmpIndices = Kokkos::View<int **, Kokkos::LayoutRight, DevSpace>;
 using ScratchDistances =
     Kokkos::View<float **, DevScratchSpace, Kokkos::MemoryUnmanaged>;
 using ScratchIndices =
