@@ -21,9 +21,9 @@ Dataset load_csv(const std::string &path)
         throw std::invalid_argument("Failed to open file " + path);
     }
 
-    auto n_rows = 0;
-    auto n_columns = 0;
-    auto is_header = true;
+    size_t n_rows = 0;
+    size_t n_columns = 0;
+    bool is_header = true;
 
     while (ifs >> line) {
         std::stringstream ss(line);
@@ -51,8 +51,8 @@ Dataset load_csv(const std::string &path)
     auto ds = MutableDataset("dataset", n_rows, n_columns);
     auto mirror = Kokkos::create_mirror_view(ds);
 
-    for (auto i = 0; i < n_columns; i++) {
-        for (auto j = 0; j < n_rows; j++) {
+    for (size_t i = 0; i < n_columns; i++) {
+        for (size_t j = 0; j < n_rows; j++) {
             mirror(j, i) = columns[i][j];
         }
     }

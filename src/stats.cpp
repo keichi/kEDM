@@ -23,13 +23,13 @@ void corrcoef(CrossMap rho, Dataset ds, TimeSeries x)
         "EDM::stats::corrcoef",
         Kokkos::TeamPolicy<>(ds.extent(1), Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            const int j = member.league_rank();
+            const size_t j = member.league_rank();
             CorrcoefSimpleState state;
 
             Kokkos::parallel_reduce(
                 Kokkos::TeamThreadRange(member,
                                         Kokkos::min(x.extent(0), ds.extent(0))),
-                [=](int i, CorrcoefSimpleState &upd) {
+                [=](size_t i, CorrcoefSimpleState &upd) {
                     upd += CorrcoefSimpleState(x(i), ds(i, j));
                 },
                 Kokkos::Sum<CorrcoefSimpleState>(state));
