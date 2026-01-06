@@ -111,15 +111,14 @@ const unsigned int RADIX_MASK = RADIX_SIZE - 1;
 void partial_sort_radix(SimplexLUT lut, int k, int n_lib, int n_pred,
                         int n_partial, int Tp)
 {
-    typedef Kokkos::View<int *,
-                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                         Kokkos::MemoryUnmanaged>
-        Scratch;
+    using Scratch =
+        Kokkos::View<int *, Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                     Kokkos::MemoryUnmanaged>;
 
-    typedef Kokkos::View<float *,
-                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                         Kokkos::MemoryUnmanaged>
-        ScratchDist;
+    using ScratchDist =
+        Kokkos::View<float *,
+                     Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                     Kokkos::MemoryUnmanaged>;
 
     int lv0_scratch_size = Scratch::shmem_size(RADIX_SIZE) +
                            Scratch::shmem_size(k) + ScratchDist::shmem_size(k);
@@ -242,15 +241,14 @@ KOKKOS_INLINE_FUNCTION int next_pow2(int n)
 void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                           int n_partial, int Tp)
 {
-    typedef Kokkos::View<int *,
-                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                         Kokkos::MemoryUnmanaged>
-        Scratch;
+    using Scratch =
+        Kokkos::View<int *, Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                     Kokkos::MemoryUnmanaged>;
 
-    typedef Kokkos::View<float *,
-                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
-                         Kokkos::MemoryUnmanaged>
-        ScratchDist;
+    using ScratchDist =
+        Kokkos::View<float *,
+                     Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                     Kokkos::MemoryUnmanaged>;
 
     // Round k up to power of 2 for bitonic merge
     int kp = next_pow2(k);
@@ -270,23 +268,22 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
             Scratch top2k_ind(member.team_scratch(0), 2 * kp);
 
             // Initialize with first k elements
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, kp), [=](int j) {
-                    if (j < k && j < n_lib) {
-                        top2k_dist(j) = lut.distances(i, j);
-                        top2k_ind(j) = j + n_partial + Tp;
-                    } else {
-                        top2k_dist(j) = FLT_MAX;
-                        top2k_ind(j) = -1;
-                    }
-                });
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, kp),
+                                 [=](int j) {
+                                     if (j < k && j < n_lib) {
+                                         top2k_dist(j) = lut.distances(i, j);
+                                         top2k_ind(j) = j + n_partial + Tp;
+                                     } else {
+                                         top2k_dist(j) = FLT_MAX;
+                                         top2k_ind(j) = -1;
+                                     }
+                                 });
 
             member.team_barrier();
 
             // Initial sort on kp elements
             Kokkos::Experimental::sort_by_key_team(
-                member,
-                Kokkos::subview(top2k_dist, Kokkos::make_pair(0, kp)),
+                member, Kokkos::subview(top2k_dist, Kokkos::make_pair(0, kp)),
                 Kokkos::subview(top2k_ind, Kokkos::make_pair(0, kp)));
 
             // Process remaining elements in batches of k
@@ -314,17 +311,17 @@ void partial_sort_bitonic(SimplexLUT lut, int k, int n_lib, int n_pred,
                                                        top2k_ind);
             }
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k), [=](size_t j) {
-                    lut.distances(i, j) = sqrt(top2k_dist(j));
-                    lut.indices(i, j) = top2k_ind(j);
-                });
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k),
+                                 [=](size_t j) {
+                                     lut.distances(i, j) = sqrt(top2k_dist(j));
+                                     lut.indices(i, j) = top2k_ind(j);
+                                 });
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, k, n_lib), [=](size_t j) {
-                    lut.distances(i, j) = FLT_MAX;
-                    lut.indices(i, j) = -1;
-                });
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k, n_lib),
+                                 [=](size_t j) {
+                                     lut.distances(i, j) = FLT_MAX;
+                                     lut.indices(i, j) = -1;
+                                 });
         });
 }
 
