@@ -414,7 +414,7 @@ std::vector<float> ccm_naive(TimeSeries lib, TimeSeries target,
             std::unordered_set<int> selected;
             int count = 0;
             for (int i = n_lib - lib_size; i < n_lib; i++) {
-                int r = rng(i);
+                int r = i <= 0 ? 0 : rng(i);
                 if (selected.find(r) != selected.end()) {
                     sampled_mirror(count++) = i;
                     selected.insert(i);
