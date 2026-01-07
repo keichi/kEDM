@@ -304,6 +304,40 @@ std::vector<float> ccm(py::array_t<float> lib_arr,
     return edm::ccm(lib, target, lib_sizes, sample, E, tau, Tp, seed, accuracy);
 }
 
+std::vector<float> ccm_naive(py::array_t<float> lib_arr,
+                             py::array_t<float> target_arr,
+                             const std::vector<int> &lib_sizes, int sample,
+                             int E, int tau, int Tp, int seed)
+{
+    if (lib_arr.ndim() != 1 || target_arr.ndim() != 1) {
+        throw std::invalid_argument("lib and target must be 1D arrays");
+    } else if (!lib_sizes.empty() &&
+               *std::min_element(lib_sizes.begin(), lib_sizes.end()) <= 0) {
+        throw std::invalid_argument("All lib_sizes must be larger than zero");
+    } else if (!lib_sizes.empty() &&
+               *std::max_element(lib_sizes.begin(), lib_sizes.end()) >
+                   lib_arr.shape(0)) {
+        throw std::invalid_argument("All lib_sizes must not exceed lib size");
+    } else if (sample <= 0) {
+        throw std::invalid_argument("sample must be larger than zero");
+    }
+
+    if (target_arr.ndim() == 0) {
+        target_arr = lib_arr;
+    } else if (lib_arr.shape(0) != target_arr.shape(0)) {
+        throw std::invalid_argument(
+            "lib and target must have same number of time steps");
+    }
+
+    edm::MutableTimeSeries lib("lib", lib_arr.shape(0));
+    edm::MutableTimeSeries target("target", target_arr.shape(0));
+
+    copy(lib, lib_arr);
+    copy(target, target_arr);
+
+    return edm::ccm_naive(lib, target, lib_sizes, sample, E, tau, Tp, seed);
+}
+
 py::array_t<float> xmap(py::array_t<float> ds_arr,
                         const std::vector<int> &edims, int tau, int Tp)
 {
@@ -511,6 +545,33 @@ PYBIND11_MODULE(_kedm, m)
           py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 1,
           py::arg("E") = 1, py::arg("tau") = 1, py::arg("Tp") = 0,
           py::arg("seed") = 0, py::arg("accuracy") = 1.0f);
+
+    m.def("ccm_naive", &ccm_naive,
+          R"doc(
+          Naive implementation of Convergent Cross Mapping (CCM) for
+          performance comparison.
+
+          This function implements a straightforward CCM algorithm where
+          distances are calculated for each sampled library on every trial,
+          as opposed to the optimized version which precomputes all distances.
+
+          Args:
+            lib: Library time series
+            target: Target time series
+            lib_sizes: List of library sizes
+            sample: Number of random samples
+            E: Embedding dimension
+            tau: Time delay
+            Tp: Prediction interval
+            seed: Random seed (randomly initialized if 0)
+
+          Returns:
+            List of Pearson's correlation coefficient for each library size
+          )doc",
+          py::arg("lib"), py::arg("target"), py::kw_only(),
+          py::arg("lib_sizes") = std::vector<int>(), py::arg("sample") = 1,
+          py::arg("E") = 1, py::arg("tau") = 1, py::arg("Tp") = 0,
+          py::arg("seed") = 0);
 
     m.def("xmap", &xmap,
           R"doc(

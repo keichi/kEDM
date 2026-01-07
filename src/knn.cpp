@@ -180,6 +180,57 @@ void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
         });
 }
 
+void calc_distances_sampled(TimeSeries ts, TmpDistances distances,
+                            Kokkos::View<int *, DevSpace> sampled_indices,
+                            int n_lib, int n_pred, int E, int tau)
+{
+#ifdef USE_SCRATCH_MEMORY
+    const size_t scratch_size = ScratchTimeSeries::shmem_size(E);
+#endif
+
+    Kokkos::parallel_for(
+        "EDM::knn::calc_distances_sampled",
+#ifdef USE_SCRATCH_MEMORY
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+#else
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
+#endif
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            const int i = member.league_rank();
+
+#ifdef USE_SCRATCH_MEMORY
+            ScratchTimeSeries scratch_pred(member.team_scratch(0), E);
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, E),
+                [=](int e) { scratch_pred(e) = ts(i + e * tau); });
+#endif
+
+            member.team_barrier();
+
+            // SIMD optimization is not used because sampled access is irregular
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
+                    int lib_idx = sampled_indices(j);
+                    float dist = 0.0f;
+
+                    for (int e = 0; e < E; e++) {
+#ifdef USE_SCRATCH_MEMORY
+                        float diff = scratch_pred(e) - ts(lib_idx + e * tau);
+#else
+                        float diff = ts(i + e * tau) - ts(lib_idx + e * tau);
+#endif
+                        dist += diff * diff;
+                    }
+
+                    // Ignore degenerate neighbors
+                    if (dist == 0.0f) dist = FLT_MAX;
+
+                    distances(i, j) = dist;
+                });
+        });
+}
+
 void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
                   int top_k, int shift)
 {
@@ -272,6 +323,110 @@ void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
                     out.distances(i, j) = sqrt(min_dist);
                     out.indices(i, j) =
                         scratch_idx(min_rank, scratch_head(min_rank)) + shift;
+
+                    scratch_head(min_rank) =
+                        Kokkos::min(scratch_head(min_rank) + 1, top_k);
+                }
+            });
+        });
+}
+
+void partial_sort_sampled(TmpDistances distances,
+                          Kokkos::View<int *, DevSpace> sampled_indices,
+                          SimplexLUT out, int n_lib, int n_pred, int top_k,
+                          int shift)
+{
+#ifdef KOKKOS_ENABLE_CUDA
+    // Make sure a thread sees at least top_k elements
+    const int team_size = std::min(32, std::max(n_lib / top_k, 1));
+#else
+    const int team_size = 1;
+#endif
+
+    const size_t scratch_size =
+        ScratchDistances::shmem_size(team_size, top_k) +
+        ScratchIndices::shmem_size(team_size, top_k) +
+        Kokkos::View<int *, DevScratchSpace,
+                     Kokkos::MemoryUnmanaged>::shmem_size(team_size);
+
+    // Partially sort each row
+    Kokkos::parallel_for(
+        "EDM::knn::partial_sort_sampled",
+        Kokkos::TeamPolicy<>(n_pred, team_size)
+            .set_scratch_size(0, Kokkos::PerTeam(scratch_size)),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            // Scratch views to hold the top-k elements
+            ScratchDistances scratch_dist(member.team_scratch(0), team_size,
+                                          top_k);
+            ScratchIndices scratch_idx(member.team_scratch(0), team_size,
+                                       top_k);
+            Kokkos::View<int *, DevScratchSpace, Kokkos::MemoryUnmanaged>
+                scratch_head(member.team_scratch(0), team_size);
+
+            const int i = member.league_rank();
+            const int r = member.team_rank();
+
+            scratch_head(r) = 0;
+            for (int j = 0; j < top_k; j++) {
+                scratch_dist(r, j) = FLT_MAX;
+            }
+
+            member.team_barrier();
+
+            Kokkos::parallel_for(
+                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
+                    const float cur_dist = distances(i, j);
+
+                    // Skip elements larger than the current k-th smallest
+                    // element
+                    if (static_cast<int>(j) / team_size >= top_k &&
+                        cur_dist > scratch_dist(r, top_k - 1)) {
+                        return;
+                    }
+
+                    int k = 0;
+                    // Shift elements until the insertion point is found
+                    for (k = Kokkos::min(static_cast<int>(j) / team_size,
+                                         top_k - 1);
+                         k > 0; k--) {
+                        if (scratch_dist(r, k - 1) <= cur_dist) {
+                            break;
+                        }
+
+                        // Shift element
+                        scratch_dist(r, k) = scratch_dist(r, k - 1);
+                        scratch_idx(r, k) = scratch_idx(r, k - 1);
+                    }
+
+                    // Insert the new element
+                    scratch_dist(r, k) = cur_dist;
+                    scratch_idx(r, k) = j; // Store distance matrix index
+                });
+
+            member.team_barrier();
+
+            Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                // Each thread owns its top-k elements. Now aggregate the
+                // global top-k elements to rank zero.
+                for (int j = 0; j < top_k; j++) {
+                    float min_dist = FLT_MAX;
+                    int min_rank = 0;
+
+                    for (int r = 0; r < team_size; r++) {
+                        if (scratch_head(r) >= top_k) continue;
+
+                        if (scratch_dist(r, scratch_head(r)) < min_dist) {
+                            min_dist = scratch_dist(r, scratch_head(r));
+                            min_rank = r;
+                        }
+                    }
+
+                    // Compute L2 norms from SSDs and get original index from
+                    // sampled_indices, then add shift for target lookup
+                    out.distances(i, j) = sqrt(min_dist);
+                    int dist_idx =
+                        scratch_idx(min_rank, scratch_head(min_rank));
+                    out.indices(i, j) = sampled_indices(dist_idx) + shift;
 
                     scratch_head(min_rank) =
                         Kokkos::min(scratch_head(min_rank) + 1, top_k);
