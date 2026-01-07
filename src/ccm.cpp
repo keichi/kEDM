@@ -1,4 +1,5 @@
 #include <random>
+#include <unordered_set>
 
 #include <Kokkos_Bitset.hpp>
 #include <Kokkos_Core.hpp>
@@ -238,6 +239,7 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
     std::vector<float> rhos;
 
     if (lib_sizes.empty()) {
+        Kokkos::Profiling::popRegion();
         return rhos;
     }
 
@@ -349,6 +351,86 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
                         lut.indices(i, j) = 0;
                     }
                 });
+
+            // Normalize LUT and make prediction
+            normalize_lut(lut);
+            lookup(prediction, target, lut);
+
+            float rho = corrcoef(
+                Kokkos::subview(target, std::make_pair(n_partial + Tp,
+                                                       target.extent_int(0))),
+                prediction);
+
+            rho_sum += rho;
+        }
+
+        rhos.push_back(rho_sum / sample);
+    }
+
+    Kokkos::Profiling::popRegion();
+
+    return rhos;
+}
+
+std::vector<float> ccm_naive(TimeSeries lib, TimeSeries target,
+                             const std::vector<int> &lib_sizes, int sample,
+                             int E, int tau, int Tp, int seed)
+{
+    Kokkos::Profiling::pushRegion("EDM::ccm_naive");
+
+    const int n_partial = (E - 1) * tau;
+    const int n_lib = lib.extent(0) - n_partial - Tp;
+    const int n_pred = lib.extent(0) - n_partial;
+
+    std::vector<float> rhos;
+
+    if (lib_sizes.empty()) {
+        Kokkos::Profiling::popRegion();
+        return rhos;
+    }
+
+    pcg32 rng;
+    if (seed == 0) {
+        pcg_extras::seed_seq_from<std::random_device> seed_source;
+        rng.seed(seed_source);
+    } else {
+        rng.seed(seed);
+    }
+
+    int max_lib_size = *std::max_element(lib_sizes.begin(), lib_sizes.end());
+
+    TmpDistances tmp_dist("tmp_distances", n_pred, max_lib_size);
+
+    SimplexLUT lut(n_pred, E + 1);
+    MutableTimeSeries prediction("prediction", n_pred);
+
+    for (int lib_size : lib_sizes) {
+        float rho_sum = 0.0f;
+
+        for (int trial = 0; trial < sample; trial++) {
+            Kokkos::View<int *, DevSpace> sampled("sampled_indices", lib_size);
+            auto sampled_mirror = Kokkos::create_mirror_view(sampled);
+
+            std::unordered_set<int> selected;
+            int count = 0;
+            for (int i = n_lib - lib_size; i < n_lib; i++) {
+                int r = rng(i);
+                if (selected.find(r) != selected.end()) {
+                    sampled_mirror(count++) = i;
+                    selected.insert(i);
+                } else {
+                    sampled_mirror(count++) = r;
+                    selected.insert(r);
+                }
+            }
+
+            Kokkos::deep_copy(sampled, sampled_mirror);
+
+            // Compute and sort distance matrix
+            calc_distances_sampled(lib, tmp_dist, sampled, lib_size, n_pred, E,
+                                   tau);
+            partial_sort_sampled(tmp_dist, sampled, lut, lib_size, n_pred,
+                                 E + 1, n_partial + Tp);
 
             // Normalize LUT and make prediction
             normalize_lut(lut);

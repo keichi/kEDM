@@ -14,8 +14,17 @@ void calc_distances(TimeSeries lib, TimeSeries pred, TmpDistances distances,
 void calc_distances(Dataset lib, Dataset pred, TmpDistances distances,
                     int n_lib, int n_pred, int E, int tau);
 
+void calc_distances_sampled(TimeSeries ts, TmpDistances distances,
+                            Kokkos::View<int *, DevSpace> sampled_indices,
+                            int n_lib, int n_pred, int E, int tau);
+
 void partial_sort(TmpDistances distances, SimplexLUT out, int n_lib, int n_pred,
                   int top_k, int shift);
+
+void partial_sort_sampled(TmpDistances distances,
+                          Kokkos::View<int *, DevSpace> sampled_indices,
+                          SimplexLUT out, int n_lib, int n_pred, int top_k,
+                          int shift);
 
 void knn(TimeSeries lib, TimeSeries pred, SimplexLUT out, TmpDistances tmp,
          int E, int tau, int Tp, int top_k);

@@ -18,6 +18,10 @@ std::vector<float> ccm(TimeSeries library, TimeSeries target,
                        const std::vector<int> &lib_sizes, int samples, int E,
                        int tau, int Tp, int seed, float accuracy = 1.0f);
 
+std::vector<float> ccm_naive(TimeSeries lib, TimeSeries target,
+                             const std::vector<int> &lib_sizes, int sample,
+                             int E, int tau, int Tp, int seed);
+
 } // namespace edm
 
 #endif

@@ -42,6 +42,35 @@ TEST_CASE("Compute Convergent Cross Mapping")
     }
 }
 
+TEST_CASE("Compute Convergent Cross Mapping (naive algorithm)")
+{
+    const int E = 3;
+    const int tau = 1;
+    const int Tp = 0;
+    const int sample = 100;
+
+    std::vector<int> lib_sizes;
+    for (int i = 10; i <= 75; i += 5) {
+        lib_sizes.push_back(i);
+    }
+
+    const Dataset ds = load_csv("sardine_anchovy_sst.csv");
+    const auto anchovy = Kokkos::subview(ds, Kokkos::ALL, 1);
+    const auto sst = Kokkos::subview(ds, Kokkos::ALL, 4);
+
+    const auto rhos_naive1 =
+        ccm_naive(anchovy, sst, lib_sizes, sample, E, tau, Tp, 42);
+    const auto rhos_naive2 =
+        ccm_naive(sst, anchovy, lib_sizes, sample, E, tau, Tp, 42);
+    const auto rhos_opt1 = ccm(anchovy, sst, lib_sizes, sample, E, tau, Tp, 42);
+    const auto rhos_opt2 = ccm(sst, anchovy, lib_sizes, sample, E, tau, Tp, 42);
+
+    for (size_t i = 0; i < rhos_naive1.size(); i++) {
+        CHECK(rhos_naive1[i] == doctest::Approx(rhos_opt1[i]).epsilon(0.05));
+        CHECK(rhos_naive2[i] == doctest::Approx(rhos_opt2[i]).epsilon(0.05));
+    }
+}
+
 TEST_CASE("Partially sort kNN LUT")
 {
     int N = 100;
