@@ -138,8 +138,11 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
             Scratch topk_ind(member.team_scratch(0), k);
             ScratchDist topk_dist(member.team_scratch(0), k);
 
+            // Radix select: find the k-th smallest element by processing
+            // 8 bits at a time from MSB to LSB
             for (int digit_pos = 32 - RADIX_BITS; digit_pos >= 0 && !found;
                  digit_pos -= RADIX_BITS) {
+                // Reset histogram bins
                 Kokkos::single(Kokkos::PerTeam(member), [=] {
                     for (unsigned int j = 0; j < RADIX_SIZE; j++) {
                         bins(j) = 0;
@@ -148,6 +151,8 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
 
                 member.team_barrier();
 
+                // Build histogram for the current digit position, only
+                // counting elements that match the prefix found so far
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                         unsigned int val =
@@ -160,10 +165,13 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
 
                 member.team_barrier();
 
+                // Find the bin containing the k-th smallest element
                 for (unsigned int j = 0; j < RADIX_SIZE; j++) {
                     int count = bins(j);
 
                     if (count >= cur_k) {
+                        // k-th element is in this bin; update the desired
+                        // prefix
                         mask_desired |= RADIX_MASK << digit_pos;
                         desired |= j << digit_pos;
 
@@ -172,6 +180,7 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                         break;
                     }
 
+                    // k-th element is in a later bin; adjust k
                     cur_k -= count;
                 }
 
@@ -179,6 +188,7 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                 member.team_barrier();
             }
 
+            // Find the k-th smallest distance value (pivot)
             find_result<float> res;
             Kokkos::parallel_reduce(
                 Kokkos::TeamThreadRange(member, n_lib),
@@ -192,6 +202,8 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                 },
                 Kokkos::Sum<find_result<float>>(res));
 
+            // Collect top-k elements (those with distance <= pivot) into
+            // scratch memory using parallel scan to assign positions
             Kokkos::parallel_scan(
                 Kokkos::TeamThreadRange(member, n_lib),
                 [=](size_t j, int &partial_sum, bool is_final) {
@@ -206,12 +218,14 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
 
             member.team_barrier();
 
+            // Copy top-k elements from scratch to output
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k),
                                  [=](size_t j) {
                                      distances(i, j) = topk_dist(j);
                                      indices(i, j) = topk_ind(j);
                                  });
 
+            // Fill remaining positions with sentinel values
             Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k, n_lib),
                                  [=](size_t j) {
                                      distances(i, j) = FLT_MAX;
@@ -220,6 +234,7 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
 
             member.team_barrier();
 
+            // Sort only the top-k elements
             Kokkos::Experimental::sort_by_key_team(
                 member, Kokkos::subview(distances, i, Kokkos::make_pair(0, k)),
                 Kokkos::subview(indices, i, Kokkos::make_pair(0, k)));
