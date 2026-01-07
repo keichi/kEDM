@@ -83,11 +83,12 @@ TEST_CASE("Partially sort kNN LUT")
 
     TmpDistances dist("distances", N, L);
     TmpIndices ind("indices", N, L);
-    SimplexLUT valid(N, L);
+    TmpDistances valid_dist("valid_distances", N, L);
+    TmpIndices valid_ind("valid_indices", N, L);
 
     Kokkos::fill_random(dist, random_pool, 123456789.0f);
 
-    Kokkos::deep_copy(valid.distances, dist);
+    Kokkos::deep_copy(valid_dist, dist);
 
     edm::partial_sort(dist, ind, K, L, N, n_partial, Tp);
 
@@ -98,22 +99,22 @@ TEST_CASE("Partially sort kNN LUT")
 
             Kokkos::parallel_for(
                 Kokkos::TeamThreadRange(member, L),
-                [=](int j) { valid.indices(i, j) = j + n_partial + Tp; });
+                [=](int j) { valid_ind(i, j) = j + n_partial + Tp; });
 
             member.team_barrier();
 
             Kokkos::Experimental::sort_by_key_team(
-                member, Kokkos::subview(valid.distances, i, Kokkos::ALL),
-                Kokkos::subview(valid.indices, i, Kokkos::ALL));
+                member, Kokkos::subview(valid_dist, i, Kokkos::ALL),
+                Kokkos::subview(valid_ind, i, Kokkos::ALL));
         });
 
     auto distances = Kokkos::create_mirror_view_and_copy(HostSpace(), dist);
     auto indices = Kokkos::create_mirror_view_and_copy(HostSpace(), ind);
 
     auto valid_distances =
-        Kokkos::create_mirror_view_and_copy(HostSpace(), valid.distances);
+        Kokkos::create_mirror_view_and_copy(HostSpace(), valid_dist);
     auto valid_indices =
-        Kokkos::create_mirror_view_and_copy(HostSpace(), valid.indices);
+        Kokkos::create_mirror_view_and_copy(HostSpace(), valid_ind);
 
     for (int i = 0; i < distances.extent_int(0); i++) {
         for (int j = 0; j < K; j++) {
