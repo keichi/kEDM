@@ -16,36 +16,6 @@
 namespace edm
 {
 
-template <class T> struct find_result {
-    T val;
-    bool found;
-
-    KOKKOS_INLINE_FUNCTION find_result() : val(0), found(false) {}
-
-    KOKKOS_INLINE_FUNCTION find_result &operator+=(const find_result &src)
-    {
-        if (src.found) {
-            found = src.found;
-            val = src.val;
-        }
-        return *this;
-    }
-};
-
-} // namespace edm
-namespace Kokkos
-{
-template <class T> struct reduction_identity<struct edm::find_result<T>> {
-    KOKKOS_FORCEINLINE_FUNCTION static edm::find_result<T> sum()
-    {
-        return edm::find_result<T>();
-    }
-};
-} // namespace Kokkos
-
-namespace edm
-{
-
 void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
                int n_pred, int n_partial, int Tp)
 {
@@ -138,16 +108,19 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
             Scratch topk_ind(member.team_scratch(0), k);
             ScratchDist topk_dist(member.team_scratch(0), k);
 
+            // Radix select: find the k-th smallest element by processing
+            // 8 bits at a time from MSB to LSB
             for (int digit_pos = 32 - RADIX_BITS; digit_pos >= 0 && !found;
                  digit_pos -= RADIX_BITS) {
-                Kokkos::single(Kokkos::PerTeam(member), [=] {
-                    for (unsigned int j = 0; j < RADIX_SIZE; j++) {
-                        bins(j) = 0;
-                    }
-                });
+                // Reset histogram bins
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, RADIX_SIZE),
+                    [=](size_t j) { bins(j) = 0; });
 
                 member.team_barrier();
 
+                // Build histogram for the current digit position, only
+                // counting elements that match the prefix found so far
                 Kokkos::parallel_for(
                     Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                         unsigned int val =
@@ -160,10 +133,13 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
 
                 member.team_barrier();
 
+                // Find the bin containing the k-th smallest element
                 for (unsigned int j = 0; j < RADIX_SIZE; j++) {
                     int count = bins(j);
 
                     if (count >= cur_k) {
+                        // k-th element is in this bin; update the desired
+                        // prefix
                         mask_desired |= RADIX_MASK << digit_pos;
                         desired |= j << digit_pos;
 
@@ -172,6 +148,7 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                         break;
                     }
 
+                    // k-th element is in a later bin; adjust k
                     cur_k -= count;
                 }
 
@@ -179,23 +156,17 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                 member.team_barrier();
             }
 
-            find_result<float> res;
-            Kokkos::parallel_reduce(
-                Kokkos::TeamThreadRange(member, n_lib),
-                [=](size_t j, find_result<float> &upd) {
-                    unsigned int val =
-                        reinterpret_cast<unsigned int &>(distances(i, j));
-                    if ((val & mask_desired) == desired) {
-                        upd.found = true;
-                        upd.val = distances(i, j);
-                    }
-                },
-                Kokkos::Sum<find_result<float>>(res));
+            // Compute the k-th smallest distance value (pivot) by setting
+            // all undetermined bits to 1
+            unsigned int pivot_bits = desired | ~mask_desired;
+            float pivot = reinterpret_cast<float &>(pivot_bits);
 
+            // Collect top-k elements (those with distance <= pivot) into
+            // scratch memory using parallel scan to assign positions
             Kokkos::parallel_scan(
                 Kokkos::TeamThreadRange(member, n_lib),
                 [=](size_t j, int &partial_sum, bool is_final) {
-                    if (distances(i, j) <= res.val) {
+                    if (distances(i, j) <= pivot) {
                         if (is_final && partial_sum < k) {
                             topk_dist(partial_sum) = sqrt(distances(i, j));
                             topk_ind(partial_sum) = j + n_partial + Tp;
@@ -206,23 +177,20 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
 
             member.team_barrier();
 
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k),
+            // Sort top-k elements in scratch memory
+            Kokkos::Experimental::sort_by_key_team(member, topk_dist, topk_ind);
+
+            // Copy sorted top-k to output and fill remaining with sentinel
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
                                  [=](size_t j) {
-                                     distances(i, j) = topk_dist(j);
-                                     indices(i, j) = topk_ind(j);
+                                     if (j < static_cast<size_t>(k)) {
+                                         distances(i, j) = topk_dist(j);
+                                         indices(i, j) = topk_ind(j);
+                                     } else {
+                                         distances(i, j) = FLT_MAX;
+                                         indices(i, j) = -1;
+                                     }
                                  });
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, k, n_lib),
-                                 [=](size_t j) {
-                                     distances(i, j) = FLT_MAX;
-                                     indices(i, j) = -1;
-                                 });
-
-            member.team_barrier();
-
-            Kokkos::Experimental::sort_by_key_team(
-                member, Kokkos::subview(distances, i, Kokkos::make_pair(0, k)),
-                Kokkos::subview(indices, i, Kokkos::make_pair(0, k)));
         });
 }
 
