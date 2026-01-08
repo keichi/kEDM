@@ -113,11 +113,9 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
             for (int digit_pos = 32 - RADIX_BITS; digit_pos >= 0 && !found;
                  digit_pos -= RADIX_BITS) {
                 // Reset histogram bins
-                Kokkos::single(Kokkos::PerTeam(member), [=] {
-                    for (unsigned int j = 0; j < RADIX_SIZE; j++) {
-                        bins(j) = 0;
-                    }
-                });
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, RADIX_SIZE),
+                    [=](size_t j) { bins(j) = 0; });
 
                 member.team_barrier();
 
