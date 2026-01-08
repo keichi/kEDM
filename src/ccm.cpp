@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <numeric>
 #include <random>
 #include <unordered_set>
 
@@ -72,6 +74,41 @@ void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
                                      indices(i, j) = scratch_indices(j);
                                  });
         });
+}
+
+void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
+                   int n_pred, int n_partial, int Tp)
+{
+    auto distances_h =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), distances);
+    auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
+
+    Kokkos::parallel_for(
+        "EDM::ccm::full_sort_cpu",
+        Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
+        [=](int i) {
+            float *dist_row = &distances_h(i, 0);
+            int *ind_row = &indices_h(i, 0);
+
+            std::iota(ind_row, ind_row + n_lib, 0);
+
+            std::sort(ind_row, ind_row + n_lib, [dist_row](int a, int b) {
+                return dist_row[a] < dist_row[b];
+            });
+
+            std::vector<float> sorted_dist(n_lib);
+            for (int j = 0; j < n_lib; j++) {
+                sorted_dist[j] = std::sqrt(dist_row[ind_row[j]]);
+            }
+
+            for (int j = 0; j < n_lib; j++) {
+                distances_h(i, j) = sorted_dist[j];
+                indices_h(i, j) = ind_row[j] + n_partial + Tp;
+            }
+        });
+
+    Kokkos::deep_copy(distances, distances_h);
+    Kokkos::deep_copy(indices, indices_h);
 }
 
 const unsigned int RADIX_BITS = 8;
@@ -192,6 +229,47 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                                      }
                                  });
         });
+}
+
+void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
+                      int n_lib, int n_pred, int n_partial, int Tp)
+{
+    auto distances_h =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), distances);
+    auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
+
+    Kokkos::parallel_for(
+        "EDM::ccm::partial_sort_cpu",
+        Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
+        [=](int i) {
+            float *dist_row = &distances_h(i, 0);
+            int *ind_row = &indices_h(i, 0);
+
+            std::iota(ind_row, ind_row + n_lib, 0);
+
+            std::partial_sort(ind_row, ind_row + k, ind_row + n_lib,
+                              [dist_row](int a, int b) {
+                                  return dist_row[a] < dist_row[b];
+                              });
+
+            std::vector<float> topk_dist(k);
+            for (int j = 0; j < k; j++) {
+                topk_dist[j] = std::sqrt(dist_row[ind_row[j]]);
+            }
+
+            for (int j = 0; j < k; j++) {
+                distances_h(i, j) = topk_dist[j];
+                indices_h(i, j) = ind_row[j] + n_partial + Tp;
+            }
+
+            for (int j = k; j < n_lib; j++) {
+                distances_h(i, j) = FLT_MAX;
+                indices_h(i, j) = -1;
+            }
+        });
+
+    Kokkos::deep_copy(distances, distances_h);
+    Kokkos::deep_copy(indices, indices_h);
 }
 
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,
