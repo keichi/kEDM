@@ -181,16 +181,16 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
             Kokkos::Experimental::sort_by_key_team(member, topk_dist, topk_ind);
 
             // Copy sorted top-k to output and fill remaining with sentinel
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
-                    if (j < static_cast<size_t>(k)) {
-                        distances(i, j) = topk_dist(j);
-                        indices(i, j) = topk_ind(j);
-                    } else {
-                        distances(i, j) = FLT_MAX;
-                        indices(i, j) = -1;
-                    }
-                });
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
+                                 [=](size_t j) {
+                                     if (j < static_cast<size_t>(k)) {
+                                         distances(i, j) = topk_dist(j);
+                                         indices(i, j) = topk_ind(j);
+                                     } else {
+                                         distances(i, j) = FLT_MAX;
+                                         indices(i, j) = -1;
+                                     }
+                                 });
         });
 }
 
