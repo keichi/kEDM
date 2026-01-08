@@ -141,6 +141,9 @@ if(KEDM_ENABLE_EXECUTABLES)
   add_executable(smap-bench src/smap_bench.cpp)
   target_link_libraries(smap-bench PRIVATE kedm Kokkos::kokkos argh)
 
+  add_executable(partial-sort-bench src/partial_sort_bench.cpp)
+  target_link_libraries(partial-sort-bench PRIVATE kedm Kokkos::kokkos argh)
+
   if(MPI_CXX_FOUND AND HDF5_IS_PARALLEL)
     add_executable(edm-xmap-mpi src/xmap_run_mpi.cpp)
     target_link_libraries(edm-xmap-mpi PRIVATE kedm Kokkos::kokkos HighFive
