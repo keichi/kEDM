@@ -111,6 +111,98 @@ void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
     Kokkos::deep_copy(indices, indices_h);
 }
 
+void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
+                     int n_pred, int n_partial, int Tp)
+{
+    constexpr unsigned int RADIX_BITS = 8;
+    constexpr unsigned int RADIX_SIZE = 1 << RADIX_BITS;
+    constexpr unsigned int RADIX_MASK = RADIX_SIZE - 1;
+
+    typedef Kokkos::View<int *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        ScratchHist;
+
+    size_t shmem_size = ScratchHist::shmem_size(RADIX_SIZE);
+
+    // Allocate temporary global memory buffers for double-buffering
+    TmpDistances dist_temp("dist_temp", n_pred, n_lib);
+    TmpIndices idx_temp("idx_temp", n_pred, n_lib);
+
+    // Initialize: apply sqrt and set indices
+    Kokkos::parallel_for(
+        "EDM::ccm::radix_init",
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int row = member.league_rank();
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
+                                 [=](int j) {
+                                     distances(row, j) = sqrt(distances(row, j));
+                                     indices(row, j) = j + n_partial + Tp;
+                                 });
+        });
+
+    // Perform 4 radix sort passes (LSB to MSB)
+    for (int pass = 0; pass < 4; pass++) {
+        int shift = pass * RADIX_BITS;
+
+        // Select input/output based on pass (ping-pong)
+        TmpDistances dist_in = (pass % 2 == 0) ? distances : dist_temp;
+        TmpDistances dist_out = (pass % 2 == 0) ? dist_temp : distances;
+        TmpIndices idx_in = (pass % 2 == 0) ? indices : idx_temp;
+        TmpIndices idx_out = (pass % 2 == 0) ? idx_temp : indices;
+
+        Kokkos::parallel_for(
+            "EDM::ccm::radix_pass",
+            Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+                .set_scratch_size(0, Kokkos::PerTeam(shmem_size)),
+            KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+                int row = member.league_rank();
+                ScratchHist histogram(member.team_scratch(0), RADIX_SIZE);
+
+                // Step 1: Clear histogram
+                Kokkos::parallel_for(Kokkos::TeamThreadRange(member, RADIX_SIZE),
+                                     [=](int j) { histogram(j) = 0; });
+                member.team_barrier();
+
+                // Step 2: Build histogram
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                        unsigned int key =
+                            reinterpret_cast<const unsigned int &>(
+                                dist_in(row, j));
+                        unsigned int digit = (key >> shift) & RADIX_MASK;
+                        Kokkos::atomic_inc(&histogram(digit));
+                    });
+                member.team_barrier();
+
+                // Step 3: Exclusive prefix sum (serial within team)
+                Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                    int sum = 0;
+                    for (unsigned int j = 0; j < RADIX_SIZE; j++) {
+                        int count = histogram(j);
+                        histogram(j) = sum;
+                        sum += count;
+                    }
+                });
+                member.team_barrier();
+
+                // Step 4: Scatter to output
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                        unsigned int key =
+                            reinterpret_cast<const unsigned int &>(
+                                dist_in(row, j));
+                        unsigned int digit = (key >> shift) & RADIX_MASK;
+                        int pos = Kokkos::atomic_fetch_add(&histogram(digit), 1);
+                        dist_out(row, pos) = dist_in(row, j);
+                        idx_out(row, pos) = idx_in(row, j);
+                    });
+            });
+    }
+    // After 4 passes (even number), result is back in distances/indices
+}
+
 const unsigned int RADIX_BITS = 8;
 const unsigned int RADIX_SIZE = 1 << RADIX_BITS;
 const unsigned int RADIX_MASK = RADIX_SIZE - 1;
