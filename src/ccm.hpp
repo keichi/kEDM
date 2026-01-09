@@ -14,6 +14,9 @@ void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
 void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
                    int n_pred, int n_partial, int Tp);
 
+void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
+                     int n_pred, int n_partial, int Tp);
+
 void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                   int n_pred, int n_partial, int Tp);
 

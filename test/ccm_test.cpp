@@ -198,44 +198,73 @@ TEST_CASE("Full sort kNN LUT (CPU version)")
 
     TmpDistances dist("distances", N, L);
     TmpIndices ind("indices", N, L);
-    TmpDistances valid_dist("valid_distances", N, L);
-    TmpIndices valid_ind("valid_indices", N, L);
 
     Kokkos::fill_random(dist, random_pool, 123456789.0f);
 
+    // Create a deep copy of dist before sorting
+    auto valid_dist = Kokkos::create_mirror(HostSpace(), dist);
     Kokkos::deep_copy(valid_dist, dist);
 
     edm::full_sort_cpu(dist, ind, L, N, n_partial, Tp);
 
-    Kokkos::parallel_for(
-        Kokkos::TeamPolicy<>(N, Kokkos::AUTO),
-        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
-            int i = member.league_rank();
+    auto distances = Kokkos::create_mirror_view_and_copy(HostSpace(), dist);
+    auto indices = Kokkos::create_mirror_view_and_copy(HostSpace(), ind);
 
-            Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, L),
-                [=](int j) { valid_ind(i, j) = j + n_partial + Tp; });
+    // Generate expected results using std::stable_sort
+    for (int i = 0; i < N; i++) {
+        std::vector<int> valid_ind(L);
+        std::iota(valid_ind.begin(), valid_ind.end(), 0);
 
-            member.team_barrier();
+        std::sort(valid_ind.begin(), valid_ind.end(),
+                  [&](int a, int b) {
+                      return valid_dist(i, a) < valid_dist(i, b);
+                  });
 
-            Kokkos::Experimental::sort_by_key_team(
-                member, Kokkos::subview(valid_dist, i, Kokkos::ALL),
-                Kokkos::subview(valid_ind, i, Kokkos::ALL));
-        });
+        for (int j = 0; j < L; j++) {
+            CHECK(distances(i, j) ==
+                  doctest::Approx(sqrt(valid_dist(i, valid_ind[j]))));
+            CHECK(indices(i, j) == valid_ind[j] + n_partial + Tp);
+        }
+    }
+}
+
+TEST_CASE("Full sort kNN LUT (Radix sort)")
+{
+    int N = 100;
+    int L = 1000;
+    int n_partial = 1;
+    int Tp = 1;
+
+    Kokkos::Random_XorShift64_Pool<> random_pool(42);
+
+    TmpDistances dist("distances", N, L);
+    TmpIndices ind("indices", N, L);
+
+    Kokkos::fill_random(dist, random_pool, 123456789.0f);
+
+    // Create a deep copy of dist before sorting
+    auto valid_dist = Kokkos::create_mirror(HostSpace(), dist);
+    Kokkos::deep_copy(valid_dist, dist);
+
+    edm::full_sort_radix(dist, ind, L, N, n_partial, Tp);
 
     auto distances = Kokkos::create_mirror_view_and_copy(HostSpace(), dist);
     auto indices = Kokkos::create_mirror_view_and_copy(HostSpace(), ind);
 
-    auto valid_distances =
-        Kokkos::create_mirror_view_and_copy(HostSpace(), valid_dist);
-    auto valid_indices =
-        Kokkos::create_mirror_view_and_copy(HostSpace(), valid_ind);
+    // Generate expected results using std::stable_sort
+    for (int i = 0; i < N; i++) {
+        std::vector<int> valid_ind(L);
+        std::iota(valid_ind.begin(), valid_ind.end(), 0);
 
-    for (int i = 0; i < distances.extent_int(0); i++) {
+        std::stable_sort(valid_ind.begin(), valid_ind.end(),
+                         [&](int a, int b) {
+                             return valid_dist(i, a) < valid_dist(i, b);
+                         });
+
         for (int j = 0; j < L; j++) {
             CHECK(distances(i, j) ==
-                  doctest::Approx(sqrt(valid_distances(i, j))));
-            CHECK(indices(i, j) == valid_indices(i, j));
+                  doctest::Approx(sqrt(valid_dist(i, valid_ind[j]))));
+            CHECK(indices(i, j) == valid_ind[j] + n_partial + Tp);
         }
     }
 }

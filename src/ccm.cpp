@@ -111,6 +111,134 @@ void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
     Kokkos::deep_copy(indices, indices_h);
 }
 
+void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
+                     int n_pred, int n_partial, int Tp)
+{
+    constexpr unsigned int RADIX_BITS = 4;
+    constexpr unsigned int RADIX_SIZE = 1 << RADIX_BITS;  // 16
+    constexpr unsigned int RADIX_MASK = RADIX_SIZE - 1;
+    constexpr int MAX_TEAM_SIZE = 256;
+
+    typedef Kokkos::View<int **,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        ScratchHist2D;
+
+    typedef Kokkos::View<int *,
+                         Kokkos::DefaultExecutionSpace::scratch_memory_space,
+                         Kokkos::MemoryUnmanaged>
+        ScratchOffsets;
+
+    size_t shmem_size = ScratchHist2D::shmem_size(MAX_TEAM_SIZE, RADIX_SIZE) +
+                        ScratchOffsets::shmem_size(RADIX_SIZE);
+
+    // Allocate temporary global memory buffers for double-buffering
+    TmpDistances dist_temp("dist_temp", n_pred, n_lib);
+    TmpIndices idx_temp("idx_temp", n_pred, n_lib);
+
+    // Initialize: apply sqrt and set indices
+    Kokkos::parallel_for(
+        "EDM::ccm::radix_init",
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
+        KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+            int row = member.league_rank();
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(member, n_lib),
+                                 [=](int j) {
+                                     distances(row, j) = sqrt(distances(row, j));
+                                     indices(row, j) = j + n_partial + Tp;
+                                 });
+        });
+
+    // Perform 8 radix sort passes (LSB to MSB, 4 bits per pass)
+    for (int pass = 0; pass < 8; pass++) {
+        int shift = pass * RADIX_BITS;
+
+        // Select input/output based on pass (ping-pong)
+        TmpDistances dist_in = (pass % 2 == 0) ? distances : dist_temp;
+        TmpDistances dist_out = (pass % 2 == 0) ? dist_temp : distances;
+        TmpIndices idx_in = (pass % 2 == 0) ? indices : idx_temp;
+        TmpIndices idx_out = (pass % 2 == 0) ? idx_temp : indices;
+
+        Kokkos::parallel_for(
+            "EDM::ccm::radix_pass",
+            Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO)
+                .set_scratch_size(0, Kokkos::PerTeam(shmem_size)),
+            KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
+                int row = member.league_rank();
+                int team_rank = member.team_rank();
+                int team_size = member.team_size();
+
+                ScratchHist2D per_thread_hist(member.team_scratch(0),
+                                              team_size, RADIX_SIZE);
+                ScratchOffsets global_offsets(member.team_scratch(0),
+                                              RADIX_SIZE);
+
+                // Phase 0: Initialize per-thread histograms
+                Kokkos::single(Kokkos::PerThread(member), [=]() {
+                    for (unsigned int d = 0; d < RADIX_SIZE; d++) {
+                        per_thread_hist(team_rank, d) = 0;
+                    }
+                });
+                member.team_barrier();
+
+                // Phase 1: Build local histograms (no atomics)
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                        unsigned int key =
+                            reinterpret_cast<const unsigned int &>(
+                                dist_in(row, j));
+                        unsigned int digit = (key >> shift) & RADIX_MASK;
+                        per_thread_hist(team_rank, digit)++;
+                    });
+                member.team_barrier();
+
+                // Phase 2a: Sum across threads for each digit
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, RADIX_SIZE),
+                    [=](unsigned int d) {
+                        int sum = 0;
+                        for (int t = 0; t < team_size; t++) {
+                            sum += per_thread_hist(t, d);
+                        }
+                        global_offsets(d) = sum;
+                    });
+                member.team_barrier();
+
+                // Phase 2b: Exclusive prefix sum on global_offsets
+                Kokkos::single(Kokkos::PerTeam(member), [=]() {
+                    int sum = 0;
+                    for (unsigned int d = 0; d < RADIX_SIZE; d++) {
+                        int count = global_offsets(d);
+                        global_offsets(d) = sum;
+                        sum += count;
+                    }
+                });
+                member.team_barrier();
+
+                // Phase 3: Compute per-thread write offsets using team_scan
+                for (unsigned int d = 0; d < RADIX_SIZE; d++) {
+                    int my_hist = per_thread_hist(team_rank, d);
+                    int my_offset = member.team_scan(my_hist);
+                    per_thread_hist(team_rank, d) = global_offsets(d) + my_offset;
+                }
+                member.team_barrier();
+
+                // Phase 4: Scatter to output (no atomics)
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                        unsigned int key =
+                            reinterpret_cast<const unsigned int &>(
+                                dist_in(row, j));
+                        unsigned int digit = (key >> shift) & RADIX_MASK;
+                        int pos = per_thread_hist(team_rank, digit)++;
+                        dist_out(row, pos) = dist_in(row, j);
+                        idx_out(row, pos) = idx_in(row, j);
+                    });
+            });
+    }
+    // After 8 passes (even number), result is back in distances/indices
+}
+
 const unsigned int RADIX_BITS = 8;
 const unsigned int RADIX_SIZE = 1 << RADIX_BITS;
 const unsigned int RADIX_MASK = RADIX_SIZE - 1;
