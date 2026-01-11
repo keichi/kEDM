@@ -23,8 +23,8 @@
 namespace edm
 {
 
-void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
-               int n_pred, int n_partial, int Tp)
+void full_sort_kokkos(TmpDistances distances, TmpIndices indices, int n_lib,
+                      int n_pred, int n_partial, int Tp)
 {
     Kokkos::parallel_for(
         "EDM::ccm::sort", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
@@ -42,6 +42,26 @@ void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
                 member, Kokkos::subview(distances, i, Kokkos::ALL),
                 Kokkos::subview(indices, i, Kokkos::ALL));
         });
+}
+
+void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
+               int n_pred, int n_partial, int Tp)
+{
+    bool use_scratch =
+        ScratchDistances1D::shmem_size(distances.extent(1)) +
+            ScratchIndices1D::shmem_size(indices.extent(1)) <
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO).scratch_size_max(0);
+
+    if (use_scratch) {
+        full_sort_with_scratch(distances, indices, n_lib, n_pred, n_partial,
+                               Tp);
+    } else {
+#ifdef KOKKOS_ENABLE_CUDA
+        full_sort_radix(distances, indices, n_lib, n_pred, n_partial, Tp);
+#else
+        full_sort_kokkos(distances, indices, n_lib, n_pred, n_partial, Tp);
+#endif
+    }
 }
 
 void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
@@ -360,15 +380,6 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
     // Compute pairwise distance matrix
     calc_distances(lib, lib, tmp_dist, n_lib, n_pred, E, tau);
 
-    bool use_scratch =
-#ifdef KOKKOS_ENABLE_CUDA
-        ScratchDistances1D::shmem_size(tmp_dist.extent(1)) +
-            ScratchIndices1D::shmem_size(tmp_ind.extent(1)) <
-        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO).scratch_size_max(0);
-#else
-        false;
-#endif
-
     // (Partially) Sort each row of the distance matrix
     if (accuracy < 1.0f) {
         // Calculate the probability of a row to be sampled
@@ -388,16 +399,7 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
 
         partial_sort(tmp_dist, tmp_ind, k, n_lib, n_pred, n_partial, Tp);
     } else {
-        if (use_scratch) {
-            full_sort_with_scratch(tmp_dist, tmp_ind, n_lib, n_pred, n_partial,
-                                   Tp);
-        } else {
-#ifdef KOKKOS_ENABLE_CUDA
-            full_sort_radix(tmp_dist, tmp_ind, n_lib, n_pred, n_partial, Tp);
-#else
-            full_sort(tmp_dist, tmp_ind, n_lib, n_pred, n_partial, Tp);
-#endif
-        }
+        full_sort(tmp_dist, tmp_ind, n_lib, n_pred, n_partial, Tp);
     }
 
     pcg32 rng;

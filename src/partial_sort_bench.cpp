@@ -40,6 +40,7 @@ void usage(const std::string &app_name)
         "  -r, --radix-sort        Use CUB radix sort (GPU only, with -f)\n"
         "  -s, --scratch-sort      Use scratch memory sort (GPU only, with "
         "-f)\n"
+        "  -K, --kokkos-sort       Use Kokkos sort (with -f)\n"
         "  -v, --verbose           Enable verbose logging (default: false)\n"
         "  -h, --help              Show this help";
 
@@ -61,6 +62,7 @@ int main(int argc, char *argv[])
     bool cpu = cmdl[{"-c", "--cpu-sort"}];
     bool radix = cmdl[{"-r", "--radix-sort"}];
     bool scratch = cmdl[{"-s", "--scratch-sort"}];
+    bool kokkos_sort = cmdl[{"-K", "--kokkos-sort"}];
     bool verbose = cmdl[{"-v", "--verbose"}];
 
     if (cmdl[{"-h", "--help"}]) {
@@ -78,6 +80,8 @@ int main(int argc, char *argv[])
         std::cout << "cpu_sort: " << (cpu ? "true" : "false") << std::endl;
         std::cout << "radix_sort: " << (radix ? "true" : "false") << std::endl;
         std::cout << "scratch_sort: " << (scratch ? "true" : "false")
+                  << std::endl;
+        std::cout << "kokkos_sort: " << (kokkos_sort ? "true" : "false")
                   << std::endl;
     }
 
@@ -103,6 +107,7 @@ int main(int argc, char *argv[])
         LIKWID_MARKER_REGISTER("full_sort_cpu");
         LIKWID_MARKER_REGISTER("full_sort_radix");
         LIKWID_MARKER_REGISTER("full_sort_scratch");
+        LIKWID_MARKER_REGISTER("full_sort_kokkos");
     }
 
     for (auto i = 0; i < iterations; i++) {
@@ -122,6 +127,8 @@ int main(int argc, char *argv[])
                 LIKWID_MARKER_START("full_sort_radix");
             } else if (full && scratch) {
                 LIKWID_MARKER_START("full_sort_scratch");
+            } else if (full && kokkos_sort) {
+                LIKWID_MARKER_START("full_sort_kokkos");
             } else if (full) {
                 LIKWID_MARKER_START("full_sort");
             } else if (cpu) {
@@ -137,6 +144,8 @@ int main(int argc, char *argv[])
             edm::full_sort_radix(distances, indices, N, N, 0, 0);
         } else if (full && scratch) {
             edm::full_sort_with_scratch(distances, indices, N, N, 0, 0);
+        } else if (full && kokkos_sort) {
+            edm::full_sort_kokkos(distances, indices, N, N, 0, 0);
         } else if (full) {
             edm::full_sort(distances, indices, N, N, 0, 0);
         } else if (cpu) {
@@ -157,6 +166,8 @@ int main(int argc, char *argv[])
                 LIKWID_MARKER_STOP("full_sort_radix");
             } else if (full && scratch) {
                 LIKWID_MARKER_STOP("full_sort_scratch");
+            } else if (full && kokkos_sort) {
+                LIKWID_MARKER_STOP("full_sort_kokkos");
             } else if (full) {
                 LIKWID_MARKER_STOP("full_sort");
             } else if (cpu) {
@@ -181,6 +192,9 @@ int main(int argc, char *argv[])
                   << std::endl;
     } else if (full && scratch) {
         std::cout << "full_sort_scratch " << timer_sort.elapsed() / iterations
+                  << std::endl;
+    } else if (full && kokkos_sort) {
+        std::cout << "full_sort_kokkos " << timer_sort.elapsed() / iterations
                   << std::endl;
     } else if (full) {
         std::cout << "full_sort " << timer_sort.elapsed() / iterations

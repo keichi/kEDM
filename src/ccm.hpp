@@ -11,6 +11,9 @@ namespace edm
 void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
                int n_pred, int n_partial, int Tp);
 
+void full_sort_kokkos(TmpDistances distances, TmpIndices indices, int n_lib,
+                      int n_pred, int n_partial, int Tp);
+
 void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
                             int n_lib, int n_pred, int n_partial, int Tp);
 
