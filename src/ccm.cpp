@@ -102,7 +102,7 @@ void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
         });
 }
 
-void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
+void full_sort_stl(TmpDistances distances, TmpIndices indices, int n_lib,
                    int n_pred, int n_partial, int Tp)
 {
     auto distances_h =
@@ -110,7 +110,7 @@ void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::full_sort_cpu",
+        "EDM::ccm::full_sort_stl",
         Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
         [=](int i) {
             float *dist_row = &distances_h(i, 0);
@@ -320,7 +320,7 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
         });
 }
 
-void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
+void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
                       int n_lib, int n_pred, int n_partial, int Tp)
 {
     auto distances_h =
@@ -328,7 +328,7 @@ void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::partial_sort_cpu",
+        "EDM::ccm::partial_sort_stl",
         Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
         [=](int i) {
             float *dist_row = &distances_h(i, 0);
