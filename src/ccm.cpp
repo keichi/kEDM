@@ -48,6 +48,7 @@ void full_sort_kokkos(TmpDistances distances, TmpIndices indices, int n_lib,
 void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
                int n_pred, int n_partial, int Tp)
 {
+#ifdef KOKKOS_ENABLE_CUDA
     bool use_scratch =
         ScratchDistances1D::shmem_size(distances.extent(1)) +
             ScratchIndices1D::shmem_size(indices.extent(1)) <
@@ -57,12 +58,11 @@ void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
         full_sort_with_scratch(distances, indices, n_lib, n_pred, n_partial,
                                Tp);
     } else {
-#ifdef KOKKOS_ENABLE_CUDA
         full_sort_cub(distances, indices, n_lib, n_pred, n_partial, Tp);
-#else
-        full_sort_kokkos(distances, indices, n_lib, n_pred, n_partial, Tp);
-#endif
     }
+#else
+    full_sort_stl(distances, indices, n_lib, n_pred, n_partial, Tp);
+#endif
 }
 
 void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
