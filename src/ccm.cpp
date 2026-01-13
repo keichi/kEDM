@@ -110,9 +110,9 @@ void full_sort_stl(TmpDistances distances, TmpIndices indices, int n_lib,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::full_sort_stl",
+        "EDM::ccm::sort",
         Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
-        [=](int i) {
+        [=](size_t i) {
             float *dist_row = &distances_h(i, 0);
             int *ind_row = &indices_h(i, 0);
 
