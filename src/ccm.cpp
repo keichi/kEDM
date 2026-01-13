@@ -328,9 +328,8 @@ void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::partial_sort_stl",
-        Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
-        [=](int i) {
+        "EDM::ccm::partial_sort_stl", n_pred,
+        [=](size_t i) {
             float *dist_row = &distances_h(i, 0);
             int *ind_row = &indices_h(i, 0);
 
