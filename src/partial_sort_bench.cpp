@@ -102,10 +102,10 @@ int main(int argc, char *argv[])
         LIKWID_MARKER_THREADINIT;
 
         LIKWID_MARKER_REGISTER("partial_sort");
-        LIKWID_MARKER_REGISTER("partial_sort_cpu");
+        LIKWID_MARKER_REGISTER("partial_sort_stl");
         LIKWID_MARKER_REGISTER("full_sort");
-        LIKWID_MARKER_REGISTER("full_sort_cpu");
-        LIKWID_MARKER_REGISTER("full_sort_radix");
+        LIKWID_MARKER_REGISTER("full_sort_stl");
+        LIKWID_MARKER_REGISTER("full_sort_cub");
         LIKWID_MARKER_REGISTER("full_sort_scratch");
         LIKWID_MARKER_REGISTER("full_sort_kokkos");
     }
@@ -122,9 +122,9 @@ int main(int argc, char *argv[])
 #endif
         {
             if (full && stl) {
-                LIKWID_MARKER_START("full_sort_cpu");
+                LIKWID_MARKER_START("full_sort_stl");
             } else if (full && cub) {
-                LIKWID_MARKER_START("full_sort_radix");
+                LIKWID_MARKER_START("full_sort_cub");
             } else if (full && scratch) {
                 LIKWID_MARKER_START("full_sort_scratch");
             } else if (full && kokkos_sort) {
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
             } else if (full) {
                 LIKWID_MARKER_START("full_sort");
             } else if (stl) {
-                LIKWID_MARKER_START("partial_sort_cpu");
+                LIKWID_MARKER_START("partial_sort_stl");
             } else {
                 LIKWID_MARKER_START("partial_sort");
             }
@@ -161,9 +161,9 @@ int main(int argc, char *argv[])
 #endif
         {
             if (full && stl) {
-                LIKWID_MARKER_STOP("full_sort_cpu");
+                LIKWID_MARKER_STOP("full_sort_stl");
             } else if (full && cub) {
-                LIKWID_MARKER_STOP("full_sort_radix");
+                LIKWID_MARKER_STOP("full_sort_cub");
             } else if (full && scratch) {
                 LIKWID_MARKER_STOP("full_sort_scratch");
             } else if (full && kokkos_sort) {
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
             } else if (full) {
                 LIKWID_MARKER_STOP("full_sort");
             } else if (stl) {
-                LIKWID_MARKER_STOP("partial_sort_cpu");
+                LIKWID_MARKER_STOP("partial_sort_stl");
             } else {
                 LIKWID_MARKER_STOP("partial_sort");
             }
@@ -185,10 +185,10 @@ int main(int argc, char *argv[])
     std::cout << "elapsed: " << timer.seconds() << " [s]" << std::endl;
 
     if (full && stl) {
-        std::cout << "full_sort_cpu " << timer_sort.elapsed() / iterations
+        std::cout << "full_sort_stl " << timer_sort.elapsed() / iterations
                   << std::endl;
     } else if (full && cub) {
-        std::cout << "full_sort_radix " << timer_sort.elapsed() / iterations
+        std::cout << "full_sort_cub " << timer_sort.elapsed() / iterations
                   << std::endl;
     } else if (full && scratch) {
         std::cout << "full_sort_scratch " << timer_sort.elapsed() / iterations
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
         std::cout << "full_sort " << timer_sort.elapsed() / iterations
                   << std::endl;
     } else if (stl) {
-        std::cout << "partial_sort_cpu " << timer_sort.elapsed() / iterations
+        std::cout << "partial_sort_stl " << timer_sort.elapsed() / iterations
                   << std::endl;
     } else {
         std::cout << "partial_sort " << timer_sort.elapsed() / iterations
