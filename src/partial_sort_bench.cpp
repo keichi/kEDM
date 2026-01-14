@@ -101,13 +101,8 @@ int main(int argc, char *argv[])
     {
         LIKWID_MARKER_THREADINIT;
 
-        LIKWID_MARKER_REGISTER("partial_sort_kokkos");
-        LIKWID_MARKER_REGISTER("partial_sort_stl");
+        LIKWID_MARKER_REGISTER("partial_sort");
         LIKWID_MARKER_REGISTER("full_sort");
-        LIKWID_MARKER_REGISTER("full_sort_stl");
-        LIKWID_MARKER_REGISTER("full_sort_cub");
-        LIKWID_MARKER_REGISTER("full_sort_scratch");
-        LIKWID_MARKER_REGISTER("full_sort_kokkos");
     }
 
     for (auto i = 0; i < iterations; i++) {
@@ -121,20 +116,10 @@ int main(int argc, char *argv[])
 #pragma omp parallel
 #endif
         {
-            if (full && stl) {
-                LIKWID_MARKER_START("full_sort_stl");
-            } else if (full && cub) {
-                LIKWID_MARKER_START("full_sort_cub");
-            } else if (full && scratch) {
-                LIKWID_MARKER_START("full_sort_scratch");
-            } else if (full && kokkos_sort) {
-                LIKWID_MARKER_START("full_sort_kokkos");
-            } else if (full) {
+            if (full) {
                 LIKWID_MARKER_START("full_sort");
-            } else if (stl) {
-                LIKWID_MARKER_START("partial_sort_stl");
             } else {
-                LIKWID_MARKER_START("partial_sort_kokkos");
+                LIKWID_MARKER_START("partial_sort");
             }
         }
 
@@ -160,20 +145,10 @@ int main(int argc, char *argv[])
 #pragma omp parallel
 #endif
         {
-            if (full && stl) {
-                LIKWID_MARKER_STOP("full_sort_stl");
-            } else if (full && cub) {
-                LIKWID_MARKER_STOP("full_sort_cub");
-            } else if (full && scratch) {
-                LIKWID_MARKER_STOP("full_sort_scratch");
-            } else if (full && kokkos_sort) {
-                LIKWID_MARKER_STOP("full_sort_kokkos");
-            } else if (full) {
+            if (full) {
                 LIKWID_MARKER_STOP("full_sort");
-            } else if (stl) {
-                LIKWID_MARKER_STOP("partial_sort_stl");
             } else {
-                LIKWID_MARKER_STOP("partial_sort_kokkos");
+                LIKWID_MARKER_STOP("partial_sort");
             }
         }
 
