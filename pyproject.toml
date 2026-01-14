@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "kedm"
-version = "0.10.0"
+version = "0.10.1"
 authors = [
     { name="Keichi Takahashi", email="hello@keichi.dev" }
 ]
