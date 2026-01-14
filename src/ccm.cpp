@@ -144,7 +144,8 @@ void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
     Kokkos::Profiling::ScopedRegion region("EDM::ccm::sort");
 
     // Initialize: apply sqrt and set indices
-    Kokkos::parallel_for(Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
+    Kokkos::parallel_for(
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int row = member.league_rank();
             Kokkos::parallel_for(
@@ -157,8 +158,8 @@ void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
     // Create segment offsets array: [0, n_lib, 2*n_lib, ..., n_pred*n_lib]
     // Use size_t to avoid integer overflow for large datasets
     Kokkos::View<size_t *, DevSpace> offsets("offsets", n_pred + 1);
-    Kokkos::parallel_for(n_pred + 1,
-        KOKKOS_LAMBDA(size_t i) { offsets(i) = i * n_lib; });
+    Kokkos::parallel_for(
+        n_pred + 1, KOKKOS_LAMBDA(size_t i) { offsets(i) = i * n_lib; });
 
     // Allocate temporary buffers for double-buffering
     TmpDistances dist_temp("dist_temp", n_pred, n_lib);
@@ -171,18 +172,18 @@ void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
     // Determine temporary storage requirements
     size_t temp_storage_bytes = 0;
     size_t num_items = static_cast<size_t>(n_pred) * n_lib;
-    cub::DeviceSegmentedSort::SortPairs(
-        nullptr, temp_storage_bytes, d_keys, d_values, num_items, n_pred,
-        offsets.data(), offsets.data() + 1);
+    cub::DeviceSegmentedSort::SortPairs(nullptr, temp_storage_bytes, d_keys,
+                                        d_values, num_items, n_pred,
+                                        offsets.data(), offsets.data() + 1);
 
     // Allocate temporary storage
     Kokkos::View<char *, DevSpace> temp_storage("temp_storage",
                                                 temp_storage_bytes);
 
     // Run sorting operation
-    cub::DeviceSegmentedSort::SortPairs(
-        temp_storage.data(), temp_storage_bytes, d_keys, d_values,
-        num_items, n_pred, offsets.data(), offsets.data() + 1);
+    cub::DeviceSegmentedSort::SortPairs(temp_storage.data(), temp_storage_bytes,
+                                        d_keys, d_values, num_items, n_pred,
+                                        offsets.data(), offsets.data() + 1);
 
     // Copy results back if needed (CUB may have swapped buffers)
     if (d_keys.Current() != distances.data()) {
@@ -327,33 +328,31 @@ void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), distances);
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
-    Kokkos::parallel_for(
-        "EDM::ccm::partial_sort", n_pred,
-        [=](size_t i) {
-            float *dist_row = &distances_h(i, 0);
-            int *ind_row = &indices_h(i, 0);
+    Kokkos::parallel_for("EDM::ccm::partial_sort", n_pred, [=](size_t i) {
+        float *dist_row = &distances_h(i, 0);
+        int *ind_row = &indices_h(i, 0);
 
-            std::iota(ind_row, ind_row + n_lib, 0);
+        std::iota(ind_row, ind_row + n_lib, 0);
 
-            std::partial_sort(
-                ind_row, ind_row + k, ind_row + n_lib,
-                [dist_row](int a, int b) { return dist_row[a] < dist_row[b]; });
+        std::partial_sort(
+            ind_row, ind_row + k, ind_row + n_lib,
+            [dist_row](int a, int b) { return dist_row[a] < dist_row[b]; });
 
-            std::vector<float> topk_dist(k);
-            for (int j = 0; j < k; j++) {
-                topk_dist[j] = std::sqrt(dist_row[ind_row[j]]);
-            }
+        std::vector<float> topk_dist(k);
+        for (int j = 0; j < k; j++) {
+            topk_dist[j] = std::sqrt(dist_row[ind_row[j]]);
+        }
 
-            for (int j = 0; j < k; j++) {
-                distances_h(i, j) = topk_dist[j];
-                indices_h(i, j) = ind_row[j] + n_partial + Tp;
-            }
+        for (int j = 0; j < k; j++) {
+            distances_h(i, j) = topk_dist[j];
+            indices_h(i, j) = ind_row[j] + n_partial + Tp;
+        }
 
-            for (int j = k; j < n_lib; j++) {
-                distances_h(i, j) = FLT_MAX;
-                indices_h(i, j) = -1;
-            }
-        });
+        for (int j = k; j < n_lib; j++) {
+            distances_h(i, j) = FLT_MAX;
+            indices_h(i, j) = -1;
+        }
+    });
 
     Kokkos::deep_copy(distances, distances_h);
     Kokkos::deep_copy(indices, indices_h);
