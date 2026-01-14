@@ -7,6 +7,7 @@
 #include <Kokkos_Bitset.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_NestedSort.hpp>
+#include <Kokkos_Profiling_ScopedRegion.hpp>
 
 #ifdef KOKKOS_ENABLE_CUDA
 #include <cub/cub.cuh>
@@ -47,6 +48,7 @@ void full_sort_kokkos(TmpDistances distances, TmpIndices indices, int n_lib,
 void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
                int n_pred, int n_partial, int Tp)
 {
+#ifdef KOKKOS_ENABLE_CUDA
     bool use_scratch =
         ScratchDistances1D::shmem_size(distances.extent(1)) +
             ScratchIndices1D::shmem_size(indices.extent(1)) <
@@ -56,12 +58,11 @@ void full_sort(TmpDistances distances, TmpIndices indices, int n_lib,
         full_sort_with_scratch(distances, indices, n_lib, n_pred, n_partial,
                                Tp);
     } else {
-#ifdef KOKKOS_ENABLE_CUDA
-        full_sort_radix(distances, indices, n_lib, n_pred, n_partial, Tp);
-#else
-        full_sort_kokkos(distances, indices, n_lib, n_pred, n_partial, Tp);
-#endif
+        full_sort_cub(distances, indices, n_lib, n_pred, n_partial, Tp);
     }
+#else
+    full_sort_stl(distances, indices, n_lib, n_pred, n_partial, Tp);
+#endif
 }
 
 void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
@@ -101,7 +102,7 @@ void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
         });
 }
 
-void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
+void full_sort_stl(TmpDistances distances, TmpIndices indices, int n_lib,
                    int n_pred, int n_partial, int Tp)
 {
     auto distances_h =
@@ -109,9 +110,9 @@ void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::full_sort_cpu",
+        "EDM::ccm::sort",
         Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
-        [=](int i) {
+        [=](size_t i) {
             float *dist_row = &distances_h(i, 0);
             int *ind_row = &indices_h(i, 0);
 
@@ -136,27 +137,29 @@ void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
     Kokkos::deep_copy(indices, indices_h);
 }
 
-void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
-                     int n_pred, int n_partial, int Tp)
+void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
+                   int n_pred, int n_partial, int Tp)
 {
 #ifdef KOKKOS_ENABLE_CUDA
+    Kokkos::Profiling::ScopedRegion region("EDM::ccm::sort");
+
     // Initialize: apply sqrt and set indices
     Kokkos::parallel_for(
-        "EDM::ccm::radix_init", Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
+        Kokkos::TeamPolicy<>(n_pred, Kokkos::AUTO),
         KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &member) {
             int row = member.league_rank();
             Kokkos::parallel_for(
-                Kokkos::TeamThreadRange(member, n_lib), [=](int j) {
+                Kokkos::TeamThreadRange(member, n_lib), [=](size_t j) {
                     distances(row, j) = sqrt(distances(row, j));
                     indices(row, j) = j + n_partial + Tp;
                 });
         });
 
     // Create segment offsets array: [0, n_lib, 2*n_lib, ..., n_pred*n_lib]
-    Kokkos::View<int *, DevSpace> offsets("offsets", n_pred + 1);
+    // Use size_t to avoid integer overflow for large datasets
+    Kokkos::View<size_t *, DevSpace> offsets("offsets", n_pred + 1);
     Kokkos::parallel_for(
-        "EDM::ccm::init_offsets", n_pred + 1,
-        KOKKOS_LAMBDA(int i) { offsets(i) = i * n_lib; });
+        n_pred + 1, KOKKOS_LAMBDA(size_t i) { offsets(i) = i * n_lib; });
 
     // Allocate temporary buffers for double-buffering
     TmpDistances dist_temp("dist_temp", n_pred, n_lib);
@@ -168,18 +171,19 @@ void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
 
     // Determine temporary storage requirements
     size_t temp_storage_bytes = 0;
-    cub::DeviceSegmentedRadixSort::SortPairs(
-        nullptr, temp_storage_bytes, d_keys, d_values, n_pred * n_lib, n_pred,
-        offsets.data(), offsets.data() + 1);
+    size_t num_items = static_cast<size_t>(n_pred) * n_lib;
+    cub::DeviceSegmentedSort::SortPairs(nullptr, temp_storage_bytes, d_keys,
+                                        d_values, num_items, n_pred,
+                                        offsets.data(), offsets.data() + 1);
 
     // Allocate temporary storage
     Kokkos::View<char *, DevSpace> temp_storage("temp_storage",
                                                 temp_storage_bytes);
 
     // Run sorting operation
-    cub::DeviceSegmentedRadixSort::SortPairs(
-        temp_storage.data(), temp_storage_bytes, d_keys, d_values,
-        n_pred * n_lib, n_pred, offsets.data(), offsets.data() + 1);
+    cub::DeviceSegmentedSort::SortPairs(temp_storage.data(), temp_storage_bytes,
+                                        d_keys, d_values, num_items, n_pred,
+                                        offsets.data(), offsets.data() + 1);
 
     // Copy results back if needed (CUB may have swapped buffers)
     if (d_keys.Current() != distances.data()) {
@@ -193,7 +197,7 @@ void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
     (void)n_pred;
     (void)n_partial;
     (void)Tp;
-    throw std::runtime_error("full_sort_radix requires CUDA");
+    throw std::runtime_error("full_sort_cub requires CUDA");
 #endif
 }
 
@@ -201,8 +205,8 @@ const unsigned int RADIX_BITS = 8;
 const unsigned int RADIX_SIZE = 1 << RADIX_BITS;
 const unsigned int RADIX_MASK = RADIX_SIZE - 1;
 
-void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
-                  int n_pred, int n_partial, int Tp)
+void partial_sort_kokkos(TmpDistances distances, TmpIndices indices, int k,
+                         int n_lib, int n_pred, int n_partial, int Tp)
 {
     typedef Kokkos::View<int *,
                          Kokkos::DefaultExecutionSpace::scratch_memory_space,
@@ -317,7 +321,7 @@ void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
         });
 }
 
-void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
+void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
                       int n_lib, int n_pred, int n_partial, int Tp)
 {
     auto distances_h =
@@ -325,9 +329,9 @@ void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::partial_sort_cpu",
+        "EDM::ccm::partial_sort",
         Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
-        [=](int i) {
+        [=](size_t i) {
             float *dist_row = &distances_h(i, 0);
             int *ind_row = &indices_h(i, 0);
 
@@ -355,6 +359,16 @@ void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
 
     Kokkos::deep_copy(distances, distances_h);
     Kokkos::deep_copy(indices, indices_h);
+}
+
+void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
+                  int n_pred, int n_partial, int Tp)
+{
+#ifdef KOKKOS_ENABLE_CUDA
+    partial_sort_kokkos(distances, indices, k, n_lib, n_pred, n_partial, Tp);
+#else
+    partial_sort_stl(distances, indices, k, n_lib, n_pred, n_partial, Tp);
+#endif
 }
 
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,

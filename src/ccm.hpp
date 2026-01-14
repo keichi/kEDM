@@ -17,16 +17,19 @@ void full_sort_kokkos(TmpDistances distances, TmpIndices indices, int n_lib,
 void full_sort_with_scratch(TmpDistances distances, TmpIndices indices,
                             int n_lib, int n_pred, int n_partial, int Tp);
 
-void full_sort_cpu(TmpDistances distances, TmpIndices indices, int n_lib,
+void full_sort_stl(TmpDistances distances, TmpIndices indices, int n_lib,
                    int n_pred, int n_partial, int Tp);
 
-void full_sort_radix(TmpDistances distances, TmpIndices indices, int n_lib,
-                     int n_pred, int n_partial, int Tp);
+void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
+                   int n_pred, int n_partial, int Tp);
 
 void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                   int n_pred, int n_partial, int Tp);
 
-void partial_sort_cpu(TmpDistances distances, TmpIndices indices, int k,
+void partial_sort_kokkos(TmpDistances distances, TmpIndices indices, int k,
+                         int n_lib, int n_pred, int n_partial, int Tp);
+
+void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
                       int n_lib, int n_pred, int n_partial, int Tp);
 
 std::vector<float> ccm(TimeSeries library, TimeSeries target,

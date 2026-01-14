@@ -132,7 +132,7 @@ TEST_CASE("Partially sort kNN LUT (CPU version)")
     auto valid_dist = Kokkos::create_mirror(HostSpace(), dist);
     Kokkos::deep_copy(valid_dist, dist);
 
-    edm::partial_sort_cpu(dist, ind, K, L, N, n_partial, Tp);
+    edm::partial_sort_stl(dist, ind, K, L, N, n_partial, Tp);
 
     auto distances = Kokkos::create_mirror_view_and_copy(HostSpace(), dist);
     auto indices = Kokkos::create_mirror_view_and_copy(HostSpace(), ind);
@@ -212,7 +212,7 @@ TEST_CASE("Full sort kNN LUT (CPU version)")
     auto valid_dist = Kokkos::create_mirror(HostSpace(), dist);
     Kokkos::deep_copy(valid_dist, dist);
 
-    edm::full_sort_cpu(dist, ind, L, N, n_partial, Tp);
+    edm::full_sort_stl(dist, ind, L, N, n_partial, Tp);
 
     auto distances = Kokkos::create_mirror_view_and_copy(HostSpace(), dist);
     auto indices = Kokkos::create_mirror_view_and_copy(HostSpace(), ind);
