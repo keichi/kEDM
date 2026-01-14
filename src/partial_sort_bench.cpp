@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     {
         LIKWID_MARKER_THREADINIT;
 
-        LIKWID_MARKER_REGISTER("partial_sort");
+        LIKWID_MARKER_REGISTER("partial_sort_kokkos");
         LIKWID_MARKER_REGISTER("partial_sort_stl");
         LIKWID_MARKER_REGISTER("full_sort");
         LIKWID_MARKER_REGISTER("full_sort_stl");
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
             } else if (stl) {
                 LIKWID_MARKER_START("partial_sort_stl");
             } else {
-                LIKWID_MARKER_START("partial_sort");
+                LIKWID_MARKER_START("partial_sort_kokkos");
             }
         }
 
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
         } else if (stl) {
             edm::partial_sort_stl(distances, indices, k, N, N, 0, 0);
         } else {
-            edm::partial_sort(distances, indices, k, N, N, 0, 0);
+            edm::partial_sort_kokkos(distances, indices, k, N, N, 0, 0);
         }
 
         Kokkos::fence();
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
             } else if (stl) {
                 LIKWID_MARKER_STOP("partial_sort_stl");
             } else {
-                LIKWID_MARKER_STOP("partial_sort");
+                LIKWID_MARKER_STOP("partial_sort_kokkos");
             }
         }
 
@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
         std::cout << "partial_sort_stl " << timer_sort.elapsed() / iterations
                   << std::endl;
     } else {
-        std::cout << "partial_sort " << timer_sort.elapsed() / iterations
+        std::cout << "partial_sort_kokkos " << timer_sort.elapsed() / iterations
                   << std::endl;
     }
 

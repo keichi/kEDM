@@ -204,8 +204,8 @@ const unsigned int RADIX_BITS = 8;
 const unsigned int RADIX_SIZE = 1 << RADIX_BITS;
 const unsigned int RADIX_MASK = RADIX_SIZE - 1;
 
-void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
-                  int n_pred, int n_partial, int Tp)
+void partial_sort_kokkos(TmpDistances distances, TmpIndices indices, int k,
+                         int n_lib, int n_pred, int n_partial, int Tp)
 {
     typedef Kokkos::View<int *,
                          Kokkos::DefaultExecutionSpace::scratch_memory_space,
@@ -328,7 +328,7 @@ void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
     Kokkos::parallel_for(
-        "EDM::ccm::partial_sort_stl", n_pred,
+        "EDM::ccm::partial_sort", n_pred,
         [=](size_t i) {
             float *dist_row = &distances_h(i, 0);
             int *ind_row = &indices_h(i, 0);
@@ -357,6 +357,16 @@ void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
 
     Kokkos::deep_copy(distances, distances_h);
     Kokkos::deep_copy(indices, indices_h);
+}
+
+void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
+                  int n_pred, int n_partial, int Tp)
+{
+#ifdef KOKKOS_ENABLE_CUDA
+    partial_sort_kokkos(distances, indices, k, n_lib, n_pred, n_partial, Tp);
+#else
+    partial_sort_stl(distances, indices, k, n_lib, n_pred, n_partial, Tp);
+#endif
 }
 
 std::vector<float> ccm(TimeSeries lib, TimeSeries target,

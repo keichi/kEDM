@@ -26,6 +26,9 @@ void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
 void partial_sort(TmpDistances distances, TmpIndices indices, int k, int n_lib,
                   int n_pred, int n_partial, int Tp);
 
+void partial_sort_kokkos(TmpDistances distances, TmpIndices indices, int k,
+                         int n_lib, int n_pred, int n_partial, int Tp);
+
 void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
                       int n_lib, int n_pred, int n_partial, int Tp);
 
