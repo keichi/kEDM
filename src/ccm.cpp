@@ -328,31 +328,34 @@ void partial_sort_stl(TmpDistances distances, TmpIndices indices, int k,
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), distances);
     auto indices_h = Kokkos::create_mirror_view(Kokkos::HostSpace(), indices);
 
-    Kokkos::parallel_for("EDM::ccm::partial_sort", n_pred, [=](size_t i) {
-        float *dist_row = &distances_h(i, 0);
-        int *ind_row = &indices_h(i, 0);
+    Kokkos::parallel_for(
+        "EDM::ccm::partial_sort",
+        Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, n_pred),
+        [=](size_t i) {
+            float *dist_row = &distances_h(i, 0);
+            int *ind_row = &indices_h(i, 0);
 
-        std::iota(ind_row, ind_row + n_lib, 0);
+            std::iota(ind_row, ind_row + n_lib, 0);
 
-        std::partial_sort(
-            ind_row, ind_row + k, ind_row + n_lib,
-            [dist_row](int a, int b) { return dist_row[a] < dist_row[b]; });
+            std::partial_sort(
+                ind_row, ind_row + k, ind_row + n_lib,
+                [dist_row](int a, int b) { return dist_row[a] < dist_row[b]; });
 
-        std::vector<float> topk_dist(k);
-        for (int j = 0; j < k; j++) {
-            topk_dist[j] = std::sqrt(dist_row[ind_row[j]]);
-        }
+            std::vector<float> topk_dist(k);
+            for (int j = 0; j < k; j++) {
+                topk_dist[j] = std::sqrt(dist_row[ind_row[j]]);
+            }
 
-        for (int j = 0; j < k; j++) {
-            distances_h(i, j) = topk_dist[j];
-            indices_h(i, j) = ind_row[j] + n_partial + Tp;
-        }
+            for (int j = 0; j < k; j++) {
+                distances_h(i, j) = topk_dist[j];
+                indices_h(i, j) = ind_row[j] + n_partial + Tp;
+            }
 
-        for (int j = k; j < n_lib; j++) {
-            distances_h(i, j) = FLT_MAX;
-            indices_h(i, j) = -1;
-        }
-    });
+            for (int j = k; j < n_lib; j++) {
+                distances_h(i, j) = FLT_MAX;
+                indices_h(i, j) = -1;
+            }
+        });
 
     Kokkos::deep_copy(distances, distances_h);
     Kokkos::deep_copy(indices, indices_h);
