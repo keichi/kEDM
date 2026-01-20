@@ -26,3 +26,16 @@ from ._kedm import *
 
 __version__ = "0.10.1"
 __version_info__ = (0, 10, 1)
+
+__all__ = [
+    "ccm",
+    "edim",
+    "simplex",
+    "eval_simplex",
+    "smap",
+    "eval_smap",
+    "xmap",
+    "get_kokkos_config",
+    "__version__",
+    "__version_info__",
+]
