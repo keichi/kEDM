@@ -272,7 +272,6 @@ if(KEDM_ENABLE_SIMD_PRIMITIVES)
 endif()
 
 # Python bindings
-option(KEDM_ENABLE_PYTHON "Build Python bindings")
 if(KEDM_ENABLE_PYTHON)
   if(NOT KEDM_USE_EXTERNAL_DEPS)
     include(FetchContent)
@@ -292,7 +291,6 @@ if(KEDM_ENABLE_PYTHON)
 endif()
 
 # Unit tests
-option(KEDM_ENABLE_TESTS "Build unit tests" ON)
 if(KEDM_ENABLE_TESTS)
   enable_testing()
 
