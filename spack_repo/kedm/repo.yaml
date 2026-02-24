@@ -1,0 +1,3 @@
+repo:
+  namespace: 'kedm'
+  api: v2.2
