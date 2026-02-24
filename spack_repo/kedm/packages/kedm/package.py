@@ -25,11 +25,14 @@ class Kedm(CMakePackage, CudaPackage):
     variant("scratch_memory", default=True, description="Use Kokkos scratch memory")
     variant("simd_primitives", default=True, description="Use Kokkos SIMD primitives")
 
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+
     depends_on("cmake@3.22:", type="build")
 
     # Core deps (external mode expects these discoverable by CMake)
-    depends_on("kokkos +openmp", when="+cpu")
-    depends_on("kokkos +cuda", when="+cuda")
+    depends_on("kokkos@5.0.0: +openmp", when="+cpu")
+    depends_on("kokkos@5.0.0: +cuda", when="+cuda")
 
     depends_on("boost")  # provides Boost headers used by Boost.Math
 
@@ -46,7 +49,8 @@ class Kedm(CMakePackage, CudaPackage):
 
     # Executables: HighFive/HDF5
     depends_on("highfive", when="+executables")
-    depends_on("hdf5", when="+executables")
+    depends_on("hdf5 +cxx", when="+executables")
+    depends_on("hdf5 +cxx +mpi", when="+executables+mpi")
 
     # Optional LIKWID
     depends_on("likwid", when="+likwid")
@@ -76,9 +80,6 @@ class Kedm(CMakePackage, CudaPackage):
             self.define("KEDM_ENABLE_SCRATCH_MEMORY", "+scratch_memory" in self.spec),
             self.define("KEDM_ENABLE_SIMD_PRIMITIVES", "+simd_primitives" in self.spec),
         ]
-
-        # Note: cuda_arch forwarding into kokkos is handled by the kokkos dependency
-        # (Spack builds kokkos with the correct arch). No need to set Kokkos_ARCH_* here.
 
         return args
 
