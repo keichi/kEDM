@@ -101,10 +101,10 @@ else()
   # Kokkos: controlled by external build (Spack variants), not by cache vars above.
   find_package(Kokkos CONFIG REQUIRED)
 # ---- argh (external-first, fallback) ----
-  find_path(ARHG_INCLUDE_DIR argh.h)
-  if(ARHG_INCLUDE_DIR)
+  find_path(ARGH_INCLUDE_DIR argh.h)
+  if(ARGH_INCLUDE_DIR)
     add_library(argh INTERFACE)
-    target_include_directories(argh INTERFACE ${ARHG_INCLUDE_DIR})
+    target_include_directories(argh INTERFACE ${ARGH_INCLUDE_DIR})
   else()
     include(FetchContent)
     FetchContent_Declare(
