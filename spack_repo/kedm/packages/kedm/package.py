@@ -10,8 +10,8 @@ from spack_repo.builtin.build_systems.cuda import CudaPackage
 
 
 class Kedm(CMakePackage, CudaPackage):
-    homepage = "https://github.com/freifrauvonbleifrei/kEDM"
-    git = "https://github.com/freifrauvonbleifrei/kEDM.git"
+    homepage = "https://github.com/keichi/kEDM"
+    git = "https://github.com/keichi/kEDM.git"
 
     version("master", branch="master")
 
@@ -58,7 +58,7 @@ class Kedm(CMakePackage, CudaPackage):
     # Python bindings (use C++ pybind11 package, not only the Python module)
     extends("python", when="+python")
     depends_on("python@3.8:", when="+python")
-    depends_on("pybind11", when="+python")
+    depends_on("py-pybind11", when="+python")
 
     # Tests
     depends_on("doctest", when="+tests")
