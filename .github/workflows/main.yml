@@ -91,7 +91,7 @@ jobs:
       matrix:
         cxx: [clang++, g++-12]
       fail-fast: false
-    runs-on: macOS-14
+    runs-on: macos-15
     env:
       CXX: ${{ matrix.cxx }}
     steps:
@@ -203,7 +203,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build-wheels-macos:
-    runs-on: macOS-14
+    runs-on: macos-15
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
