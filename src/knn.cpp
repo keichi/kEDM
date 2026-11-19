@@ -527,13 +527,10 @@ void normalize_lut(SimplexLUT lut)
     Kokkos::parallel_for(
         "EDM::knn::normalize_distances", L, KOKKOS_LAMBDA(int i) {
             float sum_weights = 0.0f;
-            float min_dist = FLT_MAX;
-            float max_dist = 0.0f;
+            float min_dist = distances(i, 0);
 
-            for (int j = 0; j < top_k; j++) {
-                float dist = distances(i, j);
-                min_dist = fmin(min_dist, dist);
-                max_dist = fmax(max_dist, dist);
+            for (int j = 1; j < top_k; j++) {
+                min_dist = fmin(min_dist, distances(i, j));
             }
 
             for (int j = 0; j < top_k; j++) {
