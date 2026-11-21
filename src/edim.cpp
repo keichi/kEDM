@@ -25,7 +25,9 @@ int edim(TimeSeries ts, int E_max, int tau, int Tp)
     const auto library = ts;
     const auto target = ts;
 
-    TmpDistances tmp("tmp_distances", ts.size(), ts.size());
+    TmpDistances tmp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        ts.size(), ts.size());
 
     for (int E = 1; E <= E_max; E++) {
         SimplexLUT lut(target.size() - (E - 1) * tau, E + 1);

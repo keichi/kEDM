@@ -362,7 +362,9 @@ py::array_t<float> xmap(py::array_t<float> ds_arr,
         luts.push_back(edm::SimplexLUT(ds.extent(0) - (E - 1) * tau, E + 1));
     }
 
-    edm::TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));
+    edm::TmpDistances tmp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        ds.extent(0), ds.extent(0));
 
     std::vector<edm::Targets> groups;
     edm::group_ts(groups, edims, E_max);

@@ -162,8 +162,12 @@ void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
         n_pred + 1, KOKKOS_LAMBDA(size_t i) { offsets(i) = i * n_lib; });
 
     // Allocate temporary buffers for double-buffering
-    TmpDistances dist_temp("dist_temp", n_pred, n_lib);
-    TmpIndices idx_temp("idx_temp", n_pred, n_lib);
+    TmpDistances dist_temp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "dist_temp"), n_pred,
+        n_lib);
+    TmpIndices idx_temp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "idx_temp"), n_pred,
+        n_lib);
 
     // Set up double buffers for CUB
     cub::DoubleBuffer<float> d_keys(distances.data(), dist_temp.data());
@@ -177,8 +181,9 @@ void full_sort_cub(TmpDistances distances, TmpIndices indices, int n_lib,
                                         offsets.data(), offsets.data() + 1);
 
     // Allocate temporary storage
-    Kokkos::View<char *, DevSpace> temp_storage("temp_storage",
-                                                temp_storage_bytes);
+    Kokkos::View<char *, DevSpace> temp_storage(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "temp_storage"),
+        temp_storage_bytes);
 
     // Run sorting operation
     cub::DeviceSegmentedSort::SortPairs(temp_storage.data(), temp_storage_bytes,
@@ -388,8 +393,12 @@ std::vector<float> ccm(TimeSeries lib, TimeSeries target,
         return rhos;
     }
 
-    TmpDistances tmp_dist("tmp_distances", n_pred, n_lib);
-    TmpIndices tmp_ind("tmp_indices", n_pred, n_lib);
+    TmpDistances tmp_dist(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        n_pred, n_lib);
+    TmpIndices tmp_ind(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_indices"), n_pred,
+        n_lib);
 
     // Compute pairwise distance matrix
     calc_distances(lib, lib, tmp_dist, n_lib, n_pred, E, tau);
@@ -530,7 +539,9 @@ std::vector<float> ccm_naive(TimeSeries lib, TimeSeries target,
 
     int max_lib_size = *std::max_element(lib_sizes.begin(), lib_sizes.end());
 
-    TmpDistances tmp_dist("tmp_distances", n_pred, max_lib_size);
+    TmpDistances tmp_dist(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        n_pred, max_lib_size);
 
     SimplexLUT lut(n_pred, E + 1);
     MutableTimeSeries prediction("prediction", n_pred);
