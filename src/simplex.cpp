@@ -16,7 +16,9 @@ void simplex(MutableTimeSeries result, TimeSeries lib, TimeSeries pred,
             "lib must have no more time steps than target");
     }
 
-    TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));
+    TmpDistances tmp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        pred.extent(0), lib.extent(0));
     SimplexLUT lut(pred.extent(0) - n_partial, E + 1);
 
     knn(lib, pred, lut, tmp, E, tau, Tp, E + 1);
@@ -34,7 +36,9 @@ void simplex(MutableTimeSeries result, Dataset lib, Dataset pred,
             "lib must have no more time steps than target");
     }
 
-    TmpDistances tmp("tmp_distances", pred.extent(0), lib.extent(0));
+    TmpDistances tmp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        pred.extent(0), lib.extent(0));
     SimplexLUT lut(pred.extent(0) - n_partial, E + 1);
 
     knn(lib, pred, lut, tmp, E, tau, Tp, E + 1);

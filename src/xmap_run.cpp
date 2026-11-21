@@ -57,7 +57,9 @@ void run_convergent_cross_mapping(edm::Dataset ds,
             edm::SimplexLUT(ds.extent(0) - (E - 1) * config.tau, E + 1));
     }
 
-    edm::TmpDistances tmp("tmp_distances", ds.extent(0), ds.extent(0));
+    edm::TmpDistances tmp(
+        Kokkos::view_alloc(Kokkos::WithoutInitializing, "tmp_distances"),
+        ds.extent(0), ds.extent(0));
 
     std::vector<edm::Targets> groups;
     edm::group_ts(groups, optimal_E, config.E_max);
